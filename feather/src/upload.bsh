@@ -1,0 +1,21 @@
+#!/bin/bash
+
+ROOT=/home/pi/hive/feather/src
+ARDUINO_PACKAGES=/home/pi/.arduino15/packages
+ARDUINO_TOOLS=${ARDUINO_PACKAGES}/arduino/tools
+UPLD=${ARDUINO_TOOLS}/bossac/1.6.1-arduino/bossac
+
+${ROOT}/doublereset.bsh
+
+port=`ls /dev | grep ACM | head -1`
+notdone="1"
+while [ "$done" != "0" ]
+do
+	${ROOT}/ard-reset-arduino /dev/${port} 2> /dev/null > /dev/null
+	done=$?
+done
+echo "Using USB port ${port}"
+echo "Logging to ${ROOT}/upload.log"
+${UPLD} -i -d --port=${port} -U true -i -e -w -v ${ROOT}/hive.bin -R 2>&1 > ${ROOT}/upload.log
+sleep 1
+tail ${ROOT}/upload.log

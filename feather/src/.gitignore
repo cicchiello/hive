@@ -1,0 +1,17 @@
+/SPI
+/arduino_zero
+/strutils
+/platformutils
+/arduino
+/USB
+/couchutils
+/cloudpipe
+/SD
+/Adafruit_BluefruitLE_nRF51
+/tests
+*.a
+*.bin
+*.elf
+*.hex
+*.map
+screenlog.0
