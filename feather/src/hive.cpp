@@ -287,8 +287,8 @@ void loop(void)
 	        // A full line was collected -- figure out what it's for...
 		rx[len-2] = 0;
 		
-	        D("Received: ");
-		DL(s_rxLine.c_str());
+	        //D("Received: ");
+		//DL(s_rxLine.c_str());
 		
 	        if (CloudPipe::singleton().isTimestampResponse(rx)) {
 		    if (CloudPipe::singleton().processTimestampResponse(rx, &s_timestampMark)) {
@@ -416,9 +416,15 @@ void loop(void)
 			delay(500);
 			connected = true;
 		    } else {
+			PL("Disconnected!");
 		        nextDisconnectTime = millis() + 5*1000;
+			connected = false;
 		    }
-		} else connected = false;
+		} else {
+		    PL("Discovered disconnect; checking again in 5s");
+		    connected = false;
+		    nextDisconnectTime = millis() + 5*1000;
+		}
 	    } else {
 	        // see if reconnection has happened
 	        if (ble.isConnected()) {
@@ -427,6 +433,7 @@ void loop(void)
 		    delay(500);
 		    connected = true;
 		} else {
+		    PL("Not connected; Scheduling a connection check in 5s");
 		    nextDisconnectTime = millis() + 5*1000;
 		}
 	    }
