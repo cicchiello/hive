@@ -9,6 +9,7 @@
 /SD
 /Adafruit_BluefruitLE_nRF51
 /tests
+*.log
 *.a
 *.bin
 *.elf

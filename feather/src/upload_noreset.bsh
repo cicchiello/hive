@@ -5,9 +5,7 @@ ARDUINO_PACKAGES=/home/pi/.arduino15/packages
 ARDUINO_TOOLS=${ARDUINO_PACKAGES}/arduino/tools
 UPLD=${ARDUINO_TOOLS}/bossac/1.6.1-arduino/bossac
 
-rm -f screenlog.0
-
-${ROOT}/doublereset.bsh
+#${ROOT}/doublereset.bsh
 
 port=`ls /dev | grep ACM | head -1`
 notdone="1"
@@ -18,6 +16,6 @@ do
 done
 echo "Using USB port ${port}"
 echo "Logging to ${ROOT}/upload.log"
-${UPLD} -i -d --port=${port} -U true -i -e -w -v ${ROOT}/hive.bin -R 2>&1 > ${ROOT}/upload.log
+${UPLD} -i -d --port=${port} -U true -i -e -w -v ${ROOT}/hive.bin 2>&1 > ${ROOT}/upload.log
 sleep 1
 tail ${ROOT}/upload.log

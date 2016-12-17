@@ -26,9 +26,13 @@
 #include "BluefruitConfig.h"
 
 //#define NDEBUG
+#include <platformutils.h>
 #include <cloudpipe.h>
 #include <str.h>
 #include <txqueue.h>
+#include <freelist.h>
+#include <SensorEntry.h>
+#include <TimestampEntry.h>
 
 
 #define P(args) Serial.print(args)
@@ -96,6 +100,20 @@ void error(const __FlashStringHelper*err) {
 }
 
 
+static void wdtEarlyWarningHandler()
+{
+    // first, prevent the WDT from doing a full system reset by resetting the timer
+    PlatformUtils::nonConstSingleton().clearWDT();
+
+    PL("wdtEarlyWarningHandler; BARK!");
+    PL("");
+    
+    // Next, do a more useful system reset
+    PlatformUtils::nonConstSingleton().resetToBootloader();
+}
+
+
+
 /**************************************************************************/
 /*!
     @brief  Sets up the HW an the BLE module (this function is called
@@ -107,6 +125,9 @@ void setup(void)
   while (!Serial);  // required for Flora & Micro
   delay(500);
 
+  // setup WDT
+  PlatformUtils::nonConstSingleton().initWDT(wdtEarlyWarningHandler);
+  
   Serial.begin(115200);
   PL(F("Adafruit Bluefruit Command Mode Example"));
   PL(F("---------------------------------------"));
@@ -144,6 +165,7 @@ void setup(void)
 
   /* Wait for connection */
   while (! ble.isConnected()) {
+      PlatformUtils::nonConstSingleton().clearWDT();
       delay(500);
   }
 
@@ -167,13 +189,14 @@ void setup(void)
 /**************************************************************************/
 
 #define INIT 0
-#define CHECK_USERINPUT  (INIT+1)
-#define LOOP             CHECK_USERINPUT
-#define CHECK_BLE_RX     (CHECK_USERINPUT+1)
-#define REPORT_TEMP      (CHECK_BLE_RX+1)
-#define GET_TIMESTAMP    (REPORT_TEMP+1)
-#define ATTEMPT_POST     (GET_TIMESTAMP+1)
-#define TEST_DISCONNECT  (ATTEMPT_POST+1)
+#define CHECK_USERINPUT         (INIT+1)
+#define LOOP                    CHECK_USERINPUT
+#define CHECK_BLE_RX            (CHECK_USERINPUT+1)
+#define REPORT_TEMP             (CHECK_BLE_RX+1)
+#define QUEUE_TIMESTAMP_REQUEST (REPORT_TEMP+1)
+#define ATTEMPT_SENSOR_POST     (QUEUE_TIMESTAMP_REQUEST+1)
+#define ATTEMPT_TIMESTAMP_POST  (ATTEMPT_SENSOR_POST+1)
+#define TEST_DISCONNECT         (ATTEMPT_TIMESTAMP_POST+1)
 
 
 static int s_mainState = INIT;
@@ -182,7 +205,10 @@ static char s_userInput[BUFSIZE+1];
 static bool s_haveTimestamp = false, s_requestedTimestamp = false;
 static unsigned long s_timestampMark, s_secondsAtMark;
 static Str s_rxLine;
-static TxQueue txqueue;
+static TxQueue<SensorEntry> *s_sensorTxQueue = NULL;
+static FreeList<SensorEntry> *s_sensorEntryFreeList = NULL;
+static TxQueue<TimestampEntry> *s_timestampTxQueue = NULL;
+static FreeList<TimestampEntry> *s_timestampEntryFreeList = NULL;
 
 
 void loop(void)
@@ -194,10 +220,17 @@ void loop(void)
 	DL(BUFSIZE);
 	s_mainState = CHECK_USERINPUT;
 	s_userInput[0] = 0;
+	s_timestampEntryFreeList = new FreeList<TimestampEntry>();
+	s_timestampTxQueue = new TxQueue<TimestampEntry>();
+	s_sensorEntryFreeList = new FreeList<SensorEntry>();
+	s_sensorTxQueue = new TxQueue<SensorEntry>();
 	delay(500);
     }
       break;
+      
     case CHECK_USERINPUT: {
+        PlatformUtils::nonConstSingleton().clearWDT();
+	
         // Check for user input
         if (pollChar(s_userInput)) {
 	    // see if the character is the line terminator
@@ -254,25 +287,27 @@ void loop(void)
 	        // A full line was collected -- figure out what it's for...
 		rx[len-2] = 0;
 		
-	        //D("Received: ");
-		//DL(s_rxLine.c_str());
+	        D("Received: ");
+		DL(s_rxLine.c_str());
 		
 	        if (CloudPipe::singleton().isTimestampResponse(rx)) {
 		    if (CloudPipe::singleton().processTimestampResponse(rx, &s_timestampMark)) {
 		        s_haveTimestamp = true;
 			s_secondsAtMark = (now+500)/1000;
+			P("Have timestamp: "); PL(s_timestampMark);
+			s_timestampTxQueue->receivedSuccessConfirmation(s_timestampEntryFreeList);
 		    }
 		} else if (CloudPipe::singleton().isSensorUploadResponse(rx)) {
 		    if (CloudPipe::singleton().processSensorUploadResponse(rx)) {
-		        txqueue.receivedSuccessConfirmation();
+		        s_sensorTxQueue->receivedSuccessConfirmation(s_sensorEntryFreeList);
 		    } else {
-		        txqueue.receivedFailureConfirmation();
+		        s_sensorTxQueue->receivedFailureConfirmation();
 		    }
 		} else {
 		    // assume it's randomly entered text
 		    P(F("[Recv] ")); PL(rx);
 		}
-
+		
 		// reset s_rxLine
 		s_rxLine.clear();
 	    }
@@ -283,22 +318,39 @@ void loop(void)
 	if (s_haveTimestamp)
 	    s_mainState = REPORT_TEMP;
 	else if (s_requestedTimestamp)
-	    s_mainState = LOOP;
+	    s_mainState = ATTEMPT_TIMESTAMP_POST;
 	else
-	    s_mainState = GET_TIMESTAMP;
+	    s_mainState = QUEUE_TIMESTAMP_REQUEST;
     }
     break;
 
-    case GET_TIMESTAMP: {
+    case QUEUE_TIMESTAMP_REQUEST: {
         if (now > 10000) {
-	    DL("Requesting timestamp");
-	    CloudPipe::singleton().requestTimestamp(ble);
+	    DL("queueing a call for timestamp");
+
+	    TimestampEntry *e = s_timestampEntryFreeList->pop();
+	    if (e == 0) {
+	        //DL("nothing popped off freelist; creating a new TimestampEntry");
+	        e = new TimestampEntry();
+	    } else {
+	        //DL("using record from freelist");
+	    }
+		  
+	    
+	    s_timestampTxQueue->push(e);
 	    s_requestedTimestamp = true;
 	}
 	s_mainState = LOOP;
     }
     break;
     
+    case ATTEMPT_TIMESTAMP_POST: {
+        //DL("Attempting timestamp post");
+        s_timestampTxQueue->attemptPost(ble);
+	s_mainState = LOOP;
+    }
+      break;
+      
     case REPORT_TEMP: {
         // see if it's time to send a cpu temperature
         static unsigned long nextSampleTime = now + 20*1000;
@@ -312,8 +364,8 @@ void loop(void)
 	    if (! ble.waitForOK() ) {
 	        PL(F("Failed to send?"));
 	    }
-	    D("Measured: ");
-	    DL(temp.c_str());
+	    P("Measured: ");
+	    PL(temp.c_str());
 	    const char *sensorValueStr = temp.c_str();
 		
 	    nextSampleTime = now + 60*1000; // schedule the next one
@@ -325,18 +377,22 @@ void loop(void)
 	    char timestampStr[16];
 	    sprintf(timestampStr, "%lu", secondsSinceEpoch);
 	    
-	    D("queueing an entry with timestamp=");
-	    DL(secondsSinceEpoch);
+	    P("queueing an entry with timestamp=");
+	    PL(secondsSinceEpoch);
 
-	    txqueue.push("cputemp", sensorValueStr, timestampStr);
-	    //CloudPipe::singleton().uploadSensorReading(ble,"cputemp",sensorValueStr,timestampStr);
+	    SensorEntry *e = s_sensorEntryFreeList->pop();
+	    if (e == 0) e = new SensorEntry("cputemp", sensorValueStr, timestampStr);
+	    else e->set("cputemp", sensorValueStr, timestampStr);
+	    
+	    s_sensorTxQueue->push(e);
 	}
-	s_mainState = ATTEMPT_POST;
+	s_mainState = ATTEMPT_SENSOR_POST;
     }
       break;
 
-    case ATTEMPT_POST: {
-        txqueue.attemptPost(ble);
+    case ATTEMPT_SENSOR_POST: {
+        //DL("Attempting sensor post");
+        s_sensorTxQueue->attemptPost(ble);
 	s_mainState = TEST_DISCONNECT;
     }
       break;

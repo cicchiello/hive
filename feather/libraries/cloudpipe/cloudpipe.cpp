@@ -9,7 +9,7 @@
 
 #include <platformutils.h>
 
-//#define NDEBUG
+#define NDEBUG
 #include <str.h>
 
 #define P(args) Serial.print(args)
@@ -53,6 +53,7 @@ void CloudPipe::requestTimestamp(Adafruit_BluefruitLE_SPI &ble) const
 
 bool CloudPipe::isTimestampResponse(const char *rsp) const
 {
+    //DL("CloudPipe::isTimestampResponse");
     const char *prefix = "rply|GETTIME|";
     return (strncmp(rsp, prefix, strlen(prefix)) == 0);
 }
@@ -60,6 +61,7 @@ bool CloudPipe::isTimestampResponse(const char *rsp) const
 
 bool CloudPipe::processTimestampResponse(const char *rsp, unsigned long *timestamp) const
 {
+    DL("CloudPipe::processTimestampResponse");
     const char *prefix = "rply|GETTIME|";
     char *endPtr;
     *timestamp = strtol(rsp + strlen(prefix), &endPtr, 10);
