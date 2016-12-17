@@ -1,0 +1,93 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    tools:context="com.jfc.apps.hive.MainActivity" >
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+	    android:layout_marginStart="15dip"
+	    android:layout_marginLeft="15dip"
+        android:orientation="horizontal" >
+		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:orientation="vertical" >
+	        
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:text="@string/cpuTempLabel"
+	   		    android:textAppearance="?android:attr/textAppearanceMedium"
+	   		    android:textStyle="bold" />
+	
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:layout_marginLeft="15dip"
+	   		    android:layout_marginStart="15dip"
+	   		    android:text="@string/cpuTempDesc"
+	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+   		</LinearLayout>
+   		
+		<LinearLayout
+	            android:layout_width="wrap_content"
+	            android:layout_height="match_parent"
+	            android:layout_weight="0.5"
+	            android:layout_gravity="right"
+	            android:orientation="vertical" >
+	        
+	   	  <TextView
+		      android:id="@+id/cpuTempText"
+		      android:layout_width="wrap_content"
+		      android:layout_height="wrap_content"
+		      android:layout_weight="0.5"
+	          android:background="#848989"
+		      android:layout_gravity="right"
+		      android:text="@string/testTemp" />
+
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+			
+		  <TextView
+		      android:id="@+id/timestampText"
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/timestamp"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		</LinearLayout>
+		
+		<ImageButton
+		    android:id="@+id/selectCpuTempButton"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="end"
+		    android:layout_weight="0.1"
+		    android:contentDescription="@string/cpuTempDesc"
+		    android:src="@drawable/ic_rarrow"
+		    android:text="@string/empty" />
+
+	</LinearLayout>
+    
+</RelativeLayout>
