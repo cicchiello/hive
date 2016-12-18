@@ -9,6 +9,7 @@ import com.jfc.util.misc.DialogUtils;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.os.Bundle;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.ImageButton;
@@ -47,5 +48,14 @@ public class HiveFactoryResetProperty implements IPropertyMgr {
 	}
 
 	public AlertDialog getAlertDialog() {return alert;}
-	public boolean onActivityResult(Activity activity, int requestCode, int resultCode, Intent intent) {return false;}
+	public boolean onActivityResult(int requestCode, int resultCode, Intent intent) {return false;}
+	
+	@Override
+	public void onPermissionResult(int requestCode, String[] permissions, int[] grantResults) {}
+	
+	@Override
+    public void onRestoreInstanceState(Bundle savedInstanceState) {}
+	
+	@Override
+    public void onSaveInstanceState(Bundle savedInstanceState) {}
 }

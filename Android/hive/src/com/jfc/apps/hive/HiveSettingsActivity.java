@@ -14,6 +14,7 @@ import java.util.List;
 import android.app.ActionBar;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.MenuItem;
@@ -32,14 +33,17 @@ public class HiveSettingsActivity extends Activity {
 	private BluetoothPipeSrvc mPipe = null;
 	private HiveIdProperty mIdProp = null;
 	
+    
     @SuppressWarnings("unused")
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-		if (savedInstanceState != null) {
+        // Check whether we're recreating a previously destroyed instance
+        if (savedInstanceState != null) {
 			// activity being re created -- onRestoreInstanceState will be called from parent onStart
-		} else {
+			Log.i(TAG, "onCreate; activity being recreated -- onRestoreInstanceState will be called from parent onStart");
+        } else {
 			Intent i = getIntent();
 			if (i == null || (i.getAction() != null && i.getAction().equals("android.intent.action.MAIN"))) {
 				// activity being launched directly --- everything defaults to test data
@@ -48,7 +52,7 @@ public class HiveSettingsActivity extends Activity {
 				// activity being launched from other activity (normal production case)
 				Log.i(TAG, "onCreate; activity launched from other activity");
 			}
-		}
+        }
 
         if (!RELEASE_TEST && BuildConfig.DEBUG) {
         	setContentView(R.layout.settings_debug);
@@ -92,8 +96,8 @@ public class HiveSettingsActivity extends Activity {
         		}
     		}});
         mMgrs.add(new HiveFactoryResetProperty(this, (ImageButton) findViewById(R.id.factoryResetButton), resetters));
-        
-    	setTitle("Hive: Settings");
+
+        setTitle("Hive: Settings");
     }
 
 	@Override
@@ -113,14 +117,27 @@ public class HiveSettingsActivity extends Activity {
     	Log.i(TAG, "enterred onPause");
     	
     	mPipe.onPause();
-    	mIdProp.setPipe(mPipe = null);
     	
     	for (IPropertyMgr mgr : mMgrs) 
     		if (mgr.getAlertDialog() != null) mgr.getAlertDialog().dismiss();
     	
-   		super.onPause();
+    	super.onPause();
    		Log.i(TAG, "exitting onPause");
     }
+    
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+    	for (IPropertyMgr mgr : mMgrs) 
+    		mgr.onRestoreInstanceState(savedInstanceState);
+    }
+    
+    @Override
+    protected void onSaveInstanceState(Bundle savedInstanceState) {
+    	for (IPropertyMgr mgr : mMgrs) 
+    		mgr.onSaveInstanceState(savedInstanceState);
+    	mPipe = null;
+    }
+
     
     @Override
 	public void onBackPressed() {
@@ -139,11 +156,18 @@ public class HiveSettingsActivity extends Activity {
         return true;
     }
 
-    public void onActivityResult(int requestCode, int resultCode, Intent intent) {
-    	boolean wasHandled = false;
+	private static final int REQUEST_COARSE_LOCATION=0;
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
     	for (IPropertyMgr mgr : mMgrs) 
-    		if (mgr.onActivityResult(this, requestCode, resultCode, intent))
-    			wasHandled = true;
+    		mgr.onPermissionResult(requestCode, permissions, grantResults);
+    }
+    
+    public void onActivityResult(int requestCode, int resultCode, Intent intent) {
+    	for (IPropertyMgr mgr : mMgrs) 
+    		if (mgr.onActivityResult(requestCode, resultCode, intent)) {
+    		}
     }
     
 }

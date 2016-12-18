@@ -1,9 +1,9 @@
 package com.jfc.srvc.ble2cld;
 
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -18,6 +18,7 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
+import android.os.Bundle;
 import android.util.Log;
 
 public class BluetoothPipeSrvc implements BleExecutorListener {
@@ -29,7 +30,10 @@ public class BluetoothPipeSrvc implements BleExecutorListener {
     public static final int kTxMaxCharacters = 20;
 
 
+    // created on construction -- no need to stave state on pause
 	private Activity mActivity = null;
+
+	// transient variables -- no need to save on pause
 	private AtomicBoolean mShutdown = new AtomicBoolean(false), mIsConnected = new AtomicBoolean(false);
     private StringBuffer rxLine = new StringBuffer();
 	private BleGattExecutor mExecutor = null;
@@ -37,15 +41,17 @@ public class BluetoothPipeSrvc implements BleExecutorListener {
 	private BluetoothGatt mGatt = null;
 	private BluetoothAdapter mAdapter = null;	
 	private BluetoothDevice mDevice = null;
-	private String mAddress = null;
+    private boolean queueConsumerStarted = false;
+
+    // this is the state that needs to be maintained onPause
+    private BlockingQueue<String> queue = new LinkedBlockingQueue<String>();
 	
 	public BluetoothPipeSrvc(Activity activity) {
 		mActivity = activity;
 	}
 	
 	public boolean addDevice(String deviceAddress) {
-		mAddress = "DD:D1:09:0A:1A:0B";
-		connect(mAddress);
+		connect(deviceAddress);
 		return true;
 	}
 	
@@ -77,6 +83,7 @@ public class BluetoothPipeSrvc implements BleExecutorListener {
             gatt.discoverServices();
 		} else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
     		Log.d(TAG, "onConnectionStateChange; DISCONNECTED");
+    		mExecutor.clear();
     		mIsConnected.set(false);
 		} else 
     		Log.e(TAG, "onConnectionStateChange; status="+status+" new="+newState);
@@ -122,8 +129,6 @@ public class BluetoothPipeSrvc implements BleExecutorListener {
 	}
 	
 
-    private BlockingQueue<String> queue = new LinkedBlockingQueue<String>();
-    private boolean queueConsumerStarted = false;
     private Thread queueConsumer = new Thread(new Runnable() {
         @Override
         public void run() {
@@ -181,7 +186,7 @@ public class BluetoothPipeSrvc implements BleExecutorListener {
 		        	if (!mIsConnected.get()) {
 		        		mGatt = mDevice.connectGatt(mActivity, false, mExecutor);
 		        	}
-		        	for (int i = 0; i < 10 && !mShutdown.get(); i++) {
+		        	for (int i = 0; i < 50 && !mShutdown.get(); i++) {
 			        	try {
 							Thread.sleep(100);
 						} catch (InterruptedException e) {
@@ -199,7 +204,29 @@ public class BluetoothPipeSrvc implements BleExecutorListener {
     public void onPause() {
     	Log.i(TAG, "onPause");
     	
+    	mShutdown.set(true);
+    	
     	mActivity = null;
     }
     
+    public void onRestoreInstanceState(Bundle savedInstanceState) {
+    	int len = savedInstanceState.getInt(this.getClass().getSimpleName()+".queue.len");
+    	for (int i = len; i > 0; i--) {
+    		savedInstanceState.getString(this.getClass().getSimpleName()+".queue."+(i-1));
+    	}
+	}
+	
+    public void onSaveInstanceState(Bundle savedInstanceState) {
+    	List<String> arr = new ArrayList<String>();
+    	String a = null;
+    	while ((a = queue.poll()) != null) {
+    		arr.add(a);
+    	}
+    	savedInstanceState.putInt(this.getClass().getSimpleName()+".queue.len", arr.size());
+    	int i = 0;
+    	for (String b : arr) {
+    		savedInstanceState.putString(this.getClass().getSimpleName()+".queue."+i++, b);
+    	}
+	}
+
 }
