@@ -19,25 +19,30 @@
   #include <SoftwareSerial.h>
 #endif
 
-#include "Adafruit_BLE.h"
 #include "Adafruit_BluefruitLE_SPI.h"
-#include "Adafruit_BluefruitLE_UART.h"
 
 #include "BluefruitConfig.h"
 
-//#define NDEBUG
+#define NDEBUG
 #include <platformutils.h>
 #include <cloudpipe.h>
 #include <str.h>
 #include <txqueue.h>
-#include <freelist.h>
-#include <SensorEntry.h>
-#include <TimestampEntry.h>
+#include <Timestamp.h>
+
+#include <CpuTempSensor.h>
+#include <DHTSensor.h>
 
 
+//#define HEADLESS
+
+#ifndef HEADLESS
 #define P(args) Serial.print(args)
 #define PL(args) Serial.println(args)
-
+#else
+#define P(args) 
+#define PL(args) 
+#endif
 
 #ifndef NDEBUG
 #define D(args) P(args)
@@ -90,9 +95,9 @@ Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_
 
 
 
-// A small helper
-void setup(void);
-void loop(void);
+void handleUserInput(Adafruit_BluefruitLE_SPI &ble);
+void handleBLEInput(Adafruit_BluefruitLE_SPI &ble);
+  
 bool pollChar(char buffer[]);
 void error(const __FlashStringHelper*err) {
   PL(err);
@@ -129,7 +134,7 @@ void setup(void)
   PlatformUtils::nonConstSingleton().initWDT(wdtEarlyWarningHandler);
   
   Serial.begin(115200);
-  PL(F("Adafruit Bluefruit Command Mode Example"));
+  PL(F("Hive Controller debug console"));
   PL(F("---------------------------------------"));
 
   /* Initialise the module */
@@ -157,9 +162,8 @@ void setup(void)
   /* Print Bluefruit information */
   ble.info();
 
-  PL(F("Please use Adafruit Bluefruit LE app to connect in UART mode"));
-  PL(F("Then Enter characters to send to Bluefruit"));
   PL();
+  PL("Awaiting connection");
 
   ble.verbose(false);  // debug info is a little annoying after this point!
 
@@ -169,6 +173,9 @@ void setup(void)
       delay(500);
   }
 
+  PL("Connected");
+  PL();
+  
   // LED Activity command is only supported from 0.6.6
   if ( ble.isVersionAtLeast(MINIMUM_FIRMWARE_VERSION) )
   {
@@ -192,24 +199,19 @@ void setup(void)
 #define CHECK_USERINPUT         (INIT+1)
 #define LOOP                    CHECK_USERINPUT
 #define CHECK_BLE_RX            (CHECK_USERINPUT+1)
-#define REPORT_TEMP             (CHECK_BLE_RX+1)
-#define QUEUE_TIMESTAMP_REQUEST (REPORT_TEMP+1)
+#define SAMPLE_SENSOR           (CHECK_BLE_RX+1)
+#define QUEUE_TIMESTAMP_REQUEST (SAMPLE_SENSOR+1)
 #define ATTEMPT_SENSOR_POST     (QUEUE_TIMESTAMP_REQUEST+1)
 #define ATTEMPT_TIMESTAMP_POST  (ATTEMPT_SENSOR_POST+1)
 #define TEST_DISCONNECT         (ATTEMPT_TIMESTAMP_POST+1)
 
 
 static int s_mainState = INIT;
-static char s_userInput[BUFSIZE+1];
 
-static bool s_haveTimestamp = false, s_requestedTimestamp = false;
-static unsigned long s_timestampMark, s_secondsAtMark;
-static Str s_rxLine;
-static TxQueue<SensorEntry> *s_sensorTxQueue = NULL;
-static FreeList<SensorEntry> *s_sensorEntryFreeList = NULL;
-static TxQueue<TimestampEntry> *s_timestampTxQueue = NULL;
-static FreeList<TimestampEntry> *s_timestampEntryFreeList = NULL;
-
+#define MAX_SENSORS 20
+static Timestamp *s_timestamp = 0;
+static Sensor *s_sensors[MAX_SENSORS];
+static int s_currSensor = -1;
 
 void loop(void)
 {
@@ -218,12 +220,20 @@ void loop(void)
     case INIT: {
         D("BUFSIZE: ");
 	DL(BUFSIZE);
+	for (int i = 0; i < MAX_SENSORS; i++) {
+	    s_sensors[i] = NULL;
+	}
 	s_mainState = CHECK_USERINPUT;
-	s_userInput[0] = 0;
-	s_timestampEntryFreeList = new FreeList<TimestampEntry>();
-	s_timestampTxQueue = new TxQueue<TimestampEntry>();
-	s_sensorEntryFreeList = new FreeList<SensorEntry>();
-	s_sensorTxQueue = new TxQueue<SensorEntry>();
+	s_timestamp = new Timestamp();
+
+	// register sensors
+	s_currSensor = 0;
+	s_sensors[0] = new CpuTempSensor(now, ble);
+	s_sensors[1] = new DHTSensor(now);
+
+	PL("Sensors initialized;");
+  
+	// wait a bit for comms to settle
 	delay(500);
     }
       break;
@@ -232,92 +242,20 @@ void loop(void)
         PlatformUtils::nonConstSingleton().clearWDT();
 	
         // Check for user input
-        if (pollChar(s_userInput)) {
-	    // see if the character is the line terminator
-	    int len = strlen(s_userInput);
-	    if ((s_userInput[len-1] == '\n') || (s_userInput[len-1] == '\r')) {
-	        // remove the trailing \n 'cause it confuses the AT command set of the BLE
-	        s_userInput[len-1] = 0;
-	      
-	        // send string to Bluefruit
-	        P("[Send] ");
-		PL(s_userInput);
+	handleUserInput(ble);
 
-		ble.print("AT+BLEUARTTX=");
-		ble.print(s_userInput);
-		ble.println("\\n");
-
-		// check response stastus
-		if (! ble.waitForOK() ) {
-		    PL(F("Failed to send?"));
-		}
-		
-		// set the buffer back to empty
-		s_userInput[0] = 0;
-	    } else {
-	        if (strlen(s_userInput) == BUFSIZE) {
-		    // at buffer limit
-		    P("[Send substring] ");
-		    PL(s_userInput);
-
-		    ble.print("AT+BLEUARTTX=");
-		    ble.print(s_userInput);
-		    ble.println("\\n");
-		}
-	    }
-	} 
-
-	// after one poll of the user's input, move on to the next state in the loop
+	// after a poll of the user's input, move on to the next state in the loop
 	s_mainState = CHECK_BLE_RX;
     }
     break;
     
     case CHECK_BLE_RX: {
-        // Check for incoming characters from Bluefruit
-        ble.println("AT+BLEUARTRX");
-	ble.readline();
-	if (strcmp(ble.buffer, "OK") != 0) {
-	    s_rxLine.append(ble.buffer);
-	    int len = s_rxLine.len();
+        // Check for incoming transmission from Bluefruit
+        handleBLEInput(ble);
 
-	    // see if we have a full line
-	    char *rx = (char*) s_rxLine.c_str();
-	    if ((rx[len-2] == '\\') && (rx[len-1] == 'n')) {
-	      
-	        // A full line was collected -- figure out what it's for...
-		rx[len-2] = 0;
-		
-	        //D("Received: ");
-		//DL(s_rxLine.c_str());
-		
-	        if (CloudPipe::singleton().isTimestampResponse(rx)) {
-		    if (CloudPipe::singleton().processTimestampResponse(rx, &s_timestampMark)) {
-		        s_haveTimestamp = true;
-			s_secondsAtMark = (now+500)/1000;
-			P("Have timestamp: "); PL(s_timestampMark);
-			s_timestampTxQueue->receivedSuccessConfirmation(s_timestampEntryFreeList);
-		    }
-		} else if (CloudPipe::singleton().isSensorUploadResponse(rx)) {
-		    if (CloudPipe::singleton().processSensorUploadResponse(rx)) {
-		        s_sensorTxQueue->receivedSuccessConfirmation(s_sensorEntryFreeList);
-		    } else {
-		        s_sensorTxQueue->receivedFailureConfirmation();
-		    }
-		} else {
-		    // assume it's randomly entered text
-		    P(F("[Recv] ")); PL(rx);
-		}
-		
-		// reset s_rxLine
-		s_rxLine.clear();
-	    }
-	    
-	    ble.waitForOK();
-	}
-
-	if (s_haveTimestamp)
-	    s_mainState = REPORT_TEMP;
-	else if (s_requestedTimestamp)
+	if (s_timestamp->haveTimestamp())
+	    s_mainState = SAMPLE_SENSOR;
+	else if (s_timestamp->haveRequestedTimestamp())
 	    s_mainState = ATTEMPT_TIMESTAMP_POST;
 	else
 	    s_mainState = QUEUE_TIMESTAMP_REQUEST;
@@ -326,19 +264,7 @@ void loop(void)
 
     case QUEUE_TIMESTAMP_REQUEST: {
         if (now > 10000) {
-	    DL("queueing a call for timestamp");
-
-	    TimestampEntry *e = s_timestampEntryFreeList->pop();
-	    if (e == 0) {
-	        //DL("nothing popped off freelist; creating a new TimestampEntry");
-	        e = new TimestampEntry();
-	    } else {
-	        //DL("using record from freelist");
-	    }
-		  
-	    
-	    s_timestampTxQueue->push(e);
-	    s_requestedTimestamp = true;
+	    s_timestamp->enqueueRequest();
 	}
 	s_mainState = LOOP;
     }
@@ -346,53 +272,42 @@ void loop(void)
     
     case ATTEMPT_TIMESTAMP_POST: {
         //DL("Attempting timestamp post");
-        s_timestampTxQueue->attemptPost(ble);
+        s_timestamp->attemptPost(ble);
 	s_mainState = LOOP;
     }
       break;
       
-    case REPORT_TEMP: {
-        // see if it's time to send a cpu temperature
-        static unsigned long nextSampleTime = now + 20*1000;
-	static int sendCnt = 0;
+    case SAMPLE_SENSOR: {
+        // see if it's time to sample
+        if (s_sensors[s_currSensor]->isItTimeYet(now)) {
+	    s_sensors[s_currSensor]->scheduleNextSample(now);
 
-	if ( now >= nextSampleTime ) {
-	    // crudely simulate a sensor by taking the BLE module's temperature
-	    ble.println("AT+HWGETDIETEMP");
-	    ble.readline();
-	    Str temp(ble.buffer);
-	    if (! ble.waitForOK() ) {
-	        PL(F("Failed to send?"));
-	    }
-	    P("Measured: ");
-	    PL(temp.c_str());
-	    const char *sensorValueStr = temp.c_str();
-		
-	    nextSampleTime = now + 60*1000; // schedule the next one
-
-	    unsigned long secondsSinceBoot = (now+500)/1000;
-	    unsigned long secondsSinceMark = secondsSinceBoot - s_secondsAtMark;
-	    unsigned long secondsSinceEpoch = secondsSinceMark + s_timestampMark;
-
-	    char timestampStr[16];
-	    sprintf(timestampStr, "%lu", secondsSinceEpoch);
+	    Str timestampStr;
+	    s_timestamp->toString(now, &timestampStr);
 	    
-	    P("queueing an entry with timestamp=");
-	    PL(secondsSinceEpoch);
-
-	    SensorEntry *e = s_sensorEntryFreeList->pop();
-	    if (e == 0) e = new SensorEntry("cputemp", sensorValueStr, timestampStr);
-	    else e->set("cputemp", sensorValueStr, timestampStr);
+	    Str sensorValueStr;
+	    s_sensors[s_currSensor]->sensorSample(&sensorValueStr);
 	    
-	    s_sensorTxQueue->push(e);
+	    D("queueing an entry with timestamp=");
+	    DL(timestampStr.c_str());
+
+	    s_sensors[s_currSensor]->enqueueRequest(sensorValueStr.c_str(), timestampStr.c_str());
 	}
+
 	s_mainState = ATTEMPT_SENSOR_POST;
+	
     }
       break;
 
     case ATTEMPT_SENSOR_POST: {
         //DL("Attempting sensor post");
-        s_sensorTxQueue->attemptPost(ble);
+        s_sensors[s_currSensor]->attemptPost(ble);
+
+	s_currSensor++;
+	if (s_sensors[s_currSensor] == NULL) {
+	    s_currSensor = 0;
+	}
+	
 	s_mainState = TEST_DISCONNECT;
     }
       break;
@@ -464,3 +379,95 @@ bool pollChar(char buffer[])
     }
 }
 
+
+
+void handleUserInput(Adafruit_BluefruitLE_SPI &ble)
+{
+    static char s_userInput[BUFSIZE+1];
+    static bool s_userInputInitialized = false;
+    if (!s_userInputInitialized) {
+        s_userInput[0] = 0;
+	s_userInputInitialized = true;
+    }
+    
+    if (pollChar(s_userInput)) {
+        // see if the character is the line terminator
+        int len = strlen(s_userInput);
+	if ((s_userInput[len-1] == '\n') || (s_userInput[len-1] == '\r')) {
+	    // remove the trailing \n 'cause it confuses the AT command set of the BLE
+	    s_userInput[len-1] = 0;
+	      
+	    // send string to Bluefruit
+	    P("[Send] ");
+	    PL(s_userInput);
+
+	    ble.print("AT+BLEUARTTX=");
+	    ble.print(s_userInput);
+	    ble.println("\\n");
+
+	    // check response stastus
+	    if (! ble.waitForOK() ) {
+	        PL(F("Failed to send?"));
+	    }
+		
+	    // set the buffer back to empty
+	    s_userInput[0] = 0;
+	} else {
+	    if (strlen(s_userInput) == BUFSIZE) {
+	        // at buffer limit
+	        P("[Send substring] ");
+		PL(s_userInput);
+
+		ble.print("AT+BLEUARTTX=");
+		ble.print(s_userInput);
+		ble.println("\\n");
+	    }
+	}
+    } 
+}
+
+
+void handleBLEInput(Adafruit_BluefruitLE_SPI &ble)
+{
+    static Str s_rxLine;
+    
+    ble.println("AT+BLEUARTRX");
+    ble.readline();
+    if (strcmp(ble.buffer, "OK") != 0) {
+        s_rxLine.append(ble.buffer);
+	int len = s_rxLine.len();
+
+	// see if we have a full line
+	char *rx = (char*) s_rxLine.c_str();
+	if ((rx[len-2] == '\\') && (rx[len-1] == 'n')) {
+	      
+	    // A full line was collected -- figure out what it's for...
+	    rx[len-2] = 0;
+		
+	    //D("Received: ");
+	    //DL(s_rxLine.c_str());
+
+	    if (s_timestamp->isTimestampResponse(rx)) {
+	        s_timestamp->processTimestampResponse(rx);
+	    } else {
+	        bool found = false;
+		int i = 0;
+		while (!found && (s_sensors[i] != NULL)) {
+		    if (s_sensors[i]->isMyResponse(rx)) {
+		        found = true;
+			s_sensors[i]->processResponse(rx);
+		    }
+		}
+		if (!found) {
+		    // assume it's randomly entered text -- report it
+		    P(F("[Recv] ")); PL(rx);
+		}
+	    }
+	    
+	    // reset s_rxLine
+	    s_rxLine.clear();
+	}
+	    
+	ble.waitForOK();
+    }
+}

@@ -24,7 +24,8 @@
 #endif
 
 
-static const char *sensorLogDb = "hive-sensor-log";     // couchdb name
+/* STATIC */
+const char *CloudPipe::SensorLogDb = "hive-sensor-log";     // couchdb name
 
 
 /* STATIC */
@@ -36,85 +37,37 @@ CloudPipe::CloudPipe()
 }
 
 
-void CloudPipe::requestTimestamp(Adafruit_BluefruitLE_SPI &ble) const
+void CloudPipe::getMacAddress(Adafruit_BluefruitLE_SPI &ble, Str *mac) const
 {
-    ble.print("AT+BLEUARTTX=");
-    ble.print("cmd|GETTIME");
-    ble.println("\\n");
-
-    // check response status
-    if ( ble.waitForOK() ) {
-        //DL("got ok after sending GETTIME");
-    } else {
-        PL("didn't get ok after sending GETTIME");
+    static bool s_acquiredMacAddress = false;
+    static Str s_macAddress;
+    if (!s_acquiredMacAddress) {
+        ble.println("AT+BLEGETADDR");
+	ble.readline();
+	s_macAddress = ble.buffer;
+	//DL(mac->c_str());
+	if (! ble.waitForOK() ) {
+	    PL(F("Failed to send?"));
+	}
+	for (char *p = (char*) mac->c_str(); *p; p++)
+	    if (*p == ':')
+	        *p = '-';
+	//DL(mac->c_str());
+	s_acquiredMacAddress = true;
     }
-}
 
-
-bool CloudPipe::isTimestampResponse(const char *rsp) const
-{
-    //DL("CloudPipe::isTimestampResponse");
-    const char *prefix = "rply|GETTIME|";
-    return (strncmp(rsp, prefix, strlen(prefix)) == 0);
-}
-
-
-bool CloudPipe::processTimestampResponse(const char *rsp, unsigned long *timestamp) const
-{
-    DL("CloudPipe::processTimestampResponse");
-    const char *prefix = "rply|GETTIME|";
-    char *endPtr;
-    *timestamp = strtol(rsp + strlen(prefix), &endPtr, 10);
-    Serial.print("Received reply to GETTIME: ");
-    Serial.println(*timestamp);
-    return endPtr > rsp+strlen(prefix);
-}
-
-
-bool CloudPipe::isSensorUploadResponse(const char *rsp) const
-{
-    const char *prefix = "rply|POST|";
-    return (strncmp(rsp, prefix, strlen(prefix)) == 0);
-}
-
-
-bool CloudPipe::processSensorUploadResponse(const char *rsp) const
-{
-    const char *prefix = "rply|POST|";
-    Str response(rsp + strlen(prefix));
-    D("Received reply to POST: ");
-    DL(response.c_str());
-    return strcmp(response.c_str(), "success") == 0;
-}
-
-static void getMacAddress(Adafruit_BluefruitLE_SPI &ble, Str *mac)
-{
-    ble.println("AT+BLEGETADDR");
-    ble.readline();
-    *mac = ble.buffer;
-    //DL(mac->c_str());
-    if (! ble.waitForOK() ) {
-        PL(F("Failed to send?"));
-    }
-    for (char *p = (char*) mac->c_str(); *p; p++)
-      if (*p == ':')
-	*p = '-';
-    //DL(mac->c_str());
+    *mac = s_macAddress;
 }
 
 void CloudPipe::uploadSensorReading(Adafruit_BluefruitLE_SPI &ble,
 				    const char *sensorName, const char *value, const char *timestamp) const
 {
-    static bool acquiredMacAddress = false;
-    static Str macAddress;
-    if (!acquiredMacAddress) {
-        getMacAddress(ble, &macAddress);
-	acquiredMacAddress = true;
-    }
-    
+    Str macAddress;
+    getMacAddress(ble, &macAddress);
+  
     ble.print("AT+BLEUARTTX=");
     ble.print("cmd|POST|");
-    ble.print(sensorLogDb);
+    ble.print(SensorLogDb);
     ble.print("|");
     ble.print("{\"hiveid\":\"");
     ble.print(macAddress.c_str());

@@ -113,7 +113,7 @@ class TxQueue {
 
   void receivedSuccessConfirmation(FreeList<E> *freeList)
   {
-      DL("TxQueue::receivedSuccessConfirmation; successful post confirmed");
+      //DL("TxQueue::receivedSuccessConfirmation; successful post confirmed");
       
       // remove the 0th entry from the queue ('cause it's just been confirmed)
       E *e = queue[0];
