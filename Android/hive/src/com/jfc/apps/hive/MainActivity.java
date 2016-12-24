@@ -1,6 +1,8 @@
 package com.jfc.apps.hive;
 
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -8,10 +10,12 @@ import com.example.hive.R;
 import com.jfc.util.misc.SplashyText;
 
 import android.app.Activity;
+import android.bluetooth.BluetoothAdapter;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.format.DateFormat;
 import android.util.Log;
+import android.util.Pair;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
@@ -19,7 +23,6 @@ import android.widget.TextView;
 public class MainActivity extends Activity {
 	private static final String TAG = MainActivity.class.getSimpleName();
 	
-	private static final String HiveId = "6402766935504d51202020351c0914ff";
     private static final String DbHost = "http://192.168.1.85";
     private static final int DbPort = 5984;
     private static final String Db = "hive-sensor-log";
@@ -41,22 +44,87 @@ public class MainActivity extends Activity {
     	startPolling();
 	}
 
-	private void setInitialValues() {
-		String v = MCUTempProperty.getMCUTempValue(this);
-	    TextView cpuTempText = (TextView) findViewById(R.id.cpuTempText);
-		cpuTempText.setText(v);
-	
-	    TextView timestampText = (TextView) findViewById(R.id.timestampText);
-		if (MCUTempProperty.isMCUTempPropertyDefined(this)) {
-	        Calendar cal = Calendar.getInstance(Locale.ENGLISH);
-			cal.setTimeInMillis(MCUTempProperty.getMCUTempDate(this));
-			String date = DateFormat.format("dd-MMM-yy HH:mm", cal).toString();
-			timestampText.setText(date);
-		} else {
-			timestampText.setText("<unknown>");
-		}
+	private void setValue(int valueResid, int timestampResid, String value, boolean isTimestampDefined, long timestamp) {
+		setValueImplementation(valueResid, timestampResid, value, isTimestampDefined, timestamp, false);
 	}
 
+	private void setValueWithSplash(int valueResid, int timestampResid, String value, boolean isTimestampDefined, long timestamp) {
+		setValueImplementation(valueResid, timestampResid, value, isTimestampDefined, timestamp, true);
+	}
+
+	private void setInitialValues() {
+		setValue(R.id.cpuTempText, R.id.cpuTempTimestampText,
+				 MCUTempProperty.getMCUTempValue(this), 
+				 MCUTempProperty.isMCUTempPropertyDefined(this), 
+				 MCUTempProperty.getMCUTempDate(this));
+		
+		setValue(R.id.tempText, R.id.tempTimestampText,
+				 TempProperty.getTempValue(this), 
+				 TempProperty.isTempPropertyDefined(this), 
+				 TempProperty.getTempDate(this));
+		
+		setValue(R.id.humidText, R.id.humidTimestampText,
+				 HumidProperty.getHumidValue(this), 
+				 HumidProperty.isHumidPropertyDefined(this), 
+				 HumidProperty.getHumidDate(this));
+	}
+
+	
+	private String getHiveAddress(String hiveName) {
+    	List<Pair<String,String>> existingPairs = new ArrayList<Pair<String,String>>();
+    	if (BluetoothAdapter.getDefaultAdapter() == null) {
+    		// simulate one of my devices
+    		// F0-17-66-FC-5E-A1
+    		if (hiveName.equals("Joe's Hive")) 
+    			return "F0-17-66-FC-5E-A1";
+    		else 
+    			return null;
+    	} else {
+	    	int sz = NumHivesProperty.getNumHivesProperty(this);
+	    	for (int i = 0; i < sz; i++) {
+	    		if (PairedHiveProperty.getPairedHiveName(this, i).equals(hiveName)) 
+	    			return PairedHiveProperty.getPairedHiveId(this, i);
+	    	}
+	    	return null;
+    	}
+    	
+	}
+	
+	
+	private String createQuery(String hiveId, String sensor) {
+		String rangeStartKeyClause = "[\"" + hiveId + "\",\""+sensor+"\",\"99999999\"]";
+		String rangeEndKeyClause = "[\"" + hiveId + "\",\""+sensor+"\",\"00000000\"]";
+		String query = "_design/SensorLog/_view/by-hive-sensor?endKey=" + rangeEndKeyClause + "&startkey=" + rangeStartKeyClause + "&descending=true&limit=1";
+		return query;
+	}
+	
+	interface OnSaveValue {
+		public void save(Activity activity, String value, long timestamp);
+	};
+	
+	private PollSensorBackground.ResultCallback getOnCompletion(final int valueResid, final int timestampResid, final OnSaveValue saver) {
+		PollSensorBackground.ResultCallback onCompletion = new PollSensorBackground.ResultCallback() {
+			@Override
+	    	public void report(String sensorType, final String timestampStr, final String valueStr) {
+				runOnUiThread(new Runnable() {
+					@Override
+					public void run() {
+						long timestamp = Long.parseLong(timestampStr)*1000;
+						setValueWithSplash(valueResid, timestampResid, valueStr, true, timestamp);
+						saver.save(MainActivity.this, valueStr, timestamp);
+					}
+				});
+			}
+			
+			@Override
+			public void error(String msg) {
+				Log.e(TAG, "Error: "+msg);
+			}
+		};
+		return onCompletion;
+	}
+
+	
 	private void startPolling() {
 		synchronized (this) {
 			if (mPoller == null) {
@@ -77,44 +145,41 @@ public class MainActivity extends Activity {
 							// 95ms*600==57000ms
 							if (cnt++ == 600) {
 								cnt = 0;
-								String HiveId = HiveIdProperty.getHiveIdProperty(MainActivity.this);
-								HiveId = HiveId.replace(':', '-');
-								String rangeStartKeyClause = "[\"" + HiveId + "\",\"cputemp\",\"99999999\"]";
-								String rangeEndKeyClause = "[\"" + HiveId + "\",\"cputemp\",\"00000000\"]";
-								String query = "_design/SensorLog/_view/by-hive-sensor?endKey=" + rangeEndKeyClause + "&startkey=" + rangeStartKeyClause + "&descending=true&limit=1";
-								PollSensorBackground.ResultCallback onCompletion = new PollSensorBackground.ResultCallback() {
-									@Override
-							    	public void report(String sensorType, final String timestampStr, final String valueStr) {
-										runOnUiThread(new Runnable() {
-											@Override
-											public void run() {
-										        TextView timestampText = (TextView) findViewById(R.id.timestampText);
-										        long timestamp = Long.parseLong(timestampStr)*1000;
-										        MCUTempProperty.setMCUTempProperty(MainActivity.this, valueStr, timestamp);
-		
-										        Calendar cal = Calendar.getInstance(Locale.ENGLISH);
-										        cal.setTimeInMillis(timestamp);
-										        String date = DateFormat.format("dd-MMM-yy HH:mm", cal).toString();
-		//								        if (!date.equals(timestampText.getText())) {
-										        	timestampText.setText(date);
-										        	SplashyText.highlightModifiedField(MainActivity.this, timestampText);
-		//								        }
-										        
-										        TextView cpuTempText = (TextView) findViewById(R.id.cpuTempText);
-		//								        if (!valueStr.equals(cpuTempText.getText())) {
-										        	cpuTempText.setText(valueStr);
-										        	SplashyText.highlightModifiedField(MainActivity.this, cpuTempText);
-		//								        }
-											}
-										});
-									}
+								
+								String ActiveHive = ActiveHiveProperty.getActiveHiveProperty(MainActivity.this);
+								String HiveId = getHiveAddress(ActiveHive);
+								boolean haveHiveId = HiveId != null;
+								
+								if (haveHiveId) {
+									PollSensorBackground.ResultCallback onCompletion;
+									HiveId = HiveId.replace(':', '-');
 									
-									@Override
-									public void error(String msg) {
-										Log.e(TAG, "Error: "+msg);
-									}
-								};
-					            new PollSensorBackground(DbHost, DbPort, Db, query, onCompletion).execute();
+									onCompletion = getOnCompletion(R.id.cpuTempText, R.id.cpuTempTimestampText, new OnSaveValue() {
+														@Override
+														public void save(Activity activity, String value, long timestamp) {
+															MCUTempProperty.setMCUTempProperty(MainActivity.this, value, timestamp);
+														}
+													});
+						            new PollSensorBackground(DbHost, DbPort, Db, createQuery(HiveId, "cputemp"), onCompletion).execute();
+
+									onCompletion = 
+											getOnCompletion(R.id.tempText, R.id.tempTimestampText, new OnSaveValue() {
+												@Override
+												public void save(Activity activity, String value, long timestamp) {
+											        TempProperty.setTempProperty(MainActivity.this, value, timestamp);
+												}
+											});
+						            new PollSensorBackground(DbHost, DbPort, Db, createQuery(HiveId, "temp"), onCompletion).execute();
+						            
+									onCompletion = 
+											getOnCompletion(R.id.humidText, R.id.humidTimestampText, new OnSaveValue() {
+												@Override
+												public void save(Activity activity, String value, long timestamp) {
+											        HumidProperty.setHumidProperty(MainActivity.this, value, timestamp);
+												}
+											});
+						            new PollSensorBackground(DbHost, DbPort, Db, createQuery(HiveId, "humid"), onCompletion).execute();
+								}
 							}
 						}
 					}
@@ -172,4 +237,31 @@ public class MainActivity extends Activity {
 		startActivityForResult(intent, 0);
 	}
 	
+	private void setValueImplementation(int valueResid, int timestampResid, 
+										String value, boolean isTimestampDefined, long timestamp, 
+										boolean addSplash) 
+	{
+		TextView valueTv = (TextView) findViewById(valueResid);
+		TextView timestampTv = (TextView) findViewById(timestampResid);
+		boolean splashValue = !valueTv.getText().equals(value);
+		valueTv.setText(value);
+		boolean splashTimestamp = false;
+		if (isTimestampDefined) {
+			Calendar cal = Calendar.getInstance(Locale.ENGLISH);
+			cal.setTimeInMillis(timestamp);
+			String timestampStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
+			splashTimestamp = !timestampTv.getText().equals(timestampStr);
+			timestampTv.setText(timestampStr);
+		} else {
+			splashTimestamp = !timestampTv.getText().equals("<unknown>");
+			timestampTv.setText("<unknown>");
+		}
+		if (addSplash) {
+			if (splashValue) 
+				SplashyText.highlightModifiedField(this, valueTv);
+			if (splashTimestamp) 
+				SplashyText.highlightModifiedField(this, timestampTv);
+		}
+	}
+
 }
