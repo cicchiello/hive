@@ -1,18 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">hive</string>
+    <string name="app_name">Hivewiz</string>
     <string name="action_settings">Settings</string>
     
     <string name="settings">Settings&#8230;</string>
 
-    <string name="hive_id_label">Hive pairing</string>
-    <string name="hive_id_desc_hint">Pair with a specific Hive</string>
+    <string name="active_hive">Active Hivewiz</string>
+    <string name="active_hive_desc_hint">Hivewiz to monitor?</string>
+    <string name="active_hive_hint">\?\?\?</string>
+   	<string name="active_hive_choice">Choose one Hivewiz</string>
+    
+    <string name="ble2cld_hives">ble2cld bridge pairs</string>
+    <string name="ble2cld_hives_desc_hint">Manage bridge pairings</string>
     <string name="hive_id_hint">some sort of hint</string>
     <string name="hive_id_dialog">not sure what this is!?!?</string>
     
     <string name="no_bluetooth">There is no Bluetooth interface available.</string>
     <string name="choose_hive">Choose the Hive to pair with</string>
+    
+    <string name="enable_bridge_label">Enable ble2cld bridge</string>
+    <string name="enable_bridge_desc_hint">Turn on/off</string>
     
     <string name="factory_reset_label">Factory Reset</string>
     <string name="factory_reset_desc_hint">Reset all app settings</string>
@@ -22,7 +30,14 @@
 	<string name="cpuTempDesc">on-chip temp</string>
 	<string name="testTemp">134.6</string>
 	
-    <string name="warning">Warning:</string>
+    <string name="tempLabel">Temperature</string>
+	<string name="tempDesc">Hive temp</string>
+	
+    <string name="humidLabel">Humidity</string>
+	<string name="humidDesc">Hive humidity</string>
+	<string name="testHumid">34.6%</string>
+			
+	<string name="warning">Warning:</string>
     <string name="error">Error:</string>
     <string name="yes">Yes</string>
     <string name="cancel">Cancel</string>
@@ -30,5 +45,13 @@
     <string name="empty"></string>
 	<string name="timestamp">12-Dec-16 23:55</string>
 	<string name="test">foo</string>
+	
+	<string name="paired_hives">Paired Hives</string>
+	<string name="clear_all">Unpair All</string>
+	<string name="delete_warning">All pairings will be removed and you will have to rescan.</string>
+	<string name="scan">Scan...</string>
+	<string name="choose_name">Choose a name...</string>
+	
+	<string name="crash_toast_text">Ooooops!  Hivewiz&#8482; has crashed, but a report has been sent to the developers so they can fix the issue!</string>
 	
 </resources>

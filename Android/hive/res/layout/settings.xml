@@ -26,11 +26,93 @@
 
 	</LinearLayout>
 
-	<TextView
-	    android:layout_width="match_parent"
-	    android:layout_height="1dip"
-	    android:text="@string/empty"
-	    android:textAppearance="?android:attr/textAppearanceSmall" />
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
+
+	<LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+	    android:layout_marginLeft="15dip"
+        android:orientation="horizontal" >
+		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:orientation="vertical" >
+	        
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:text="@string/active_hive"
+	   		    android:textAppearance="?android:attr/textAppearanceMedium"
+	   		    android:textStyle="bold" />
+	
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:layout_marginLeft="15dip"
+	   		    android:text="@string/active_hive_desc_hint"
+	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+   		</LinearLayout>
+   		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:layout_gravity="right"
+	        android:orientation="vertical" >
+	        
+			<TextView
+			    android:layout_width="match_parent"
+			    android:layout_height="1dip"
+		        android:layout_weight="0.5"
+			    android:text="@string/empty"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+	    	<TextView
+			    android:id="@+id/active_hive_text"
+			    android:layout_width="wrap_content"
+			    android:layout_height="wrap_content"
+		        android:layout_weight="0.5"
+	        	android:background="#848989"
+		        android:layout_gravity="right"
+			    android:text="@string/active_hive_hint" />
+
+			<TextView
+			    android:layout_width="match_parent"
+			    android:layout_height="1dip"
+		        android:layout_weight="0.5"
+			    android:text="@string/empty"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+			
+			<TextView
+			    android:layout_width="match_parent"
+			    android:layout_height="1dip"
+		        android:layout_weight="0.5"
+			    android:text="@string/empty"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+	    </LinearLayout>
+	    
+		<ImageButton
+		    android:id="@+id/active_hive_button"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="right"
+		    android:layout_weight="0.1"
+		    android:src="@drawable/ic_rarrow"
+		    android:text="@string/empty" />
+
+	</LinearLayout>
+
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -47,16 +129,15 @@
 	   		<TextView
 	   		    android:layout_width="wrap_content"
 	   		    android:layout_height="wrap_content"
-	   		    android:text="@string/hive_id_label"
+	   		    android:text="@string/ble2cld_hives"
 	   		    android:textAppearance="?android:attr/textAppearanceMedium"
 	   		    android:textStyle="bold" />
 	
 	   		<TextView
-	   		    android:id="@+id/targetDescriptionHide"
 	   		    android:layout_width="wrap_content"
 	   		    android:layout_height="wrap_content"
 	   		    android:layout_marginLeft="15dip"
-	   		    android:text="@string/hive_id_desc_hint"
+	   		    android:text="@string/ble2cld_hives_desc_hint"
 	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
 
    		</LinearLayout>
@@ -111,6 +192,89 @@
 
 	</LinearLayout>
 
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+	    android:layout_marginLeft="15dip"
+        android:orientation="horizontal" >
+		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:orientation="vertical" >
+	        
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:text="@string/enable_bridge_label"
+	   		    android:textAppearance="?android:attr/textAppearanceMedium"
+	   		    android:textStyle="bold" />
+	
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:layout_marginLeft="15dip"
+	   		    android:text="@string/enable_bridge_desc_hint"
+	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+   		</LinearLayout>
+   		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:layout_gravity="right"
+	        android:orientation="vertical" >
+	        
+			<TextView
+			    android:layout_width="match_parent"
+			    android:layout_height="1dip"
+		        android:layout_weight="0.5"
+			    android:text="@string/empty"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+	    	<TextView
+			    android:id="@+id/enable_bridge_text"
+			    android:layout_width="wrap_content"
+			    android:layout_height="wrap_content"
+		        android:layout_weight="0.5"
+	        	android:background="#848989"
+		        android:layout_gravity="right"
+			    android:text="@string/hive_id_hint" />
+
+			<TextView
+			    android:layout_width="match_parent"
+			    android:layout_height="1dip"
+		        android:layout_weight="0.5"
+			    android:text="@string/empty"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+			
+			<TextView
+			    android:layout_width="match_parent"
+			    android:layout_height="1dip"
+		        android:layout_weight="0.5"
+			    android:text="@string/empty"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+	    </LinearLayout>
+	    
+	    <ImageButton
+		    android:id="@+id/enable_bridge_button"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_weight="0.01"
+		    android:contentDescription="@string/enable_bridge_desc_hint"
+		    android:src="@drawable/ic_rarrow"
+		    android:text="@string/empty" />
+
+	</LinearLayout>
+	
     <View
 	    android:layout_width="fill_parent"
 	    android:layout_height="2dip"

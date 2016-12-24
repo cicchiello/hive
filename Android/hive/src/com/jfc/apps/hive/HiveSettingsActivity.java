@@ -1,9 +1,7 @@
 package com.jfc.apps.hive;
 
-import com.example.hive.BuildConfig;
 import com.example.hive.R;
 import com.jfc.misc.prop.IPropertyMgr;
-import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
 import com.jfc.util.misc.LocalStorageHandler;
 
 import java.lang.reflect.InvocationTargetException;
@@ -14,7 +12,6 @@ import java.util.List;
 import android.app.ActionBar;
 import android.app.Activity;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.MenuItem;
@@ -30,11 +27,8 @@ public class HiveSettingsActivity extends Activity {
 	private static final boolean RELEASE_TEST = HiveEnv.RELEASE_TEST;
 	
 	private List<IPropertyMgr> mMgrs = new ArrayList<IPropertyMgr>();
-	private BluetoothPipeSrvc mPipe = null;
-	private HiveIdProperty mIdProp = null;
 	
     
-    @SuppressWarnings("unused")
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -54,11 +48,7 @@ public class HiveSettingsActivity extends Activity {
 			}
         }
 
-        if (!RELEASE_TEST && BuildConfig.DEBUG) {
-        	setContentView(R.layout.settings_debug);
-        } else {
-        	setContentView(R.layout.settings);
-        }
+        setContentView(R.layout.settings);
 
         try {
         	Method m = getClass().getMethod("getActionBar", (Class<?>[]) null);
@@ -77,13 +67,12 @@ public class HiveSettingsActivity extends Activity {
         	// consume exception -- can't support normal action bar stuff
         }
 
-    	mPipe = new BluetoothPipeSrvc(this);
-
-        mMgrs.add(mIdProp = new HiveIdProperty(this, (TextView) findViewById(R.id.hive_id_text), (ImageButton) findViewById(R.id.hive_pair_button)));
-        mIdProp.setPipe(mPipe);
-
+        mMgrs.add(new ActiveHiveProperty(this, (TextView) findViewById(R.id.active_hive_text), (ImageButton) findViewById(R.id.active_hive_button)));
+        mMgrs.add(new BridgePairingsProperty(this, (TextView) findViewById(R.id.hive_id_text), (ImageButton) findViewById(R.id.hive_pair_button)));
+        mMgrs.add(new EnableBridgeProperty(this, (TextView) findViewById(R.id.enable_bridge_text), (ImageButton) findViewById(R.id.enable_bridge_button)));
+        
     	List<HiveFactoryResetProperty.Resetter> resetters = new ArrayList<HiveFactoryResetProperty.Resetter>();
-    	resetters.add(new HiveFactoryResetProperty.Resetter() {public void reset(Activity activity) {HiveIdProperty.resetHiveIdProperty(activity);}});
+    	resetters.add(new HiveFactoryResetProperty.Resetter() {public void reset(Activity activity) {BridgePairingsProperty.resetHiveIdProperty(activity);}});
     	resetters.add(new HiveFactoryResetProperty.Resetter() {
     		public void reset(Activity activity) {
         		LocalStorageHandler storage = null;
@@ -97,26 +86,12 @@ public class HiveSettingsActivity extends Activity {
     		}});
         mMgrs.add(new HiveFactoryResetProperty(this, (ImageButton) findViewById(R.id.factoryResetButton), resetters));
 
-        setTitle("Hive: Settings");
+        setTitle(getString(R.string.app_name)+": Settings");
     }
 
-	@Override
-	protected void onResume() {
-		super.onResume();
-
-		if (mIdProp != null) {
-			if (mPipe != null) {
-				mPipe = new BluetoothPipeSrvc(this);
-			}
-			mIdProp.setPipe(mPipe);
-		}
-	}
-	
     @Override
     protected void onPause() {
     	Log.i(TAG, "enterred onPause");
-    	
-    	mPipe.onPause();
     	
     	for (IPropertyMgr mgr : mMgrs) 
     		if (mgr.getAlertDialog() != null) mgr.getAlertDialog().dismiss();
@@ -125,19 +100,6 @@ public class HiveSettingsActivity extends Activity {
    		Log.i(TAG, "exitting onPause");
     }
     
-    @Override
-    protected void onRestoreInstanceState(Bundle savedInstanceState) {
-    	for (IPropertyMgr mgr : mMgrs) 
-    		mgr.onRestoreInstanceState(savedInstanceState);
-    }
-    
-    @Override
-    protected void onSaveInstanceState(Bundle savedInstanceState) {
-    	for (IPropertyMgr mgr : mMgrs) 
-    		mgr.onSaveInstanceState(savedInstanceState);
-    	mPipe = null;
-    }
-
     
     @Override
 	public void onBackPressed() {

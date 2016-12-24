@@ -9,6 +9,4 @@ public interface IPropertyMgr {
 	public AlertDialog getAlertDialog();
 	public boolean onActivityResult(int requestCode, int resultCode, Intent intent);
 	public void onPermissionResult(int requestCode, String[] permissions, int[] grantResults);
-    public void onRestoreInstanceState(Bundle savedInstanceState);
-    public void onSaveInstanceState(Bundle savedInstanceState);
 }

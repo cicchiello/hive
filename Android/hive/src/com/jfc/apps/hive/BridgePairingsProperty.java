@@ -1,7 +1,9 @@
 package com.jfc.apps.hive;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -10,25 +12,26 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
-import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import android.util.Log;
+import android.util.Pair;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.example.hive.R;
 import com.jfc.misc.prop.IPropertyMgr;
@@ -37,9 +40,11 @@ import com.jfc.util.misc.DialogUtils;
 import com.jfc.util.misc.SplashyText;
 
 
-public class HiveIdProperty implements IPropertyMgr {
-	private static final String TAG = HiveIdProperty.class.getName();
+public class BridgePairingsProperty implements IPropertyMgr {
+	private static final String TAG = BridgePairingsProperty.class.getName();
 
+	private static final int REQUEST_ENABLE_BT = 3210;
+	
 	private static final String HIVE_ID_PROPERTY = "HIVE_ID_PROPERTY";
 	private static final String DEFAULT_HIVE_ID = "<unknown>";
 	
@@ -59,15 +64,8 @@ public class HiveIdProperty implements IPropertyMgr {
 	private Map<String,String> mReadableToAddresses = null;
     private ArrayAdapter<String> mDiscoveredDevices = null; 
 	private Runnable mOnPermissionGranted = null;
+	private List<Pair<String,String>> mExistingPairs = null;
 
-	// this may need to save state on pause
-	private BluetoothPipeSrvc mPipe;
-	
-
-	public void setPipe(BluetoothPipeSrvc pipe) {
-		mPipe = pipe;
-	}
-	
 	public static boolean isHiveIdPropertyDefined(Activity activity) {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
 		return SP.contains(HIVE_ID_PROPERTY) && 
@@ -84,22 +82,103 @@ public class HiveIdProperty implements IPropertyMgr {
 		setHiveIdProperty(activity, DEFAULT_HIVE_ID);
 	}
 	
-	public HiveIdProperty(final Activity activity, final TextView idTv, ImageButton button) {
+	public BridgePairingsProperty(final Activity activity, final TextView idTv, ImageButton button) {
 		this.mActivity = activity;
 		this.mIdTv = idTv;
 		
-		final String id = getHiveIdProperty(activity);
-    	if (id == null || id.equals(DEFAULT_HIVE_ID)) 
-    		setHiveIdUndefined();
-    	else 
-    		displayHiveId(id);
+    	mExistingPairs = new ArrayList<Pair<String,String>>();
+    	if (BluetoothAdapter.getDefaultAdapter() == null) {
+    		// simulate one of my devices
+    		// F0-17-66-FC-5E-A1
+	    	mExistingPairs.add(new Pair<String,String>("Joe's Hive", "F0-17-66-FC-5E-A1"));
+    	} else {
+	    	int sz = NumHivesProperty.getNumHivesProperty(mActivity);
+	    	for (int i = 0; i < sz; i++) {
+	    		String name = PairedHiveProperty.getPairedHiveName(mActivity, i);
+	    		String id = PairedHiveProperty.getPairedHiveId(mActivity, i);
+	    		mExistingPairs.add(new Pair<String,String>(name,id));
+	    	}
+    	}
     	
-    	button.setOnClickListener(new OnClickListener() {
-			@Override
-			public void onClick(View v) {
-				onScanActivity();
-			}
-		});
+    	switch(mExistingPairs.size()) {
+    	case 0: displayPairingState("no hives"); break;
+    	case 1: displayPairingState("1 hive"); break;
+    	default: displayPairingState(mExistingPairs.size()+" hives");
+    	}
+    	
+    	if (BluetoothAdapter.getDefaultAdapter() != null) {
+	    	button.setOnClickListener(new OnClickListener() {
+				@Override
+				public void onClick(View v) {
+			    	
+			        final ArrayAdapter<Pair<String,String>> arrayAdapter = new PairAdapter(mActivity, mExistingPairs);
+			        
+			        arrayAdapter.sort(new Comparator<Pair<String,String>>() {
+						@Override
+						public int compare(Pair<String,String> lhs, Pair<String,String> rhs) {
+							return lhs.first.compareTo(rhs.first);
+						}
+					});
+			        
+			    	AlertDialog.Builder builder = new AlertDialog.Builder(mActivity);
+			        builder.setIcon(R.drawable.ic_hive);
+			        builder.setTitle(R.string.paired_hives);
+			        builder.setPositiveButton(R.string.scan, new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							onScan();
+						}
+					});
+			        builder.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+			            @Override
+			            public void onClick(DialogInterface dialog, int which) {
+			            	mAlert.dismiss();
+			            	mAlert = null;
+			            }
+			        });
+			        builder.setNeutralButton(R.string.clear_all, new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+			            	mAlert.dismiss();
+			            	mAlert = null;
+			        		Runnable okAction = new Runnable() {
+			    				@Override
+			    				public void run() {
+					            	mAlert.dismiss();
+					            	mAlert = null;
+					            	NumHivesProperty.setNumHivesProperty(mActivity, 0);
+					            	mExistingPairs = new ArrayList<Pair<String,String>>();
+					            	displayPairingState("no hives");
+					            	
+		                			Intent mBle2cldIntent= new Intent(mActivity, BluetoothPipeSrvc.class);
+		                			mBle2cldIntent.setData(Uri.parse("shutdown"));
+		                			mActivity.startService(mBle2cldIntent);
+			    				}
+			    			};
+			        		Runnable cancelAction = new Runnable() {
+			    				@Override
+			    				public void run() {
+					            	mAlert.dismiss();
+					            	mAlert = null;
+			    				}
+			    			};
+			            	mAlert = DialogUtils.createAndShowAlertDialog(mActivity, R.string.delete_warning, 
+			            			android.R.string.ok, okAction, android.R.string.cancel, cancelAction);
+			            	
+						}
+					});
+			        builder.setAdapter(arrayAdapter, null);
+			        mAlert = builder.show();
+				}
+			});
+    	} else {
+	    	button.setOnClickListener(new OnClickListener() {
+				@Override
+				public void onClick(View v) {
+		    		Toast.makeText(mActivity, "Bluetooth not supported on this device", Toast.LENGTH_LONG).show();
+				}
+			});
+    	}
 	}
 
 	public AlertDialog getAlertDialog() {return mAlert;}
@@ -109,14 +188,14 @@ public class HiveIdProperty implements IPropertyMgr {
 		mIdTv.setBackgroundColor(0xffff0000); // RED
 	}
 	
-	private void displayHiveId(String id) {
-		mIdTv.setText(id);
+	private void displayPairingState(String msg) {
+		mIdTv.setText(msg);
 		mIdTv.setBackgroundColor(grayColor);
 	}
 	
-	private void setHiveId(String id) {
-		setHiveIdProperty(mActivity, id);
-		displayHiveId(id);
+	private void setHiveId(String msg) {
+		setHiveIdProperty(mActivity, msg);
+		displayPairingState(msg);
 	}
 	
 	public static void setHiveIdProperty(Activity activity, String id) {
@@ -128,8 +207,6 @@ public class HiveIdProperty implements IPropertyMgr {
 		}
 	}
 
-	static private final int REQUEST_ENABLE_BT = 3210;
-	
 	@Override
 	public boolean onActivityResult(int requestCode, int resultCode, Intent intent) {
 		if (resultCode == REQUEST_ENABLE_BT) {
@@ -149,6 +226,10 @@ public class HiveIdProperty implements IPropertyMgr {
 	           public void run() {
 	        	   Log.i(TAG, device.getAddress());
 	        	   if (!mReadableToAddresses.containsValue(device.getAddress())) {
+	        		   for (Pair<String,String> p : mExistingPairs) {
+	        			   if (p.second.equalsIgnoreCase(device.getAddress()))
+	        				   return;
+	        		   }
 	        		   String readable = device.getName() + "      " + device.getAddress();
 		               mReadableToAddresses.put(readable, device.getAddress());
 	        		   mDiscoveredDevices.add(readable);
@@ -158,6 +239,72 @@ public class HiveIdProperty implements IPropertyMgr {
 	       });
 	   }
 	};
+
+	private void nameNewPairing(String defaultName, final String address) {
+		final EditText input = new EditText(mActivity);
+		
+		String baseName = PairedHiveProperty.DEFAULT_PAIRED_HIVE_NAME;
+		int baseNameSuffix = 0;
+		boolean foundLegalName = false;
+		while (!foundLegalName) {
+			foundLegalName = true;
+			for (Pair<String,String> p : mExistingPairs) {
+				if (p.first.equals(baseName)) 
+					foundLegalName = false;
+			}
+			if (!foundLegalName) {
+				baseName = PairedHiveProperty.DEFAULT_PAIRED_HIVE_NAME + Integer.toString(++baseNameSuffix);
+			}
+		}
+		input.setText(baseName);
+		
+		AlertDialog.Builder builder = 
+				new AlertDialog.Builder(mActivity)
+					.setIcon(R.drawable.ic_hive)
+					.setTitle(R.string.choose_name)
+					.setMessage(R.string.empty)
+					.setView(input)
+					.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+	            		public void onClick(DialogInterface dialog, int whichButton) {
+	            			String chosenName = input.getText().toString();
+	            			boolean foundLegalName = true;
+	            			for (Pair<String,String> p : mExistingPairs) {
+	            				if (p.first.equals(chosenName)) 
+	            					foundLegalName = false;
+	            			}
+	            			mAlert.dismiss();
+	            			mAlert = null;
+	            			
+	            			if (foundLegalName) {
+	            				mExistingPairs.add(new Pair<String,String>(chosenName, address));
+	            				NumHivesProperty.setNumHivesProperty(mActivity, mExistingPairs.size());
+	            				PairedHiveProperty.setPairedHiveId(mActivity, mExistingPairs.size()-1, address);
+	            				PairedHiveProperty.setPairedHiveName(mActivity, mExistingPairs.size()-1, chosenName);
+	            				
+	            		    	switch(mExistingPairs.size()) {
+	            		    	case 0: displayPairingState("no hives"); break;
+	            		    	case 1: displayPairingState("1 hive"); break;
+	            		    	default: displayPairingState(mExistingPairs.size()+" hives");
+	            		    	}
+	            		    	
+	                    		SplashyText.highlightModifiedField(mActivity, mIdTv);
+	                    		
+	                			Intent mBle2cldIntent= new Intent(mActivity, BluetoothPipeSrvc.class);
+	                			mBle2cldIntent.setData(Uri.parse("ble://"+address));
+	                			mActivity.startService(mBle2cldIntent);
+	            			} else {
+	        					Toast.makeText(mActivity, "Error: That name is already taken", Toast.LENGTH_LONG).show();
+	            			}
+	            		}
+            		})
+            		.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+	            		  public void onClick(DialogInterface dialog, int whichButton) {
+	            		    // Canceled.
+	            			  mAlert = null;
+	            		  }
+            		});
+		mAlert = builder.show();
+	}
 	
     private void scanLeDevice(final boolean enable) {
         if (enable) {
@@ -181,14 +328,12 @@ public class HiveIdProperty implements IPropertyMgr {
                 public void onClick(DialogInterface dialog, int which) {
                 	String selection = mDiscoveredDevices.getItem(which);
             		mAlert.dismiss();
-            		String address = mReadableToAddresses.get(selection);
-            		setHiveId(address);
-            		SplashyText.highlightModifiedField(mActivity, mIdTv);
-            		scanLeDevice(false); // stop scanning
             		mAlert = null;
             		
-            		if (mPipe != null)
-            			mPipe.addDevice(address);
+            		scanLeDevice(false); // stop scanning
+            		
+            		String address = mReadableToAddresses.get(selection);
+            		nameNewPairing(selection, address);
                 }
             });
             mAlert = builder.show();
@@ -210,7 +355,7 @@ public class HiveIdProperty implements IPropertyMgr {
         }
     }
     
-	public void onScanActivity() {
+	public void onScan() {
 		requestLocationPermissionIfNeeded(new Runnable() {public void run() {scanLeDevice(true);}});
 	}
 	
@@ -241,11 +386,8 @@ public class HiveIdProperty implements IPropertyMgr {
             	String selection = arrayAdapter.getItem(which);
         		mAlert.dismiss();
         		mAlert = null;
-        		setHiveId(m.get(selection).getAddress());
-        		SplashyText.highlightModifiedField(mActivity, mIdTv);
         		
-        		if (mPipe != null)
-        			mPipe.addDevice(m.get(selection).getAddress());
+        		nameNewPairing(selection, m.get(selection).getAddress());
             }
         });
         mAlert = builder.show();
@@ -290,14 +432,32 @@ public class HiveIdProperty implements IPropertyMgr {
 	    }
 	}
 
-	@Override
-    public void onRestoreInstanceState(Bundle savedInstanceState) {
-		mPipe.onRestoreInstanceState(savedInstanceState);
+	public class PairAdapter extends ArrayAdapter<Pair<String,String>> {
+	    public PairAdapter(Context context, List<Pair<String,String>> users) {
+	       super(context, 0, users);
+	    }
+
+	    @Override
+	    public View getView(int position, View convertView, ViewGroup parent) {
+	    	// Get the data item for this position
+	    	Pair<String,String> pair = getItem(position); 
+	    	
+	    	// Check if an existing view is being reused, otherwise inflate the view
+	    	if (convertView == null) {
+	    		convertView = LayoutInflater.from(getContext()).inflate(R.layout.hive_pair, parent, false);
+	    	}
+	    	
+	    	// Lookup view for data population
+	    	TextView hiveName = (TextView) convertView.findViewById(R.id.hiveName);
+	    	TextView hiveAddress = (TextView) convertView.findViewById(R.id.hiveAddress);
+	    	
+	    	// Populate the data into the template view using the data object
+	    	hiveName.setText(pair.first);
+	    	hiveAddress.setText(pair.second);
+	    	
+	    	// Return the completed view to render on screen
+	    	return convertView;
+	    }
 	}
 	
-	@Override
-    public void onSaveInstanceState(Bundle savedInstanceState) {
-		mPipe.onSaveInstanceState(savedInstanceState);
-	}
-
 }
