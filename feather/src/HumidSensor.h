@@ -1,5 +1,5 @@
-#ifndef DHTsensor_h
-#define DHTsensor_h
+#ifndef HumidSensor_h
+#define HumidSensor_h
 
 
 #include <Sensor.h>
@@ -8,15 +8,18 @@ class Adafruit_BluefruitLE_SPI;
 class Str;
 
 
-class DHTSensor : public Sensor {
+class HumidSensor : public Sensor {
  public:
 
-    DHTSensor(unsigned long now) : Sensor(now) {}
-    ~DHTSensor() {}
+    HumidSensor(unsigned long now);
+    ~HumidSensor() {}
 
     void sensorSample(Str *value);
     
     void enqueueRequest(const char *value, const char *timestamp);
+
+ private:
+    Str *mPrev;
 };
 
 

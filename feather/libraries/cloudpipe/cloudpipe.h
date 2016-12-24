@@ -13,12 +13,9 @@ class CloudPipe {
 
     void getMacAddress(Adafruit_BluefruitLE_SPI &ble, Str *mac) const;
     
-    void uploadSensorReading(Adafruit_BluefruitLE_SPI &ble,
-			     const char *sensorName, const char *value, const char *timestamp) const;
-    
  private:
     static CloudPipe s_singleton;
-    CloudPipe();
+    CloudPipe() {}
 };
 
 

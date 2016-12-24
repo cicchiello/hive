@@ -23,18 +23,9 @@
 
 #include "BluefruitConfig.h"
 
-#define NDEBUG
-#include <platformutils.h>
-#include <cloudpipe.h>
-#include <str.h>
-#include <txqueue.h>
-#include <Timestamp.h>
-
-#include <CpuTempSensor.h>
-#include <DHTSensor.h>
-
 
 //#define HEADLESS
+#define NDEBUG
 
 #ifndef HEADLESS
 #define P(args) Serial.print(args)
@@ -51,6 +42,18 @@
 #define D(args)
 #define DL(args)
 #endif
+
+
+#include <platformutils.h>
+#include <cloudpipe.h>
+#include <str.h>
+#include <txqueue.h>
+#include <Timestamp.h>
+
+#include <CpuTempSensor.h>
+#include <TempSensor.h>
+#include <HumidSensor.h>
+
 
 
 
@@ -94,12 +97,34 @@
 Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_RST);
 
 
+#define INIT 0
+#define CHECK_USERINPUT         (INIT+1)
+#define LOOP                    CHECK_USERINPUT
+#define CHECK_BLE_RX            (CHECK_USERINPUT+1)
+#define SAMPLE_SENSOR           (CHECK_BLE_RX+1)
+#define QUEUE_TIMESTAMP_REQUEST (SAMPLE_SENSOR+1)
+#define ATTEMPT_SENSOR_POST     (QUEUE_TIMESTAMP_REQUEST+1)
+#define ATTEMPT_TIMESTAMP_POST  (ATTEMPT_SENSOR_POST+1)
+#define TEST_CONNECTION         (ATTEMPT_TIMESTAMP_POST+1)
+#define TEST_DISCONNECT         (TEST_CONNECTION+1)
 
-void handleUserInput(Adafruit_BluefruitLE_SPI &ble);
-void handleBLEInput(Adafruit_BluefruitLE_SPI &ble);
+
+static int s_mainState = INIT;
+
+#define MAX_SENSORS 20
+static Timestamp *s_timestamp = 0;
+static Sensor *s_sensors[MAX_SENSORS];
+static int s_currSensor = -1;
+static bool s_connected = false;
+
+
+
+static bool setIsBLEConnected(bool v);
+static void handleUserInput(Adafruit_BluefruitLE_SPI &ble);
+static void handleBLEInput(Adafruit_BluefruitLE_SPI &ble);
   
-bool pollChar(char buffer[]);
-void error(const __FlashStringHelper*err) {
+static bool pollChar(char buffer[]);
+static void error(const __FlashStringHelper*err) {
   PL(err);
   while (1);
 }
@@ -127,66 +152,84 @@ static void wdtEarlyWarningHandler()
 /**************************************************************************/
 void setup(void)
 {
-  while (!Serial);  // required for Flora & Micro
-  delay(500);
-
-  // setup WDT
-  PlatformUtils::nonConstSingleton().initWDT(wdtEarlyWarningHandler);
+#ifndef HEADLESS
+    while (!Serial);  // required for Flora & Micro
+    delay(500);
+    Serial.begin(115200);
+#endif
   
-  Serial.begin(115200);
-  PL(F("Hive Controller debug console"));
-  PL(F("---------------------------------------"));
+    pinMode(13, OUTPUT);
 
-  /* Initialise the module */
-  P(F("Initialising the Bluefruit LE module: "));
+    delay(500);
 
-  if ( !ble.begin(VERBOSE_MODE) )
-  {
-    error(F("Couldn't find Bluefruit, make sure it's in CoMmanD mode & check wiring?"));
-  }
-  PL( F("OK!") );
+    // setup WDT
+    PlatformUtils::nonConstSingleton().initWDT(wdtEarlyWarningHandler);
+  
+    PL(F("Hive Controller debug console"));
+    PL(F("---------------------------------------"));
 
-  if ( FACTORYRESET_ENABLE )
-  {
-    /* Perform a factory reset to make sure everything is in a known state */
-    PL(F("Performing a factory reset: "));
-    if ( ! ble.factoryReset() ){
-      error(F("Couldn't factory reset"));
+    /* Initialise the module */
+    P(F("Initialising the Bluefruit LE module: "));
+
+#ifndef HEADLESS
+    if ( !ble.begin(VERBOSE_MODE) )
+    {
+        error(F("Couldn't find Bluefruit, make sure it's in CoMmanD mode & check wiring?"));
     }
-  }
-
-  /* Disable command echo from Bluefruit */
-  ble.echo(false);
-
-  PL("Requesting Bluefruit info:");
-  /* Print Bluefruit information */
-  ble.info();
-
-  PL();
-  PL("Awaiting connection");
-
-  ble.verbose(false);  // debug info is a little annoying after this point!
-
-  /* Wait for connection */
-  while (! ble.isConnected()) {
-      PlatformUtils::nonConstSingleton().clearWDT();
-      delay(500);
-  }
-
-  PL("Connected");
-  PL();
+#else
+    if ( !ble.begin(false) )
+    {
+        error(F("Couldn't find Bluefruit, make sure it's in CoMmanD mode & check wiring?"));
+    }
+#endif
   
-  // LED Activity command is only supported from 0.6.6
-  if ( ble.isVersionAtLeast(MINIMUM_FIRMWARE_VERSION) )
-  {
-    // Change Mode LED Activity
-    PL(F("******************************"));
-    PL(F("Change LED activity to " MODE_LED_BEHAVIOUR));
-    ble.sendCommandCheckOK("AT+HWModeLED=" MODE_LED_BEHAVIOUR);
-    PL(F("******************************"));
-  }
-}
+    PL( F("OK!") );
 
+    if ( FACTORYRESET_ENABLE )
+    {
+        /* Perform a factory reset to make sure everything is in a known state */
+        PL(F("Performing a factory reset: "));
+	if ( ! ble.factoryReset() ){
+	    error(F("Couldn't factory reset"));
+	}
+    }
+
+    /* Disable command echo from Bluefruit */
+    ble.echo(false);
+
+    PL("Requesting Bluefruit info:");
+    /* Print Bluefruit information */
+#ifndef HEADLESS
+    ble.info();
+#endif
+
+    PL();
+    PL("Awaiting connection");
+
+    ble.verbose(false);  // debug info is a little annoying after this point!
+
+    setIsBLEConnected(false);
+  
+    /* Wait for connection */
+    while (! ble.isConnected()) {
+        PlatformUtils::nonConstSingleton().clearWDT();
+	delay(500);
+    }
+
+    setIsBLEConnected(true);
+    PL("Connected");
+    PL();
+  
+    // LED Activity command is only supported from 0.6.6
+    if ( ble.isVersionAtLeast(MINIMUM_FIRMWARE_VERSION) )
+    {
+        // Change Mode LED Activity
+        PL(F("******************************"));
+	PL(F("Change LED activity to " MODE_LED_BEHAVIOUR));
+	ble.sendCommandCheckOK("AT+HWModeLED=" MODE_LED_BEHAVIOUR);
+	PL(F("******************************"));
+    }
+}
 
 
 /**************************************************************************/
@@ -194,24 +237,6 @@ void setup(void)
     @brief  Constantly poll for new command or response data
 */
 /**************************************************************************/
-
-#define INIT 0
-#define CHECK_USERINPUT         (INIT+1)
-#define LOOP                    CHECK_USERINPUT
-#define CHECK_BLE_RX            (CHECK_USERINPUT+1)
-#define SAMPLE_SENSOR           (CHECK_BLE_RX+1)
-#define QUEUE_TIMESTAMP_REQUEST (SAMPLE_SENSOR+1)
-#define ATTEMPT_SENSOR_POST     (QUEUE_TIMESTAMP_REQUEST+1)
-#define ATTEMPT_TIMESTAMP_POST  (ATTEMPT_SENSOR_POST+1)
-#define TEST_DISCONNECT         (ATTEMPT_TIMESTAMP_POST+1)
-
-
-static int s_mainState = INIT;
-
-#define MAX_SENSORS 20
-static Timestamp *s_timestamp = 0;
-static Sensor *s_sensors[MAX_SENSORS];
-static int s_currSensor = -1;
 
 void loop(void)
 {
@@ -229,7 +254,8 @@ void loop(void)
 	// register sensors
 	s_currSensor = 0;
 	s_sensors[0] = new CpuTempSensor(now, ble);
-	s_sensors[1] = new DHTSensor(now);
+	s_sensors[1] = new TempSensor(now);
+	s_sensors[2] = new HumidSensor(now);
 
 	PL("Sensors initialized;");
   
@@ -308,20 +334,43 @@ void loop(void)
 	    s_currSensor = 0;
 	}
 	
-	s_mainState = TEST_DISCONNECT;
+	s_mainState = TEST_CONNECTION;
+    }
+      break;
+      
+    case TEST_CONNECTION: {
+        static unsigned long nextConnectCheckTime = 0;
+	if (now > nextConnectCheckTime) {
+	    if (s_connected) {
+	        if (!ble.isConnected()) {
+		    PL("Discovered disconnect; checking again in 5s");
+		    setIsBLEConnected(false);
+		}
+	    } else {
+	        // see if reconnection has happened
+	        if (ble.isConnected()) {
+		    PL("Reconnected!");
+		    delay(500);
+		    setIsBLEConnected(true);
+		} else {
+		    PL("Not connected; Scheduling a connection check in 5s");
+		}
+	    }
+	    nextConnectCheckTime = millis() + 5*1000;
+	}
+	s_mainState = LOOP;
     }
       break;
       
     case TEST_DISCONNECT: {
         static unsigned long nextDisconnectTime = 2*60*1000;
-	static bool connected = true;
         if (now > nextDisconnectTime) {
 
-	    if (connected) {
+	    if (s_connected) {
 	        if (ble.isConnected()) {
 		    PL("Disconnecting...");
 		    ble.disconnect();
-		    connected = false;
+		    setIsBLEConnected(false);
 		
 		    // see if reconnection has happened immediately
 		    delay(500);
@@ -329,15 +378,15 @@ void loop(void)
 		        nextDisconnectTime = millis() + 70*1000;
 			PL("Reconnected!");
 			delay(500);
-			connected = true;
+			setIsBLEConnected(true);
 		    } else {
 			PL("Disconnected!");
 		        nextDisconnectTime = millis() + 5*1000;
-			connected = false;
+			setIsBLEConnected(false);
 		    }
 		} else {
 		    PL("Discovered disconnect; checking again in 5s");
-		    connected = false;
+		    setIsBLEConnected(false);
 		    nextDisconnectTime = millis() + 5*1000;
 		}
 	    } else {
@@ -346,7 +395,7 @@ void loop(void)
 		    nextDisconnectTime = millis() + 70*1000;
 		    PL("Reconnected!");
 		    delay(500);
-		    connected = true;
+		    setIsBLEConnected(true);
 		} else {
 		    PL("Not connected; Scheduling a connection check in 5s");
 		    nextDisconnectTime = millis() + 5*1000;
@@ -470,4 +519,14 @@ void handleBLEInput(Adafruit_BluefruitLE_SPI &ble)
 	    
 	ble.waitForOK();
     }
+}
+
+
+/* STATIC */
+bool setIsBLEConnected(bool v)
+{
+    bool r = s_connected;
+    s_connected = v;
+    digitalWrite(13, v ? HIGH : LOW);
+    return r;
 }

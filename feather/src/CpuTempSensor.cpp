@@ -4,11 +4,19 @@
 
 #include "Adafruit_BluefruitLE_SPI.h"
 
+#define HEADLESS
+
+#ifndef HEADLESS
 #define P(args) Serial.print(args)
 #define PL(args) Serial.println(args)
+#else
+#define P(args) 
+#define PL(args) 
+#endif
 
 
-//#define NDEBUG
+#define NDEBUG
+
 #ifndef NDEBUG
 #define D(args) P(args)
 #define DL(args) PL(args)

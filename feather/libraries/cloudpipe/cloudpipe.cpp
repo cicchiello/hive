@@ -2,18 +2,21 @@
 
 #include <Arduino.h>
 
-#include "Adafruit_BLE.h"
 #include "Adafruit_BluefruitLE_SPI.h"
-#include "Adafruit_BluefruitLE_UART.h"
 
 
 #include <platformutils.h>
 
+#define HEADLESS
 #define NDEBUG
-#include <str.h>
 
+#ifndef HEADLESS
 #define P(args) Serial.print(args)
 #define PL(args) Serial.println(args)
+#else
+#define P(args) 
+#define PL(args) 
+#endif
 
 #ifndef NDEBUG
 #define D(args) P(args)
@@ -32,11 +35,6 @@ const char *CloudPipe::SensorLogDb = "hive-sensor-log";     // couchdb name
 CloudPipe CloudPipe::s_singleton;
 
 
-CloudPipe::CloudPipe()
-{
-}
-
-
 void CloudPipe::getMacAddress(Adafruit_BluefruitLE_SPI &ble, Str *mac) const
 {
     static bool s_acquiredMacAddress = false;
@@ -49,7 +47,7 @@ void CloudPipe::getMacAddress(Adafruit_BluefruitLE_SPI &ble, Str *mac) const
 	if (! ble.waitForOK() ) {
 	    PL(F("Failed to send?"));
 	}
-	for (char *p = (char*) mac->c_str(); *p; p++)
+	for (char *p = (char*) s_macAddress.c_str(); *p; p++)
 	    if (*p == ':')
 	        *p = '-';
 	//DL(mac->c_str());
@@ -57,33 +55,5 @@ void CloudPipe::getMacAddress(Adafruit_BluefruitLE_SPI &ble, Str *mac) const
     }
 
     *mac = s_macAddress;
-}
-
-void CloudPipe::uploadSensorReading(Adafruit_BluefruitLE_SPI &ble,
-				    const char *sensorName, const char *value, const char *timestamp) const
-{
-    Str macAddress;
-    getMacAddress(ble, &macAddress);
-  
-    ble.print("AT+BLEUARTTX=");
-    ble.print("cmd|POST|");
-    ble.print(SensorLogDb);
-    ble.print("|");
-    ble.print("{\"hiveid\":\"");
-    ble.print(macAddress.c_str());
-    ble.print("\",\"sensor\":\"");
-    ble.print(sensorName);
-    ble.print("\",\"timestamp\":\"");
-    ble.print(timestamp);
-    ble.print("\",\"value\":\"");
-    ble.print(value);
-    ble.print("\"}");
-    ble.println("\\n");
-
-    // check response status
-    if ( ble.waitForOK() ) {
-    } else {
-        PL(F("Failed to send sensor message"));
-    }
 }
 

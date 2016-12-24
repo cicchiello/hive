@@ -5,22 +5,8 @@ class Adafruit_BluefruitLE_SPI;
 
 #include "Adafruit_BluefruitLE_SPI.h"
 
-#ifndef str_h
-#   include <str.h>
-#endif
+#include <str.h>
 
-#define P(args) Serial.print(args)
-#define PL(args) Serial.println(args)
-
-
-//#define NDEBUG
-#ifndef NDEBUG
-#define D(args) P(args)
-#define DL(args) PL(args)
-#else
-#define D(args)
-#define DL(args)
-#endif
 
 #define TIMEOUT_S 5
 

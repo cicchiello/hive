@@ -6,8 +6,8 @@ db="hive-sensor-log"
 designDoc="_design/SensorLog"
 view="by-hive-sensor"
 
-startkey='startkey=["6402766935504d51202020351c0914ff","cputemp","00000000"]'
-endkey='endkey=["6402766935504d51202020351c0914ff","cputemp","99999999"]'
+startkey='startkey=["F0:17:66:FC:5E:A1","cputemp","00000000"]'
+endkey='endkey=["F0:17:66:FC:5E:A1","cputemp","99999999"]'
 
 tf=$(mktemp)
 curl -G --data-urlencode "${startkey}" --data-urlencode "${endkey}" ${couchHost}/${db}/${designDoc}/_view/${view} 2> /dev/null | jq -r .rows[].id > $tf

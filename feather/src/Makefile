@@ -1,7 +1,7 @@
 ROOT=/home/pi/hive/feather/src
 SKETCH=hive
 
-MYPACKAGES=strutils couchutils tests platformutils cloudpipe
+MYPACKAGES=strutils couchutils tests platformutils cloudpipe DHT
 OTHERPACKAGES=SPI arduino arduino_zero USB
 PACKAGES=$(MYPACKAGES) $(OTHERPACKAGES)
 
@@ -92,7 +92,7 @@ $(SKETCH).elf: objs
 	$(CC) -Os -Wl,--gc-sections -save-temps  -T$(LD_SCRIPT) "-Wl,-Map,$(SKETCH).map" --specs=nano.specs --specs=nosys.specs -mcpu=cortex-m0plus -mthumb -Wl,--cref -Wl,--check-sections -Wl,--gc-sections -Wl,--unresolved-symbols=report-all -Wl,--warn-common -Wl,--warn-section-align -o $@ $(SKETCH).o -Wl,--start-group -lm $(ROOT)/app.a -Wl,--end-group
 
 
-objs: $(SKETCH).o SensorEntry.o CpuTempSensor.o Timestamp.o Sensor.o DHTSensor.o $(PACKAGE_LIBS)
+objs: $(SKETCH).o CpuTempSensor.o Timestamp.o Sensor.o HumidSensor.o TempSensor.o $(PACKAGE_LIBS)
 	@echo PACKAGE_LIBS == $(PACKAGE_LIBS)
 	@echo OBJS done
 
