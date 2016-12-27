@@ -17,7 +17,6 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
 import android.preference.PreferenceManager;
@@ -151,7 +150,6 @@ public class BridgePairingsProperty implements IPropertyMgr {
 					            	displayPairingState("no hives");
 					            	
 		                			Intent mBle2cldIntent= new Intent(mActivity, BluetoothPipeSrvc.class);
-		                			mBle2cldIntent.setData(Uri.parse("shutdown"));
 		                			mActivity.startService(mBle2cldIntent);
 			    				}
 			    			};
@@ -230,10 +228,12 @@ public class BridgePairingsProperty implements IPropertyMgr {
 	        			   if (p.second.equalsIgnoreCase(device.getAddress()))
 	        				   return;
 	        		   }
-	        		   String readable = device.getName() + "      " + device.getAddress();
+	        		   String readable = device.getName() + "   " + device.getAddress();
 		               mReadableToAddresses.put(readable, device.getAddress());
 	        		   mDiscoveredDevices.add(readable);
 		               mDiscoveredDevices.notifyDataSetChanged();
+	        	   } else {
+	        		   Log.i(TAG, "Found it");
 	        	   }
 	           }
 	       });
@@ -290,7 +290,6 @@ public class BridgePairingsProperty implements IPropertyMgr {
 	                    		SplashyText.highlightModifiedField(mActivity, mIdTv);
 	                    		
 	                			Intent mBle2cldIntent= new Intent(mActivity, BluetoothPipeSrvc.class);
-	                			mBle2cldIntent.setData(Uri.parse("ble://"+address));
 	                			mActivity.startService(mBle2cldIntent);
 	            			} else {
 	        					Toast.makeText(mActivity, "Error: That name is already taken", Toast.LENGTH_LONG).show();
@@ -308,7 +307,6 @@ public class BridgePairingsProperty implements IPropertyMgr {
 	
     private void scanLeDevice(final boolean enable) {
         if (enable) {
-            final Map<String,BluetoothDevice> m = new HashMap<String,BluetoothDevice>();
             mDiscoveredDevices = new ArrayAdapter<String>(mActivity, R.layout.list_target);
             mReadableToAddresses = new HashMap<String,String>();
             

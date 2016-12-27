@@ -5,8 +5,10 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.example.hive.R;
+import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
 import com.jfc.util.misc.SplashyText;
 
 import android.app.Activity;
@@ -26,10 +28,13 @@ public class MainActivity extends Activity {
     private static final String DbHost = "http://192.168.1.85";
     private static final int DbPort = 5984;
     private static final String Db = "hive-sensor-log";
+    
+    private static final int POLL_RATE = 600;
 
     // db polling -- necessary until/unless we have an active notification upon db change
     // the following vars are managed by the startPolling() and cancelPolling() functions
 	private AtomicBoolean mStopPoller = new AtomicBoolean(false);
+	private AtomicInteger mPollCounter = new AtomicInteger(0);
 	private Thread mPollerThread = null;
 	private Runnable mPoller = null;
 	
@@ -42,6 +47,12 @@ public class MainActivity extends Activity {
 		setInitialValues();
 
     	startPolling();
+    	
+    	BluetoothPipeSrvc.startBlePipes(this);
+    	
+    	boolean haveActiveHive = ActiveHiveProperty.isActiveHivePropertyDefined(this);
+    	String title = getString(R.string.app_name) + (haveActiveHive ? ": "+ActiveHiveProperty.getActiveHiveProperty(this) : "");
+    	setTitle(title);
 	}
 
 	private void setValue(int valueResid, int timestampResid, String value, boolean isTimestampDefined, long timestamp) {
@@ -53,20 +64,33 @@ public class MainActivity extends Activity {
 	}
 
 	private void setInitialValues() {
-		setValue(R.id.cpuTempText, R.id.cpuTempTimestampText,
-				 MCUTempProperty.getMCUTempValue(this), 
-				 MCUTempProperty.isMCUTempPropertyDefined(this), 
-				 MCUTempProperty.getMCUTempDate(this));
+		((TextView) findViewById(R.id.cpuTempText)).setText("?");
+		((TextView) findViewById(R.id.cpuTempTimestampText)).setText("?");
 		
-		setValue(R.id.tempText, R.id.tempTimestampText,
-				 TempProperty.getTempValue(this), 
-				 TempProperty.isTempPropertyDefined(this), 
-				 TempProperty.getTempDate(this));
+		((TextView) findViewById(R.id.tempText)).setText("?");
+		((TextView) findViewById(R.id.tempTimestampText)).setText("?");
 		
-		setValue(R.id.humidText, R.id.humidTimestampText,
-				 HumidProperty.getHumidValue(this), 
-				 HumidProperty.isHumidPropertyDefined(this), 
-				 HumidProperty.getHumidDate(this));
+		((TextView) findViewById(R.id.humidText)).setText("?");
+		((TextView) findViewById(R.id.humidTimestampText)).setText("?");
+		
+		try {
+			setValue(R.id.cpuTempText, R.id.cpuTempTimestampText,
+					 MCUTempProperty.getMCUTempValue(this), 
+					 MCUTempProperty.isMCUTempPropertyDefined(this), 
+					 MCUTempProperty.getMCUTempDate(this));
+			
+			setValue(R.id.tempText, R.id.tempTimestampText,
+					 TempProperty.getTempValue(this), 
+					 TempProperty.isTempPropertyDefined(this), 
+					 TempProperty.getTempDate(this));
+			
+			setValue(R.id.humidText, R.id.humidTimestampText,
+					 HumidProperty.getHumidValue(this), 
+					 HumidProperty.isHumidPropertyDefined(this), 
+					 HumidProperty.getHumidDate(this));
+		} catch (Exception ex) {
+			Log.e(TAG, ex.getLocalizedMessage());
+		}
 	}
 
 	
@@ -133,7 +157,7 @@ public class MainActivity extends Activity {
 					public void run() {
 						// check about once a minute whenever this activity is running (it doesn't get
 						// updated more frequently)
-						int cnt = 550; // start nearly full scale so that first poll is soon -- subsequent's will be spaced regularly
+						mPollCounter.set(POLL_RATE-10); // start nearly full scale so that first poll is soon -- subsequent's will be spaced regularly
 						while (!mStopPoller.get()) {
 							try {
 								Thread.sleep(95);
@@ -143,8 +167,8 @@ public class MainActivity extends Activity {
 							}
 							
 							// 95ms*600==57000ms
-							if (cnt++ == 600) {
-								cnt = 0;
+							if (mPollCounter.getAndIncrement() >= POLL_RATE) {
+								mPollCounter.set(0);
 								
 								String ActiveHive = ActiveHiveProperty.getActiveHiveProperty(MainActivity.this);
 								String HiveId = getHiveAddress(ActiveHive);
@@ -210,6 +234,10 @@ public class MainActivity extends Activity {
 		
 		setInitialValues();
 		startPolling();
+		
+    	boolean haveActiveHive = ActiveHiveProperty.isActiveHivePropertyDefined(this);
+    	String title = getString(R.string.app_name) + (haveActiveHive ? ": "+ActiveHiveProperty.getActiveHiveProperty(this) : "");
+    	setTitle(title);
 	}
 	
 	@Override
@@ -219,6 +247,11 @@ public class MainActivity extends Activity {
 		return true;
 	}
 
+	@Override
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		mPollCounter.set(POLL_RATE-10); // force the fetch to happen very soon
+	}
+	
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		// Handle action bar item clicks here. The action bar will
@@ -263,5 +296,5 @@ public class MainActivity extends Activity {
 				SplashyText.highlightModifiedField(this, timestampTv);
 		}
 	}
-
+	
 }

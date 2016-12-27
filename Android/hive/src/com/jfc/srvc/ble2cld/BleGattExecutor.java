@@ -191,9 +191,11 @@ class BleGattExecutor extends BluetoothGattCallback {
      if (mCurrentAction == null) {
          while (!mQueue.isEmpty()) {
              final BleGattExecutor.ServiceAction action = mQueue.pop();
-             mCurrentAction = action;
-             if (!action.execute(gatt))
-                 break;
+             if (action != null) {
+	             mCurrentAction = action;
+	             if (!action.execute(gatt))
+	                 break;
+             }
              mCurrentAction = null;
          }
      }

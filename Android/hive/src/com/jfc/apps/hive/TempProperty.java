@@ -35,7 +35,11 @@ public class TempProperty {
 	public static long getTempDate(Activity activity) {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
 		String v = SP.getString(TEMP_DATE_PROPERTY, DEFAULT_TEMP_DATE);
-		return Long.parseLong(v);
+		try {
+			return Long.parseLong(v);
+		} catch (NumberFormatException nfe) {
+			return 0;
+		}
 	}
 	
 	public static void resetTempProperty(Activity activity) {

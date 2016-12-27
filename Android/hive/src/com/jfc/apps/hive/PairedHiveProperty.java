@@ -1,6 +1,6 @@
 package com.jfc.apps.hive;
 
-import android.app.Activity;
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 
@@ -21,20 +21,20 @@ public class PairedHiveProperty {
 		return PAIRED_HIVES_PROPERTY+"["+index+"].name";
 	}
 	
-	public static String getPairedHiveId(Activity activity, int index) {
-		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
+	public static String getPairedHiveId(Context ctxt, int index) {
+		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt);
 		String v = SP.getString(getIdIdentifier(index), DEFAULT_PAIRED_HIVE_ID);
 		return v;
 	}
 	
-	public static String getPairedHiveName(Activity activity, int index) {
-		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
+	public static String getPairedHiveName(Context ctxt, int index) {
+		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt);
 		String v = SP.getString(getNameIdentifier(index), DEFAULT_PAIRED_HIVE_NAME);
 		return v;
 	}
 	
-	public static void setPairedHiveId(Activity activity, int index, String value) {
-		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
+	public static void setPairedHiveId(Context ctxt, int index, String value) {
+		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt);
 		if (!SP.getString(getIdIdentifier(index), DEFAULT_PAIRED_HIVE_ID).equals(value)) {
 			SharedPreferences.Editor editor = SP.edit();
 			editor.putString(getIdIdentifier(index), value);
@@ -42,8 +42,8 @@ public class PairedHiveProperty {
 		}
 	}
 	
-	public static void setPairedHiveName(Activity activity, int index, String value) {
-		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
+	public static void setPairedHiveName(Context ctxt, int index, String value) {
+		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt);
 		if (!SP.getString(getNameIdentifier(index), DEFAULT_PAIRED_HIVE_NAME).equals(value)) {
 			SharedPreferences.Editor editor = SP.edit();
 			editor.putString(getNameIdentifier(index), value);
