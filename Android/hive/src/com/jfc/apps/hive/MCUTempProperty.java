@@ -35,7 +35,11 @@ public class MCUTempProperty {
 	public static long getMCUTempDate(Activity activity) {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
 		String v = SP.getString(MCU_TEMP_DATE_PROPERTY, DEFAULT_MCU_TEMP_DATE);
-		return Long.parseLong(v);
+		try {
+			return Long.parseLong(v);
+		} catch (NumberFormatException nfe) {
+			return 0;
+		}
 	}
 	
 	public static void resetMCUTempProperty(Activity activity) {

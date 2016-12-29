@@ -59,9 +59,39 @@ public class ActiveHiveProperty implements IPropertyMgr {
 		setActiveHiveProperty(activity, DEFAULT_ACTIVE_HIVE);
 	}
 	
+	private void loadExistingPairs(Activity activity)
+	{
+    	mExistingPairs = new ArrayList<Pair<String,String>>();
+    	if (BluetoothAdapter.getDefaultAdapter() == null) {
+    		// simulate one of my devices
+    		// F0-17-66-FC-5E-A1
+	    	mExistingPairs.add(new Pair<String,String>("Joe's Hive", "F0-17-66-FC-5E-A1"));
+    	} else {
+	    	int sz = NumHivesProperty.getNumHivesProperty(mActivity);
+	    	for (int i = 0; i < sz; i++) {
+	    		String name = PairedHiveProperty.getPairedHiveName(mActivity, i);
+	    		String id = PairedHiveProperty.getPairedHiveId(mActivity, i);
+	    		mExistingPairs.add(new Pair<String,String>(name,id));
+	    	}
+    	}
+    	
+    	if (mExistingPairs.size() == 1) {
+    		setActiveHive(mExistingPairs.get(0).first);
+    		setActiveHiveProperty(activity, mExistingPairs.get(0).first);
+    	} else {
+    		if (isActiveHivePropertyDefined(activity)) {
+    			setActiveHive(getActiveHiveProperty(activity));
+    		} else {
+    			setActiveHiveUndefined();
+    		}
+    	}
+	}
+
 	public ActiveHiveProperty(final Activity activity, final TextView idTv, ImageButton button) {
 		this.mActivity = activity;
 		this.mActiveHiveTv = idTv;
+		
+		loadExistingPairs(activity);
 		
     	mExistingPairs = new ArrayList<Pair<String,String>>();
     	if (BluetoothAdapter.getDefaultAdapter() == null) {
@@ -92,6 +122,8 @@ public class ActiveHiveProperty implements IPropertyMgr {
 			@Override
 			public void onClick(View v) {
 		    	
+				loadExistingPairs(activity);
+				
 		        final ArrayAdapter<Pair<String,String>> arrayAdapter = new PairAdapter(mActivity, mExistingPairs);
 		        
 		        arrayAdapter.sort(new Comparator<Pair<String,String>>() {
