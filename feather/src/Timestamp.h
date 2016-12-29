@@ -24,7 +24,7 @@ class Timestamp {
 
     void attemptPost(Adafruit_BluefruitLE_SPI &ble);
     
-    bool processTimestampResponse(const char *response);
+    char *processTimestampResponse(const char *response);
 
     bool isTimestampResponse(const char *response) const;
     

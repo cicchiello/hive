@@ -16,6 +16,8 @@ class StepperMonitor : public Sensor {
     
     void enqueueRequest(const char *value, const char *timestamp);
 
+    void scheduleNextSample(unsigned long now);
+    
  private:
     const class StepperActuator &mActuator;
     Str *mPrev;

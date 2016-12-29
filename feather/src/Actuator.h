@@ -12,8 +12,8 @@ class Actuator {
 
     virtual void act() = 0;
     
-    bool isMyCommand(const char *response) const;
-    bool processCommand(const char *response);
+    virtual bool isMyCommand(const char *response) const;
+    virtual char * processCommand(const char *response);
 
  protected:
     unsigned long mNextActionTime;

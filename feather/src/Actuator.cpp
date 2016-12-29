@@ -4,6 +4,8 @@
 
 
 #define HEADLESS
+#define NDEBUG
+
 
 #ifndef HEADLESS
 #define P(args) Serial.print(args)
@@ -14,7 +16,6 @@
 #endif
 
 
-#define NDEBUG
 #ifndef NDEBUG
 #define D(args) P(args)
 #define DL(args) PL(args)
@@ -48,18 +49,20 @@ void Actuator::scheduleNextAction(unsigned long now)
 
 bool Actuator::isMyCommand(const char *msg) const
 {
-    DL("Actuator::isMyCommand");
+    PL("Actuator::isMyCommand (not overridden by derived class)");
     const char *prefix = "action|";
     return (strncmp(msg, prefix, strlen(prefix)) == 0);
 }
 
 
-bool Actuator::processCommand(const char *msg)
+char *Actuator::processCommand(const char *msg)
 {
+    PL("Actuator::processCommand (not overridden by derived class)");
     const char *prefix = "action|";
     Str command(msg + strlen(prefix));
     D("Received action cmd: ");
     DL(command.c_str());
+    return (char*) msg;
 }
 
 

@@ -32,8 +32,10 @@
 #define REVSTEPS 200
 #define RPM 60
 
-StepperActuator::StepperActuator(const char *name, int port, unsigned long now, int stepsPerCall)
-: Actuator(now), mName(new Str(name)), mLoc(0), mStepsPerCall(stepsPerCall)
+static bool s_runningNotification = false;
+
+StepperActuator::StepperActuator(const char *name, int port, unsigned long now)
+  : Actuator(now), mName(new Str(name)), mLoc(0), mTarget(0)
 {
     AFMS = new Adafruit_MotorShield();
     AFMS->begin();
@@ -59,12 +61,6 @@ StepperActuator::~StepperActuator()
 }
 
 
-int StepperActuator::getLocation() const
-{
-    return mLoc;
-}
-
-
 const char *StepperActuator::getName() const
 {
     return mName->c_str();
@@ -73,26 +69,37 @@ const char *StepperActuator::getName() const
 
 void StepperActuator::act()
 {
-    DL("StepperActuator::sensorSample called");
+    //DL("StepperActuator::sensorSample called");
 
-    if (mStepsPerCall > 0) {
-        m->onestep(FORWARD, DOUBLE);
-	mLoc++;
-    } else {
-        m->onestep(BACKWARD, DOUBLE);
-	mLoc--;
+    if (mLoc != mTarget) {
+        if (s_runningNotification) {
+	    PL("Running...");
+	    s_runningNotification = false;
+	}
+	
+        int dir = mLoc < mTarget ? FORWARD : BACKWARD;
+	mLoc += mLoc < mTarget ? 1 : -1;
+
+	m->onestep(dir, DOUBLE);
+
+	if (mLoc == mTarget) {
+	    m->release();
+	    PL("Released the stepper motor");
+	}
     }
 }
 
 
 bool StepperActuator::isItTimeYet(unsigned long now)
 {
-    if (now > mNextActionTime+3) {
+#ifdef foo  
+    if ((now > mNextActionTime+3) && (mLoc != mTarget)) {
         P("StepperActuator::isItTimeYet; missed an appointed visit by ");
 	P(now - mNextActionTime);
 	P(" ms; now == ");
 	PL(now);
     }
+#endif
     
     return now >= mNextActionTime;
 }
@@ -101,6 +108,57 @@ bool StepperActuator::isItTimeYet(unsigned long now)
 void StepperActuator::scheduleNextAction(unsigned long now)
 {
     mNextActionTime = now + mMsPerStep;
+}
+
+
+bool StepperActuator::isMyCommand(const char *msg) const
+{
+    D("StepperActuator::isMyCommand; testing msg: "); DL(msg);
+    const char *prefix = "action|";
+    if (strncmp(msg, prefix, strlen(prefix)) == 0) {
+        msg = msg + strlen(prefix);
+	Str targetName = *mName;
+	targetName.append("-target");
+	if (strncmp(msg, targetName.c_str(), targetName.len()) == 0) {
+	    DL("StepperActuator::isMyCommand; found one of mine!");
+	    return true;
+	}
+    }
+    return false;
+}
+
+
+static char *consumeToEOL(const char *rsp)
+{
+    char *c = (char*) rsp;
+    while (*c && ((*c >= '0') && (*c <= '9')))
+        c++;
+    if (*c == '\n' || *c == '\l')
+        c++;
+    if (*c == '\\' && *(c+1) == 'n')
+        c += 2;
+    return c;
+}
+
+
+static bool s_first = true;
+char *StepperActuator::processCommand(const char *msg)
+{
+    const char *prefix = "action|";
+    Str targetName = *mName;
+    targetName.append("-target");
+    Str command(msg + strlen(prefix) + targetName.len() + 1);
+    D("StepperActuator::processCommand; parsing: "); DL(command.c_str());
+    int newTarget = atoi(command.c_str());
+    D("StepperActuator::processCommand; target set to "); DL(newTarget);
+
+    if (newTarget != mTarget) {
+        mTarget = newTarget;
+        if (mTarget != mLoc)
+	    s_runningNotification = true;
+    }
+
+    return consumeToEOL(command.c_str());
 }
 
 

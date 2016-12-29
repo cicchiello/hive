@@ -98,7 +98,20 @@ bool Timestamp::isTimestampResponse(const char *rsp) const
 }
 
 
-bool Timestamp::processTimestampResponse(const char *rsp)
+static char *consumeToEOL(const char *rsp)
+{
+    char *c = (char*) rsp;
+    while (*c && ((*c >= '0') && (*c <= '9')))
+        c++;
+    if (*c == '\n' || *c == '\l')
+        c++;
+    if (*c == '\\' && *(c+1) == 'n')
+        c += 2;
+    return c;
+}
+
+
+char *Timestamp::processTimestampResponse(const char *rsp)
 {
     DL("Timestamp::processTimestampResponse");
     const char *prefix = "rply|GETTIME|";
@@ -110,7 +123,7 @@ bool Timestamp::processTimestampResponse(const char *rsp)
     mHaveTimestamp = true;
     mSecondsAtMark = (millis()+500)/1000;
     getQueue()->receivedSuccessConfirmation(getFreelist());
-    return stat;
+    return consumeToEOL(endPtr);
 }
 
 

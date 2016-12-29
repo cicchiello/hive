@@ -62,3 +62,12 @@ bool StepperMonitor::sensorSample(Str *value)
 }
 
 
+void StepperMonitor::scheduleNextSample(unsigned long now)
+{
+    if (mActuator.getLocation() != mActuator.getTarget())
+        mNextSampleTime = now + 5*1000;
+    else
+        Sensor::scheduleNextSample(now);
+}
+
+

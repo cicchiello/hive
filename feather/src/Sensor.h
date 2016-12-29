@@ -20,7 +20,7 @@ class Sensor {
 
     void attemptPost(Adafruit_BluefruitLE_SPI &ble);
     bool isMyResponse(const char *response) const;
-    bool processResponse(const char *response);
+    char *processResponse(const char *response);
 
  protected:
     void enqueueFullRequest(const char *sensorName, const char *value, const char *timestamp);

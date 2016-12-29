@@ -276,7 +276,7 @@ void loop(void)
 	s_sensors[0] = new CpuTempSensor(now, ble);
 	s_sensors[1] = new TempSensor(now);
 	s_sensors[2] = new HumidSensor(now);
-	StepperActuator *motor0 = new StepperActuator("motor0", 1, now, 40);
+	StepperActuator *motor0 = new StepperActuator("motor0", 1, now);
 	s_sensors[3] = new StepperMonitor(*motor0, now);
 	s_actuators[0] = motor0;
 //	s_sensors[4] = new StepperMonitor("motor1", now, -20);
@@ -329,11 +329,11 @@ void loop(void)
 	    // see if it's time to sample
 	    if (s_sensors[s_currSensor]->isItTimeYet(now)) {
 	        WDT_TRACE("starting sampling sensor");
-		D("starting sampling sensor ");
-		D(s_currSensor);
-		D(" (now == ");
-		D(now);
-		DL(")");
+		//D("starting sampling sensor ");
+		//D(s_currSensor);
+		//D(" (now == ");
+		//D(now);
+		//DL(")");
 
 		s_sensors[s_currSensor]->scheduleNextSample(now);
 
@@ -347,9 +347,9 @@ void loop(void)
 
 		    s_sensors[s_currSensor]->enqueueRequest(sensorValueStr.c_str(),
 							    timestampStr.c_str());
-		    D("done sampling sensor (now == ");
-		    D(millis());
-		    DL(")");
+		    //D("done sampling sensor (now == ");
+		    //D(millis());
+		    //DL(")");
 		    WDT_TRACE("done sampling sensor");
 		
 		    s_mainState = ATTEMPT_SENSOR_POST;
@@ -549,20 +549,33 @@ void handleBLEInput(Adafruit_BluefruitLE_SPI &ble)
 	    //D("Received: ");
 	    //DL(s_rxLine.c_str());
 
-	    if (s_timestamp->isTimestampResponse(rx)) {
-	        s_timestamp->processTimestampResponse(rx);
-	    } else {
-	        bool found = false;
-		int i = 0;
-		while (!found && (s_sensors[i] != NULL)) {
-		    if (s_sensors[i]->isMyResponse(rx)) {
-		        found = true;
-			s_sensors[i]->processResponse(rx);
+	    while ((rx != NULL) && *rx) {
+	        if (s_timestamp->isTimestampResponse(rx)) {
+		    rx = s_timestamp->processTimestampResponse(rx);
+		} else {
+		    int i = 0;
+		    bool found = false;
+		    while (!found && (s_sensors[i] != NULL)) {
+		        if (s_sensors[i]->isMyResponse(rx)) {
+			    found = true;
+			    rx = s_sensors[i]->processResponse(rx);
+			}
+			i++;
 		    }
-		}
-		if (!found) {
-		    // assume it's randomly entered text -- report it
-		    P(F("[Recv] ")); PL(rx);
+		    i = 0;
+		    while (!found && (s_actuators[i] != NULL)) {
+		        if (s_actuators[i]->isMyCommand(rx)) {
+			    found = true;
+			    rx = s_actuators[i]->processCommand(rx);
+			}
+			i++;
+		    }
+		    if (!found && (rx && *rx)) {
+		        // assume it's randomly entered text -- report it
+		        P(F("[Recv] ")); PL(rx);
+			P(F("[Recv 2] ")); PL(s_rxLine.c_str());
+			rx == NULL;
+		    }
 		}
 	    }
 	    

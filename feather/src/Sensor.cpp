@@ -116,17 +116,33 @@ void Sensor::attemptPost(Adafruit_BluefruitLE_SPI &ble)
 }
 
 
-bool Sensor::processResponse(const char *rsp)
+static char *consumeToEOL(const char *rsp)
+{
+    char *c = (char*) rsp;
+    if (*c == '\n' || *c == '\l')
+        c++;
+    if (*c == '\\' && *(c+1) == 'n')
+        c += 2;
+    return c;
+}
+
+
+char *Sensor::processResponse(const char *rsp)
 {
     const char *prefix = "rply|POST|";
     Str response(rsp + strlen(prefix));
     D("Received reply to POST: ");
     DL(response.c_str());
 
-    if (strcmp(response.c_str(), "success") == 0) {
+    static const char *success = "success";
+    if (strncmp(response.c_str(), success, strlen(success)) == 0) {
         getQueue()->receivedSuccessConfirmation(getFreelist());
+
+	return consumeToEOL(response.c_str() + strlen(success));
     } else {
         getQueue()->receivedFailureConfirmation();
+
+	return consumeToEOL(response.c_str());
     }
 }
 
