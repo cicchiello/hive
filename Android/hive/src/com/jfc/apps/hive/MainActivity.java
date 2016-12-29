@@ -1,8 +1,6 @@
 package com.jfc.apps.hive;
 
-import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -12,7 +10,6 @@ import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
 import com.jfc.util.misc.SplashyText;
 
 import android.app.Activity;
-import android.bluetooth.BluetoothAdapter;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.format.DateFormat;
@@ -20,15 +17,13 @@ import android.util.Log;
 import android.util.Pair;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.ImageButton;
 import android.widget.TextView;
 
 public class MainActivity extends Activity {
 	private static final String TAG = MainActivity.class.getSimpleName();
 	
-    private static final String DbHost = "http://192.168.1.85";
-    private static final int DbPort = 5984;
-    private static final String Db = "hive-sensor-log";
-    
     private static final int POLL_RATE = 600;
 
     // db polling -- necessary until/unless we have an active notification upon db change
@@ -37,6 +32,7 @@ public class MainActivity extends Activity {
 	private AtomicInteger mPollCounter = new AtomicInteger(0);
 	private Thread mPollerThread = null;
 	private Runnable mPoller = null;
+	private MotorProperty m0, m1, m2;
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -72,7 +68,22 @@ public class MainActivity extends Activity {
 		
 		((TextView) findViewById(R.id.humidText)).setText("?");
 		((TextView) findViewById(R.id.humidTimestampText)).setText("?");
+
+		m0 = new MotorProperty(this, 0, 
+							   (TextView) findViewById(R.id.motor0Text), 
+							   (ImageButton) findViewById(R.id.selectMotor0Button),
+							   (TextView) findViewById(R.id.motor0TimestampText));
 		
+		m1 = new MotorProperty(this, 1, 
+							   (TextView) findViewById(R.id.motor1Text), 
+							   (ImageButton) findViewById(R.id.selectMotor1Button),
+							   (TextView) findViewById(R.id.motor1TimestampText));
+
+		m2 = new MotorProperty(this, 2, 
+							   (TextView) findViewById(R.id.motor2Text), 
+							   (ImageButton) findViewById(R.id.selectMotor2Button),
+							   (TextView) findViewById(R.id.motor2TimestampText));
+
 		try {
 			setValue(R.id.cpuTempText, R.id.cpuTempTimestampText,
 					 MCUTempProperty.getMCUTempValue(this), 
@@ -88,33 +99,27 @@ public class MainActivity extends Activity {
 					 HumidProperty.getHumidValue(this), 
 					 HumidProperty.isHumidPropertyDefined(this), 
 					 HumidProperty.getHumidDate(this));
+			
+			setValue(R.id.motor0Text, R.id.motor0TimestampText,
+					 MotorProperty.getMotorValue(this, 0), 
+					 MotorProperty.isMotorPropertyDefined(this, 0), 
+					 MotorProperty.getMotorDate(this, 0));
+			
+			setValue(R.id.motor1Text, R.id.motor1TimestampText,
+					 MotorProperty.getMotorValue(this, 1), 
+					 MotorProperty.isMotorPropertyDefined(this, 1), 
+					 MotorProperty.getMotorDate(this, 1));
+			
+			setValue(R.id.motor2Text, R.id.motor2TimestampText,
+					 MotorProperty.getMotorValue(this, 2), 
+					 MotorProperty.isMotorPropertyDefined(this, 2), 
+					 MotorProperty.getMotorDate(this, 2));
+						
 		} catch (Exception ex) {
 			Log.e(TAG, ex.getLocalizedMessage());
 		}
 	}
 
-	
-	private String getHiveAddress(String hiveName) {
-    	List<Pair<String,String>> existingPairs = new ArrayList<Pair<String,String>>();
-    	if (BluetoothAdapter.getDefaultAdapter() == null) {
-    		// simulate one of my devices
-    		// F0-17-66-FC-5E-A1
-    		if (hiveName.equals("Joe's Hive")) 
-    			return "F0-17-66-FC-5E-A1";
-    		else 
-    			return null;
-    	} else {
-	    	int sz = NumHivesProperty.getNumHivesProperty(this);
-	    	for (int i = 0; i < sz; i++) {
-	    		if (PairedHiveProperty.getPairedHiveName(this, i).equals(hiveName)) 
-	    			return PairedHiveProperty.getPairedHiveId(this, i);
-	    	}
-	    	return null;
-    	}
-    	
-	}
-	
-	
 	private String createQuery(String hiveId, String sensor) {
 		String rangeStartKeyClause = "[\"" + hiveId + "\",\""+sensor+"\",\"99999999\"]";
 		String rangeEndKeyClause = "[\"" + hiveId + "\",\""+sensor+"\",\"00000000\"]";
@@ -171,7 +176,7 @@ public class MainActivity extends Activity {
 								mPollCounter.set(0);
 								
 								String ActiveHive = ActiveHiveProperty.getActiveHiveProperty(MainActivity.this);
-								String HiveId = getHiveAddress(ActiveHive);
+								String HiveId = HiveEnv.getHiveAddress(MainActivity.this, ActiveHive);
 								boolean haveHiveId = HiveId != null;
 								
 								if (haveHiveId) {
@@ -184,7 +189,7 @@ public class MainActivity extends Activity {
 															MCUTempProperty.setMCUTempProperty(MainActivity.this, value, timestamp);
 														}
 													});
-						            new PollSensorBackground(DbHost, DbPort, Db, createQuery(HiveId, "cputemp"), onCompletion).execute();
+						            new PollSensorBackground(HiveEnv.DbHost, HiveEnv.DbPort, HiveEnv.Db, createQuery(HiveId, "cputemp"), onCompletion).execute();
 
 									onCompletion = 
 											getOnCompletion(R.id.tempText, R.id.tempTimestampText, new OnSaveValue() {
@@ -193,7 +198,7 @@ public class MainActivity extends Activity {
 											        TempProperty.setTempProperty(MainActivity.this, value, timestamp);
 												}
 											});
-						            new PollSensorBackground(DbHost, DbPort, Db, createQuery(HiveId, "temp"), onCompletion).execute();
+						            new PollSensorBackground(HiveEnv.DbHost, HiveEnv.DbPort, HiveEnv.Db, createQuery(HiveId, "temp"), onCompletion).execute();
 						            
 									onCompletion = 
 											getOnCompletion(R.id.humidText, R.id.humidTimestampText, new OnSaveValue() {
@@ -202,7 +207,34 @@ public class MainActivity extends Activity {
 											        HumidProperty.setHumidProperty(MainActivity.this, value, timestamp);
 												}
 											});
-						            new PollSensorBackground(DbHost, DbPort, Db, createQuery(HiveId, "humid"), onCompletion).execute();
+						            new PollSensorBackground(HiveEnv.DbHost, HiveEnv.DbPort, HiveEnv.Db, createQuery(HiveId, "humid"), onCompletion).execute();
+						            
+									onCompletion = 
+											getOnCompletion(R.id.motor0Text, R.id.motor0TimestampText, new OnSaveValue() {
+												@Override
+												public void save(Activity activity, String value, long timestamp) {
+													MotorProperty.setMotorProperty(MainActivity.this, 0, value, timestamp);
+												}
+											});
+						            new PollSensorBackground(HiveEnv.DbHost, HiveEnv.DbPort, HiveEnv.Db, createQuery(HiveId, "motor0"), onCompletion).execute();
+
+									onCompletion = 
+											getOnCompletion(R.id.motor1Text, R.id.motor1TimestampText, new OnSaveValue() {
+												@Override
+												public void save(Activity activity, String value, long timestamp) {
+													MotorProperty.setMotorProperty(MainActivity.this, 1, value, timestamp);
+												}
+											});
+						            new PollSensorBackground(HiveEnv.DbHost, HiveEnv.DbPort, HiveEnv.Db, createQuery(HiveId, "motor1"), onCompletion).execute();
+						            
+									onCompletion = 
+											getOnCompletion(R.id.motor2Text, R.id.motor2TimestampText, new OnSaveValue() {
+												@Override
+												public void save(Activity activity, String value, long timestamp) {
+													MotorProperty.setMotorProperty(MainActivity.this, 2, value, timestamp);
+												}
+											});
+						            new PollSensorBackground(HiveEnv.DbHost, HiveEnv.DbPort, HiveEnv.Db, createQuery(HiveId, "motor2"), onCompletion).execute();
 								}
 							}
 						}

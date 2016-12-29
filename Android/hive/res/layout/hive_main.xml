@@ -282,4 +282,285 @@
 	</LinearLayout>
     
     
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
+
+
+    
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+	    android:layout_marginStart="15dip"
+	    android:layout_marginLeft="15dip"
+        android:orientation="horizontal" >
+		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:orientation="vertical" >
+	        
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:text="@string/motor0Label"
+	   		    android:textAppearance="?android:attr/textAppearanceMedium"
+	   		    android:textStyle="bold" />
+	
+	   		<TextView
+		        android:id="@+id/motor0TimestampText"
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:layout_marginLeft="15dip"
+	   		    android:layout_marginStart="15dip"
+	   		    android:text="@string/timestamp"
+	            android:background="#C9EAEA"
+	   		    android:textStyle="italic"
+	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+   		</LinearLayout>
+   		
+		<LinearLayout
+	            android:layout_width="wrap_content"
+	            android:layout_height="match_parent"
+	            android:layout_weight="0.5"
+	            android:layout_gravity="right"
+	            android:orientation="vertical" >
+	        
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		  <TextView
+		      android:id="@+id/motor0Text"
+		      android:layout_width="wrap_content"
+		      android:layout_height="wrap_content"
+		      android:layout_weight="0.5"
+	          android:background="#C9EAEA"
+		      android:layout_gravity="right"
+		      android:text="@string/testMotor"
+		      android:textAppearance="?android:attr/textAppearanceMedium" />
+
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+			
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:visibility="invisible"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		</LinearLayout>
+		
+		<ImageButton
+		    android:id="@+id/selectMotor0Button"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="end"
+		    android:layout_weight="0.1"
+		    android:contentDescription="@string/motorDesc"
+		    android:src="@drawable/ic_rarrow"
+		    android:text="@string/empty" />
+
+	</LinearLayout>
+    
+
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
+
+
+    
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+	    android:layout_marginStart="15dip"
+	    android:layout_marginLeft="15dip"
+        android:orientation="horizontal" >
+		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:orientation="vertical" >
+	        
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:text="@string/motor1Label"
+	   		    android:textAppearance="?android:attr/textAppearanceMedium"
+	   		    android:textStyle="bold" />
+	
+	   		<TextView
+		        android:id="@+id/motor1TimestampText"
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:layout_marginLeft="15dip"
+	   		    android:layout_marginStart="15dip"
+	   		    android:text="@string/timestamp"
+	            android:background="#C9EAEA"
+	   		    android:textStyle="italic"
+	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+   		</LinearLayout>
+   		
+		<LinearLayout
+	            android:layout_width="wrap_content"
+	            android:layout_height="match_parent"
+	            android:layout_weight="0.5"
+	            android:layout_gravity="right"
+	            android:orientation="vertical" >
+	        
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		  <TextView
+		      android:id="@+id/motor1Text"
+		      android:layout_width="wrap_content"
+		      android:layout_height="wrap_content"
+		      android:layout_weight="0.5"
+	          android:background="#C9EAEA"
+		      android:layout_gravity="right"
+		      android:text="@string/testMotor"
+		      android:textAppearance="?android:attr/textAppearanceMedium" />
+
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+			
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:visibility="invisible"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		</LinearLayout>
+		
+		<ImageButton
+		    android:id="@+id/selectMotor1Button"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="end"
+		    android:layout_weight="0.1"
+		    android:contentDescription="@string/motorDesc"
+		    android:src="@drawable/ic_rarrow"
+		    android:text="@string/empty" />
+
+	</LinearLayout>
+    
+
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
+
+
+    
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+	    android:layout_marginStart="15dip"
+	    android:layout_marginLeft="15dip"
+        android:orientation="horizontal" >
+		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:orientation="vertical" >
+	        
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:text="@string/motor2Label"
+	   		    android:textAppearance="?android:attr/textAppearanceMedium"
+	   		    android:textStyle="bold" />
+	
+	   		<TextView
+		        android:id="@+id/motor2TimestampText"
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:layout_marginLeft="15dip"
+	   		    android:layout_marginStart="15dip"
+	   		    android:text="@string/timestamp"
+	            android:background="#C9EAEA"
+	   		    android:textStyle="italic"
+	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+   		</LinearLayout>
+   		
+		<LinearLayout
+	            android:layout_width="wrap_content"
+	            android:layout_height="match_parent"
+	            android:layout_weight="0.5"
+	            android:layout_gravity="right"
+	            android:orientation="vertical" >
+	        
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		  <TextView
+		      android:id="@+id/motor2Text"
+		      android:layout_width="wrap_content"
+		      android:layout_height="wrap_content"
+		      android:layout_weight="0.5"
+	          android:background="#C9EAEA"
+		      android:layout_gravity="right"
+		      android:text="@string/testMotor"
+		      android:textAppearance="?android:attr/textAppearanceMedium" />
+
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+			
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:visibility="invisible"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		</LinearLayout>
+		
+		<ImageButton
+		    android:id="@+id/selectMotor2Button"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="end"
+		    android:layout_weight="0.1"
+		    android:contentDescription="@string/motorDesc"
+		    android:src="@drawable/ic_rarrow"
+		    android:text="@string/empty" />
+
+	</LinearLayout>
+    
 </LinearLayout>

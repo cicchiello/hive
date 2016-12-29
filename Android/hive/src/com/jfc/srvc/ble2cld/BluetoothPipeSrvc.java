@@ -233,6 +233,7 @@ public class BluetoothPipeSrvc extends Service {
 			        
 			        while (!mShutdown.get()) {
 			        	if (!mIsConnected.get()) {
+			        		Log.i(TAG, "mAdapter.getState(): "+mAdapter.getState());
 			        		mGatt = mDevice.connectGatt(BluetoothPipeSrvc.this, false, mExecutor);
 			        	}
 			        	for (int i = 0; i < 50 && !mShutdown.get(); i++) {

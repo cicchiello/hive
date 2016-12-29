@@ -1,6 +1,12 @@
 package com.jfc.apps.hive;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import android.app.Activity;
+import android.bluetooth.BluetoothAdapter;
+import android.content.Context;
+import android.util.Pair;
 import android.widget.TextView;
 
 public class HiveEnv {
@@ -8,6 +14,10 @@ public class HiveEnv {
 	public static final boolean DEBUG = false;
 	public static final boolean RELEASE_TEST = false;
 	
+    public static final String DbHost = "http://192.168.1.85";
+    public static final int DbPort = 5984;
+    public static final String Db = "hive-sensor-log";
+
 	public static final int ModifiableBackgroundColor = 0xffC9EAEA;
 	public static final int ModifiedFieldSplashColor = 0xff00FF21;
 	
@@ -51,4 +61,24 @@ public class HiveEnv {
 		flairThread.start();
 	}
 
+	static public String getHiveAddress(Context ctxt, String hiveName) {
+    	List<Pair<String,String>> existingPairs = new ArrayList<Pair<String,String>>();
+    	if (BluetoothAdapter.getDefaultAdapter() == null) {
+    		// simulate one of my devices
+    		// F0-17-66-FC-5E-A1
+    		if (hiveName.equals("Joe's Hive")) 
+    			return "F0-17-66-FC-5E-A1";
+    		else 
+    			return null;
+    	} else {
+	    	int sz = NumHivesProperty.getNumHivesProperty(ctxt);
+	    	for (int i = 0; i < sz; i++) {
+	    		if (PairedHiveProperty.getPairedHiveName(ctxt, i).equals(hiveName)) 
+	    			return PairedHiveProperty.getPairedHiveId(ctxt, i);
+	    	}
+	    	return null;
+    	}
+    	
+	}
+	
 }

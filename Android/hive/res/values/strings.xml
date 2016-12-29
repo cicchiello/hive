@@ -37,6 +37,12 @@
 	<string name="humidDesc">Hive humidity</string>
 	<string name="testHumid">34.6%</string>
 			
+	<string name="motor0Label">Motor 1</string>
+	<string name="motor1Label">Motor 2</string>
+	<string name="motor2Label">Motor 3</string>
+	<string name="motorDesc">Motor distance</string>
+	<string name="testMotor">1234</string>
+	
 	<string name="warning">Warning:</string>
     <string name="error">Error:</string>
     <string name="yes">Yes</string>
@@ -54,4 +60,12 @@
 	
 	<string name="crash_toast_text">Ooooops!  Hivewiz&#8482; has crashed, but a report has been sent to the developers so they can fix the issue!</string>
 	
+	<string name="red">R</string>
+    <string name="minus">-</string>
+	<string name="minusminus">&#60;&#60;</string>
+    <string name="plusplus">&#62;&#62;</string>
+    <string name="plus">+</string>
+    <string name="hex">0x</string>
+    <string name="zero">0</string>
+    		
 </resources>
