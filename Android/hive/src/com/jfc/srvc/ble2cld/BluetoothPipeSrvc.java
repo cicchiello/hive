@@ -42,7 +42,7 @@ public class BluetoothPipeSrvc extends Service {
     public static final String UUID_UART_SERVICE = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
     public static final int kTxMaxCharacters = 20;
 
-    private boolean mEnabled = false, mInitialized = false;
+    private boolean mEnabled = false;
     private Notification mNotification;
     private List<String> mAddresses = new ArrayList<String>();
     private List<ConnectionMgr> mMgrs = new ArrayList<ConnectionMgr>();
@@ -52,7 +52,7 @@ public class BluetoothPipeSrvc extends Service {
     	private BluetoothAdapter mAdapter = null;	
     	private BluetoothDevice mDevice = null;
     	private AtomicBoolean mShutdown = new AtomicBoolean(false), mIsConnected = new AtomicBoolean(false);
-    	private AtomicBoolean mStopped = new AtomicBoolean(false);
+    	private AtomicBoolean mStopped = new AtomicBoolean(false), mQueueIsIdle = new AtomicBoolean(true);
         private StringBuffer rxLine = new StringBuffer();
     	private BleGattExecutor mExecutor = null;
     	private BluetoothGattService mUartService = null;
@@ -120,6 +120,28 @@ public class BluetoothPipeSrvc extends Service {
 			Log.e(TAG, "onCharacteristicRead");
 		}
 
+		public void tx(String msg) {
+    		boolean waitingForIdle = true;
+    		while (waitingForIdle) {
+        		synchronized (mQueueIsIdle) {
+        			if (mQueueIsIdle.get()) {
+        				mQueueIsIdle.set(false);
+                        Log.i(TAG, "queuing: "+msg);
+                        queue.offer(msg);
+        				waitingForIdle = false;
+        				mQueueIsIdle.set(true);
+        			} else {
+            			try {
+							Thread.sleep(10);
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+        			}
+				}
+    		}
+		}
+		
 		@Override
 		public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
 	        if (characteristic.getService().getUuid().toString().equalsIgnoreCase(UUID_UART_SERVICE)) {
@@ -147,10 +169,28 @@ public class BluetoothPipeSrvc extends Service {
 	                            }
 	                            Log.i(TAG, "queuing: "+reply);
 	                            queue.offer(reply);
+	    	            		mQueueIsIdle.getAndSet(true);
 	                        }
 	                    };
-	            		String results[] = new String[2];
-	            		CmdProcess.process(cmd, results, onCompletion);
+	            		
+	            		boolean waitingForIdle = true;
+	            		while (waitingForIdle) {
+		            		synchronized (mQueueIsIdle) {
+		            			if (mQueueIsIdle.get()) {
+		            				mQueueIsIdle.set(false);
+		    	            		String results[] = new String[2];
+		            				CmdProcess.process(cmd, results, onCompletion);
+		            				waitingForIdle = false;
+		            			} else {
+			            			try {
+										Thread.sleep(10);
+									} catch (InterruptedException e) {
+										// TODO Auto-generated catch block
+										e.printStackTrace();
+									}
+		            			}
+							}
+	            		}
 	            	}
 	            } else Log.e(TAG, "onCharacteristicChangedCalled (1)");
 	        } else Log.e(TAG, "onCharacteristicChangedCalled (2)");
@@ -318,35 +358,53 @@ public class BluetoothPipeSrvc extends Service {
     }
     
 
-
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-    	mEnabled = EnableBridgeProperty.getEnableBridgeProperty(this);
-    	if (mEnabled) {
-			for (ConnectionMgr mgr : mMgrs) 
-				mgr.setShutdown(true);
-			mMgrs = new ArrayList<ConnectionMgr>();
-			mAddresses = new ArrayList<String>();
-			
-    		scanLeDevice();
-    	} else {
-			for (ConnectionMgr mgr : mMgrs) 
-				mgr.setShutdown(true);
-			
-			boolean allDone = false;
-			while (!allDone) {
-				allDone = true;
-				for (ConnectionMgr mgr : mMgrs) {
-					if (!mgr.isStopped())
-						allDone = false;
+		String cmd = intent.getExtras().getString("cmd");
+		if ("setup".equals(cmd)) {
+	    	mEnabled = EnableBridgeProperty.getEnableBridgeProperty(this);
+	    	if (mEnabled) {
+				for (ConnectionMgr mgr : mMgrs) 
+					mgr.setShutdown(true);
+				mMgrs = new ArrayList<ConnectionMgr>();
+				mAddresses = new ArrayList<String>();
+				
+	    		scanLeDevice();
+	    	} else {
+				for (ConnectionMgr mgr : mMgrs) 
+					mgr.setShutdown(true);
+				
+				boolean allDone = false;
+				while (!allDone) {
+					allDone = true;
+					for (ConnectionMgr mgr : mMgrs) {
+						if (!mgr.isStopped())
+							allDone = false;
+					}
+				}
+				mMgrs = new ArrayList<ConnectionMgr>();
+				mAddresses = new ArrayList<String>();
+				Log.i(TAG, "Disabled");
+	    	}
+	    	
+			updateNotification();
+		} else if (cmd.startsWith("tx|")) {
+			cmd = cmd.substring("tx|".length());
+			String hiveId = cmd.substring(0, "aa:bb:cc:dd:ee:ff".length());
+			String msg = cmd.substring(hiveId.length()+1);
+			boolean delivered = false;
+			for (ConnectionMgr mgr : mMgrs) {
+				if (mgr.getAddress().equals(hiveId)) {
+					mgr.tx(msg);
+					delivered = true;
+					Log.i(TAG, "msg delivered to hive: "+msg);
 				}
 			}
-			mMgrs = new ArrayList<ConnectionMgr>();
-			mAddresses = new ArrayList<String>();
-			Log.i(TAG, "Disabled");
-    	}
-    	
-		updateNotification();
+			if (!delivered) 
+				Log.w(TAG, "msg *not* delivered: "+msg);
+		} else {
+			Log.e(TAG, "Service launched without a proper Intent");
+		}
 		
 		// If we get killed, after returning from here, restart
 		return START_STICKY;
@@ -420,8 +478,9 @@ public class BluetoothPipeSrvc extends Service {
 	
 
 	public static void startBlePipes(Context ctxt) {
-		Intent mBle2cldIntent= new Intent(ctxt, BluetoothPipeSrvc.class);
-		ctxt.startService(mBle2cldIntent);
+		Intent ble2cldIntent= new Intent(ctxt, BluetoothPipeSrvc.class);
+		ble2cldIntent.putExtra("cmd", "setup");
+		ctxt.startService(ble2cldIntent);
 	}
 	
 }

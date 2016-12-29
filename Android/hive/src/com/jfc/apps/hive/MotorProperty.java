@@ -9,15 +9,18 @@ import org.json.JSONObject;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.text.format.DateFormat;
 import android.util.Log;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
 import com.example.hive.R;
+import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
 import com.jfc.util.misc.SplashyText;
 
 public class MotorProperty {
@@ -32,13 +35,15 @@ public class MotorProperty {
 	private Activity activity;
 	private TextView value, timestamp;
 	private int index;
+	private String hiveId;
 	
-	public MotorProperty(final Activity activity, final int index, final TextView value, ImageButton button, final TextView timestamp) {
-		this.activity = activity;
-		this.value = value;
-		this.timestamp = timestamp;
-		this.index = index;
-		
+	public MotorProperty(Activity _activity, int _index, TextView _value, ImageButton button, TextView _timestamp) {
+		this.activity = _activity;
+		this.value = _value;
+		this.timestamp = _timestamp;
+		this.index = _index;
+		this.hiveId = HiveEnv.getHiveAddress(activity, ActiveHiveProperty.getActiveHiveProperty(activity));
+
 		if (isMotorPropertyDefined(activity, index)) {
 			setUndefined();
 		} else {
@@ -56,7 +61,13 @@ public class MotorProperty {
 				builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
 		        	@Override
 		        	public void onClick(DialogInterface dialog, int which) {
-		        		postToDb(((TextView)alert.findViewById(R.id.textValue)).getText().toString());
+		        		postToDb(((EditText)alert.findViewById(R.id.textValue)).getText().toString());
+						Intent ble2cld = new Intent(activity, BluetoothPipeSrvc.class);
+						String sensor = "motor"+Integer.toString(index)+"-target";
+						EditText et = (EditText) alert.findViewById(R.id.textValue);
+						String msg = "tx|"+hiveId.replace('-', ':')+"|action|"+sensor+"|"+et.getText();
+						ble2cld.putExtra("cmd", msg);
+						activity.startService(ble2cld);
 		        		alert.dismiss(); 
 		        		alert = null;
 		        	}
@@ -67,7 +78,7 @@ public class MotorProperty {
 		        });
 		        alert = builder.show();
 		        
-		        TextView tv = (TextView) alert.findViewById(R.id.textValue);
+		        EditText tv = (EditText) alert.findViewById(R.id.textValue);
 		        tv.setText(value.getText());
 
 		        alert.findViewById(R.id.plus).setOnClickListener(new View.OnClickListener() {public void onClick(View v) {inc();}});
@@ -82,29 +93,33 @@ public class MotorProperty {
 	public AlertDialog getAlertDialog() {return alert;}
 
 	private void inc() {
-		TextView tv = (TextView) getAlertDialog().findViewById(R.id.textValue);
-		int n = Integer.parseInt(tv.getText().toString())+1;
+		EditText tv = (EditText) getAlertDialog().findViewById(R.id.textValue);
+		String valueStr = tv.getText().toString();
+		int n = Integer.parseInt(valueStr)+1;
 		tv.setText(Integer.toString(n));
 		SplashyText.highlightModifiedField(activity, tv);
 	}
 	
 	private void inc100() {
-		TextView tv = (TextView) getAlertDialog().findViewById(R.id.textValue);
-		int n = Integer.parseInt(tv.getText().toString())+100;
+		EditText tv = (EditText) getAlertDialog().findViewById(R.id.textValue);
+		String valueStr = tv.getText().toString();
+		int n = Integer.parseInt(valueStr)+100;
 		tv.setText(Integer.toString(n));
 		SplashyText.highlightModifiedField(activity, tv);
 	}
 	
 	private void dec() {
-		TextView tv = (TextView) getAlertDialog().findViewById(R.id.textValue);
-		int n = Integer.parseInt(tv.getText().toString())-1;
+		EditText tv = (EditText) getAlertDialog().findViewById(R.id.textValue);
+		String valueStr = tv.getText().toString();
+		int n = Integer.parseInt(valueStr)-1;
 		tv.setText(Integer.toString(n));
 		SplashyText.highlightModifiedField(activity, tv);
 	}
 	
 	private void dec100() {
-		TextView tv = (TextView) getAlertDialog().findViewById(R.id.textValue);
-		int n = Integer.parseInt(tv.getText().toString())-100;
+		EditText tv = (EditText) getAlertDialog().findViewById(R.id.textValue);
+		String valueStr = tv.getText().toString();
+		int n = Integer.parseInt(valueStr)-100;
 		tv.setText(Integer.toString(n));
 		SplashyText.highlightModifiedField(activity, tv);
 	}

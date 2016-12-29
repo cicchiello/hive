@@ -55,11 +55,12 @@
             android:text="@string/empty"
             android:textAppearance="?android:attr/textAppearanceSmall" />
 
-        <TextView
+        <EditText
             android:id="@+id/textValue"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:hint="@string/zero"
+            android:background="#C9EAEA"
             android:textAppearance="?android:attr/textAppearanceLarge" />
 
     </LinearLayout>

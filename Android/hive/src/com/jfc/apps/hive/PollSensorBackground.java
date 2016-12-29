@@ -111,27 +111,12 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
 	            try {
 	            	JSONArray arr = obj.getJSONArray("rows");
 	            	if (!arr.isNull(0)) {
-						String id = arr.getJSONObject(0).getString("id");
-				        ProcessResult entryProc = new ProcessResult() {
-	
-							@Override
-							public void onSuccess(JSONObject obj) {
-					            try {
-					            	onCompletion.report(obj.getString("sensor"), 
-					            						obj.getString("timestamp"), 
-					            						obj.getString("value"));
-								} catch (JSONException e) {
-									onError("error Parsing JSON result for query: "+query);
-								}
-							}
-	
-							@Override
-							public void onError(String msg) {
-								Log.e(TAG, msg);
-							}
-						};
-						
-						couchGet(dbHost, dbPort, db, id, authToken, entryProc);
+	            		String valueStr = arr.getJSONObject(0).getString("value");
+	            		JSONArray key = arr.getJSONObject(0).getJSONArray("key");
+	            		String sensorStr = key.getString(1);
+	            		String timestampStr = key.getString(2);
+	            		if (onCompletion != null)
+	            			onCompletion.report(sensorStr, timestampStr, valueStr);
 	            	} else {
 	            		Log.e(TAG, "Unexpected response from couchDb: "+obj.toString());
 	            		Log.e(TAG, "Response resulted from query: "+query);

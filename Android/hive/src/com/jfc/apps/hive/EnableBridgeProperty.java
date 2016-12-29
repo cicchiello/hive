@@ -41,8 +41,9 @@ public class EnableBridgeProperty implements IPropertyMgr {
 				displayEnableBridge(mEnableText, newValue);
         		SplashyText.highlightModifiedField(mActivity, mEnableText);
         		
-    			Intent mBle2cldIntent= new Intent(mActivity, BluetoothPipeSrvc.class);
-    			mActivity.startService(mBle2cldIntent);
+    			Intent ble2cldIntent= new Intent(mActivity, BluetoothPipeSrvc.class);
+    			ble2cldIntent.putExtra("cmd", "setup");
+    			mActivity.startService(ble2cldIntent);
 			}
 		});
 	}
