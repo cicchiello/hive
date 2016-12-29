@@ -1,12 +1,15 @@
 ROOT=/home/pi/hive/feather/src
 SKETCH=hive
 
+LOCALOBJS=CpuTempSensor.o Timestamp.o Sensor.o Actuator.o \
+	HumidSensor.o TempSensor.o \
+	StepperMonitor.o StepperActuator.o
 MYPACKAGES=strutils couchutils tests platformutils cloudpipe DHT
-OTHERPACKAGES=SPI arduino arduino_zero USB
+OTHERPACKAGES=SPI arduino arduino_zero USB Wire
 PACKAGES=$(MYPACKAGES) $(OTHERPACKAGES)
 
 HPACKAGES=
-CPACKAGES=Adafruit_BluefruitLE_nRF51 
+CPACKAGES=Adafruit_BluefruitLE_nRF51 Adafruit_Motorshield
 PACKAGE_LIBS=$(addsuffix .lib,$(PACKAGES) $(HPACKAGES) $(CPACKAGES))
 
 ARDUINO_PACKAGES=/home/pi/.arduino15/packages
@@ -58,7 +61,7 @@ CPP_DEFS= -DF_CPU=48000000L \
 CC_DEFS= $(CPP_DEFS)
 
 PKG_INCS=$(addprefix -I$(ROOT)/,$(PACKAGES))
-CPKG_INCS=-I$(ROOT)/Adafruit_BluefruitLE_nRF51
+CPKG_INCS=-I$(ROOT)/Adafruit_BluefruitLE_nRF51 -I$(ROOT)/Adafruit_Motorshield
 HPKG_INCS=$(addprefix -I$(ROOT)/,$(addsuffix /src,$(HPACKAGES)))
 
 
@@ -70,6 +73,7 @@ CPP_INCS=-I$(ARDUINO_TOOLS)/CMSIS/4.0.0-atmel/CMSIS/Include/ \
 	$(PKG_INCS) \
 	$(CPKG_INCS) \
 	$(HPKG_INCS) \
+	-I$(ROOT)/Adafruit_Motorshield/utility \
 	-I$(ROOT)
 
 CC_INCS=-I$(ARDUINO_TOOLS)/CMSIS/4.0.0-atmel/CMSIS/Include/ \
@@ -92,7 +96,7 @@ $(SKETCH).elf: objs
 	$(CC) -Os -Wl,--gc-sections -save-temps  -T$(LD_SCRIPT) "-Wl,-Map,$(SKETCH).map" --specs=nano.specs --specs=nosys.specs -mcpu=cortex-m0plus -mthumb -Wl,--cref -Wl,--check-sections -Wl,--gc-sections -Wl,--unresolved-symbols=report-all -Wl,--warn-common -Wl,--warn-section-align -o $@ $(SKETCH).o -Wl,--start-group -lm $(ROOT)/app.a -Wl,--end-group
 
 
-objs: $(SKETCH).o CpuTempSensor.o Timestamp.o Sensor.o HumidSensor.o TempSensor.o $(PACKAGE_LIBS)
+objs: $(SKETCH).o $(LOCALOBJS) $(PACKAGE_LIBS)
 	@echo PACKAGE_LIBS == $(PACKAGE_LIBS)
 	@echo OBJS done
 
@@ -124,6 +128,10 @@ $(SKETCH).o : $(SKETCH).cpp
 Adafruit_BluefruitLE_nRF51.lib :
 	cd Adafruit_BluefruitLE_nRF51; make -f $(ROOT)/Makefile Adafruit_BluefruitLE_nRF51.a
 	cd Adafruit_BluefruitLE_nRF51/utility; make -f $(ROOT)/Makefile Adafruit_BluefruitLE_nRF51.a
+
+Adafruit_Motorshield.lib :
+	cd Adafruit_Motorshield; make -f $(ROOT)/Makefile Adafruit_Motorshield.a
+	cd Adafruit_Motorshield/utility; make -f $(ROOT)/Makefile Adafruit_Motorshield.a
 
 clean :
 	@echo Deleting: && find -L $(ROOT) -name "*.o" 

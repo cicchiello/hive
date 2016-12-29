@@ -12,7 +12,7 @@ class Timestamp {
     public:
         QueueEntry() {}
       
-	void post(class Adafruit_BluefruitLE_SPI &ble);
+	void post(Adafruit_BluefruitLE_SPI &ble);
     };
   
     Timestamp() : mRequestedTimestamp(false), mHaveTimestamp(false) {}
@@ -23,7 +23,7 @@ class Timestamp {
     void enqueueRequest();
 
     void attemptPost(Adafruit_BluefruitLE_SPI &ble);
-
+    
     bool processTimestampResponse(const char *response);
 
     bool isTimestampResponse(const char *response) const;

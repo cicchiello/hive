@@ -2,8 +2,17 @@
 
 #include <Arduino.h>
 
+
+
+#define HEADLESS
+
+#ifndef HEADLESS
 #define P(args) Serial.print(args)
 #define PL(args) Serial.println(args)
+#else
+#define P(args) 
+#define PL(args) 
+#endif
 
 
 #define NDEBUG
@@ -126,7 +135,7 @@ bool Sensor::processResponse(const char *rsp)
 void QueueEntry::post(Adafruit_BluefruitLE_SPI &ble)
 {
     Str macAddress;
-    CloudPipe::singleton().getMacAddress(ble, &macAddress);
+    CloudPipe::singleton().getMacAddress(&macAddress);
     
     ble.print("AT+BLEUARTTX=");
     ble.print("cmd|POST|");

@@ -14,7 +14,7 @@ class HumidSensor : public Sensor {
     HumidSensor(unsigned long now);
     ~HumidSensor() {}
 
-    void sensorSample(Str *value);
+    bool sensorSample(Str *value);
     
     void enqueueRequest(const char *value, const char *timestamp);
 

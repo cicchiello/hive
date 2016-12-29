@@ -4,10 +4,12 @@
 /platformutils
 /arduino
 /USB
+/Wire
 /couchutils
 /cloudpipe
 /SD
 /Adafruit_BluefruitLE_nRF51
+/DHT
 /tests
 *.log
 *.a

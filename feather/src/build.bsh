@@ -16,6 +16,7 @@ ln -s ${ADAFRUIT_TOOLS}/cores/arduino .
 ln -s ${ADAFRUIT_TOOLS}/cores/arduino/USB .
 ln -s ${ADAFRUIT_TOOLS}/variants/arduino_zero arduino_zero
 ln -s ${ADAFRUIT_TOOLS}/libraries/SPI SPI
+ln -s ${ADAFRUIT_TOOLS}/libraries/Wire Wire
 
 echo ""
 echo "Configured.  Now, just type \"make\" to compile everything, then"
