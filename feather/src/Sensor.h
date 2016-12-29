@@ -14,10 +14,9 @@ class Sensor {
     virtual bool isItTimeYet(unsigned long now);
     virtual void scheduleNextSample(unsigned long now);
     
-    virtual void sensorSample(Str *value) = 0;
+    virtual bool sensorSample(Str *value) = 0;
     
     virtual void enqueueRequest(const char *value, const char *timestamp) = 0;
-
 
     void attemptPost(Adafruit_BluefruitLE_SPI &ble);
     bool isMyResponse(const char *response) const;

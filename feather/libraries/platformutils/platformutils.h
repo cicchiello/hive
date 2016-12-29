@@ -42,6 +42,8 @@ class PlatformUtils {
 
     // shuts down the WDT and replaces the the WDT trigger function with the given one
     void shutdownWDT(WDT_EarlyWarning_Func replacement);
+
+    static const char *s_traceStr;
     
     void clearWDT();
 
@@ -59,6 +61,8 @@ class PlatformUtils {
     Str m_timestamp;
 };
 
+
+#define WDT_TRACE(msg) PlatformUtils::s_traceStr = msg
 
 inline
 const PlatformUtils &PlatformUtils::singleton()

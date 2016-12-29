@@ -4,9 +4,6 @@
 
 #include "Adafruit_BluefruitLE_SPI.h"
 
-
-#include <platformutils.h>
-
 #define HEADLESS
 #define NDEBUG
 
@@ -26,6 +23,11 @@
 #define DL(args)
 #endif
 
+#define assert(c,msg) if (!(c)) {WDT_TRACE(msg); while(1);}
+
+
+#include <platformutils.h>
+
 
 /* STATIC */
 const char *CloudPipe::SensorLogDb = "hive-sensor-log";     // couchdb name
@@ -35,25 +37,24 @@ const char *CloudPipe::SensorLogDb = "hive-sensor-log";     // couchdb name
 CloudPipe CloudPipe::s_singleton;
 
 
-void CloudPipe::getMacAddress(Adafruit_BluefruitLE_SPI &ble, Str *mac) const
+void CloudPipe::initMacAddress(Adafruit_BluefruitLE_SPI &ble)
 {
-    static bool s_acquiredMacAddress = false;
-    static Str s_macAddress;
-    if (!s_acquiredMacAddress) {
-        ble.println("AT+BLEGETADDR");
-	ble.readline();
-	s_macAddress = ble.buffer;
-	//DL(mac->c_str());
-	if (! ble.waitForOK() ) {
-	    PL(F("Failed to send?"));
-	}
-	for (char *p = (char*) s_macAddress.c_str(); *p; p++)
-	    if (*p == ':')
-	        *p = '-';
-	//DL(mac->c_str());
-	s_acquiredMacAddress = true;
+    ble.println("AT+BLEGETADDR");
+    ble.readline();
+    mMacAddress = new Str(ble.buffer);
+    //DL(mac->c_str());
+    if (! ble.waitForOK() ) {
+        PL(F("Failed to send?"));
     }
+    for (char *p = (char*) mMacAddress->c_str(); *p; p++)
+        if (*p == ':')
+	    *p = '-';
+    //DL(mac->c_str());
+}
 
-    *mac = s_macAddress;
+void CloudPipe::getMacAddress(Str *mac) const
+{
+    assert(mMacAddress, "CloudPipe::initMacAddress must be called before ::getMacAddress");
+    *mac = *mMacAddress;
 }
 

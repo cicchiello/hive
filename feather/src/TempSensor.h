@@ -13,7 +13,7 @@ class TempSensor : public Sensor {
     TempSensor(unsigned long now);
     ~TempSensor();
 
-    void sensorSample(Str *value);
+    bool sensorSample(Str *value);
     
     void enqueueRequest(const char *value, const char *timestamp);
 

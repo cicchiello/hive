@@ -59,7 +59,7 @@ void TempSensor::enqueueRequest(const char *value, const char *timestamp)
 }
 
 
-void TempSensor::sensorSample(Str *value)
+bool TempSensor::sensorSample(Str *value)
 {
     unsigned long now = millis();
     if (now - lastSampleTime > 2000) {

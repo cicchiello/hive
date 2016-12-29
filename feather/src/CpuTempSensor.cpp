@@ -25,7 +25,18 @@
 #define DL(args)
 #endif
 
+#define assert(c,msg) if (!(c)) {PL("ASSERT"); WDT_TRACE(msg); while(1);}
+
+
+#include <platformutils.h>
+
 #include <str.h>
+
+
+CpuTempSensor::CpuTempSensor(unsigned long now, Adafruit_BluefruitLE_SPI &ble)
+  : Sensor(now), mBle(ble), result(new Str()), mState(0)
+{
+}
 
 
 void CpuTempSensor::enqueueRequest(const char *value, const char *timestamp)
@@ -35,9 +46,18 @@ void CpuTempSensor::enqueueRequest(const char *value, const char *timestamp)
 }
 
 
-void CpuTempSensor::sensorSample(Str *value)
+bool CpuTempSensor::isMyResponse(const char *rsp) const
 {
-    // crudely simulate a sensor by taking the BLE module's temperature
+    if (mState > 0) {
+      DL("CpuTempSensor::isMyResponse");
+    }
+    return false;
+}
+
+
+// crudely simulate a sensor by taking the BLE module's temperature
+bool CpuTempSensor::sensorSample(Str *value)
+{
     mBle.println("AT+HWGETDIETEMP");
     mBle.readline();
     Str temp(mBle.buffer);

@@ -4,7 +4,7 @@
 
 #include <TempSensor.h>
 
-//#define HEADLESS
+#define HEADLESS
 
 #ifndef HEADLESS
 #define P(args) Serial.print(args)
@@ -44,7 +44,7 @@ void HumidSensor::enqueueRequest(const char *value, const char *timestamp)
 }
 
 
-void HumidSensor::sensorSample(Str *value)
+bool HumidSensor::sensorSample(Str *value)
 {
     unsigned long now = millis();
     if (now - lastSampleTime > 2000) {

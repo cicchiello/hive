@@ -11,11 +11,16 @@ class CloudPipe {
     static const CloudPipe &singleton();
     static CloudPipe &nonConstSingleton();
 
-    void getMacAddress(Adafruit_BluefruitLE_SPI &ble, Str *mac) const;
+    void initMacAddress(Adafruit_BluefruitLE_SPI &ble);
+
+    // initMacAddress must be called before getMacAddress
+    void getMacAddress(Str *mac) const;
     
  private:
     static CloudPipe s_singleton;
-    CloudPipe() {}
+    Str *mMacAddress;
+    
+    CloudPipe() : mMacAddress(0) {}
 };
 
 

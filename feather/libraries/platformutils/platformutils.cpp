@@ -19,6 +19,8 @@ inline static char hex2asc(unsigned char n)
 /* STATIC */
 PlatformUtils PlatformUtils::s_singleton;
 
+/* STATIC */
+const char *PlatformUtils::s_traceStr = NULL;
 
 
 // buf must be 17 bytes
@@ -350,6 +352,12 @@ void WDT_Handler (void)
         // leading to very odd (and difficult to track down!) results.
         WDTsync();
         WDT->CLEAR.bit.CLEAR = WDT_CLEAR_CLEAR_KEY_Val;
+	if (c <= 10) {
+	    D("WDT: c == ");
+	    D(c);
+	    D("; now == ");
+	    DL(millis());
+	}
     }
 
     // clear the interrupt so future ones can happen -- this happens regardless of whether
