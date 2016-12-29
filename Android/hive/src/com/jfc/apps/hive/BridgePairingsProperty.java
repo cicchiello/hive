@@ -149,8 +149,9 @@ public class BridgePairingsProperty implements IPropertyMgr {
 					            	mExistingPairs = new ArrayList<Pair<String,String>>();
 					            	displayPairingState("no hives");
 					            	
-		                			Intent mBle2cldIntent= new Intent(mActivity, BluetoothPipeSrvc.class);
-		                			mActivity.startService(mBle2cldIntent);
+		                			Intent ble2cldIntent= new Intent(mActivity, BluetoothPipeSrvc.class);
+		                			ble2cldIntent.putExtra("cmd", "setup");
+		                			mActivity.startService(ble2cldIntent);
 			    				}
 			    			};
 			        		Runnable cancelAction = new Runnable() {
@@ -289,8 +290,9 @@ public class BridgePairingsProperty implements IPropertyMgr {
 	            		    	
 	                    		SplashyText.highlightModifiedField(mActivity, mIdTv);
 	                    		
-	                			Intent mBle2cldIntent= new Intent(mActivity, BluetoothPipeSrvc.class);
-	                			mActivity.startService(mBle2cldIntent);
+	                			Intent ble2cldIntent= new Intent(mActivity, BluetoothPipeSrvc.class);
+	                			ble2cldIntent.putExtra("cmd", "setup");
+	                			mActivity.startService(ble2cldIntent);
 	            			} else {
 	        					Toast.makeText(mActivity, "Error: That name is already taken", Toast.LENGTH_LONG).show();
 	            			}

@@ -78,7 +78,19 @@ public class HiveEnv {
 	    	}
 	    	return null;
     	}
-    	
+	}
+	
+	static public String getHiveAddress(Context ctxt, int hiveIndex) {
+    	if (BluetoothAdapter.getDefaultAdapter() == null) {
+    		// simulate one of my devices
+			return "F0-17-66-FC-5E-A1";
+    	} else {
+	    	int sz = NumHivesProperty.getNumHivesProperty(ctxt);
+	    	if (hiveIndex < sz) 
+	    		return PairedHiveProperty.getPairedHiveId(ctxt, hiveIndex);
+	    	else
+	    		return "error";
+    	}
 	}
 	
 }

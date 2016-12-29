@@ -7,7 +7,9 @@ import android.content.Intent;
 public class SimpleWakefulReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context ctxt, Intent intent) {
-		Intent mBle2cldIntent= new Intent(ctxt, BluetoothPipeSrvc.class);
-		ctxt.startService(mBle2cldIntent);
+		Intent ble2cldIntent= new Intent(ctxt, BluetoothPipeSrvc.class);
+		ble2cldIntent.putExtra("cmd", "setup");
+		ctxt.startService(ble2cldIntent);
     }
+    
 }
