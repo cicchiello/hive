@@ -1,0 +1,41 @@
+#!/bin/bash
+
+couchHost="http://70.15.56.138:5984"
+#couchHost="http://joes-mac-mini:5984"
+authCouchHost="http://admin:admin@70.15.56.138:5984"
+#authCouchHost="http://admin:admin@joes-mac-mini:5984"
+db="hive-sensor-log"
+
+tf=$(mktemp)
+echo curl -X GET ${couchHost}/${db}/_all_docs
+curl -X GET ${couchHost}/${db}/_all_docs 2> /dev/null | jq -r .rows[].id > $tf
+
+for id in `cat $tf`
+do
+    id=${id%$'\r'}
+    #echo $id
+    #echo curl -X GET ${couchHost}/${db}/${id} 
+    #curl -X GET ${couchHost}/${db}/${id}
+    d=$(curl -X GET ${couchHost}/${db}/${id} 2> /dev/null)
+    s=$(echo ${d} | jq -r .sensor)
+    s=${s%$'\r'}
+    m=$(echo ${s} | grep -c "target")
+    if [ "$m" -eq "1" ]
+    then
+	t=$(echo ${d} | jq -r .timestamp)
+	t=${t%$'\r'}
+	if [ "$t" -ge "14834170000" ]
+	then
+	    nt=$(( ${t} / 1000 ))
+	    nd=$(echo ${d} | sed "s/${t}/${nt}/g")
+	    echo "found a case; changing to: "${nd}
+	    curl -X PUT ${authCouchHost}/${db}/${id} -d ${nd}
+	fi
+    fi
+#    id=${id%$'\r'}
+#    rev=$(curl ${couchHost}/${db}/${id} 2> /dev/null | jq -r ._rev)
+#    rev=${rev%$'\r'}
+#    echo "Will delete doc with id=${id} rev=${rev}"
+#    s=$(curl -X DELETE ${authCouchHost}/${db}/${id}?rev=${rev} 2> /dev/null)
+#    echo $s
+done

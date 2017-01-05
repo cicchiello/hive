@@ -435,12 +435,14 @@ public class BluetoothPipeSrvc extends Service {
 	          .setContentIntent(pIntent)
 	          .setStyle(new Notification.BigTextStyle().bigText("Hi there"));
 		
+		BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+		
 		if (mEnabled) {
 			// build notification
 			builder.setContentTitle("Ble2cld Pipe: enabled");
-	
+			
 			boolean foundConnections = false;
-			String hiveNames = "no connections";
+			String hiveNames = "no connections (Bluetooth off)";
 			if (mMgrs.size() > 0) {
 				for (int i = 0; i < mMgrs.size(); i++) {
 					if (mMgrs.get(i).isConnected()) {
@@ -463,8 +465,12 @@ public class BluetoothPipeSrvc extends Service {
 			builder.setContentText(hiveNames);
 			
 			mNotification = builder.build();
-			mNotification.flags |= Notification.FLAG_NO_CLEAR;
-			mNotification.flags |= Notification.FLAG_ONGOING_EVENT;
+			if (adapter.isEnabled()) {
+				mNotification.flags |= Notification.FLAG_NO_CLEAR;
+				mNotification.flags |= Notification.FLAG_ONGOING_EVENT;
+			} else {
+				mNotification.flags |= Notification.FLAG_AUTO_CANCEL;
+			}
 			mNotification.flags |= Notification.FLAG_LOCAL_ONLY;
 		} else {
 			builder.setContentTitle("Ble2cld Pipe: disabled");

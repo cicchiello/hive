@@ -34,6 +34,31 @@
             android:layout_height="wrap_content"
             android:text="@string/minus" />
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="@string/empty"
+            android:textAppearance="?android:attr/textAppearanceSmall" />
+
+        <EditText
+            android:id="@+id/textValue"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:hint="@string/zero"
+			android:minEms="4"
+			android:gravity="right"
+            android:background="#C9EAEA"
+            android:inputType="number"
+            android:textAppearance="?android:attr/textAppearanceLarge" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="@string/empty"
+            android:textAppearance="?android:attr/textAppearanceSmall" />
+
         <Button
             android:id="@+id/plus"
             style="?android:attr/buttonStyleSmall"
@@ -47,21 +72,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/plusplus" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:text="@string/empty"
-            android:textAppearance="?android:attr/textAppearanceSmall" />
-
-        <EditText
-            android:id="@+id/textValue"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:hint="@string/zero"
-            android:background="#C9EAEA"
-            android:textAppearance="?android:attr/textAppearanceLarge" />
 
     </LinearLayout>
     

@@ -24,7 +24,7 @@ import java.util.List;
 public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
     private static final String TAG = PollSensorBackground.class.getName();
 
-    private String dbHost, db, query;
+    private String dbHost, db, key, pswd, query;
     private int dbPort;
     private String docId, rev;
     private ResultCallback onCompletion;
@@ -34,10 +34,12 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
     	public void error(String msg);
     };
     
-    public PollSensorBackground(String _dbHost, int _dbPort, String _db, String _query, ResultCallback _onCompletion) {
+    public PollSensorBackground(String _dbHost, int _dbPort, String _db, String _key, String _pswd, String _query, ResultCallback _onCompletion) {
         dbHost = _dbHost;
         dbPort = _dbPort;
         db = _db;
+        key = _key;
+        pswd = _pswd;
         query = _query;
         onCompletion = _onCompletion;
     }
@@ -50,8 +52,8 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
     	public void onError(String msg);
     };
     
-    private static void couchGet(String dbHost, int dbPort, String db, String query, String authToken, ProcessResult proc) {
-        String urlStub = dbHost+":"+dbPort+"/"+db+"/"+query;
+    private static void couchGet(String dbHost, int dbPort, String dbKey, String dbPswd, String db, String query, String authToken, ProcessResult proc) {
+        String urlStub = "http://" + dbKey + ":" + dbPswd + "@" + dbHost+":"+dbPort+"/"+db+"/"+query;
 
 		HttpURLConnection conn = null;
 		BufferedReader rd = null;
@@ -111,10 +113,10 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
 	            try {
 	            	JSONArray arr = obj.getJSONArray("rows");
 	            	if (!arr.isNull(0)) {
-	            		String valueStr = arr.getJSONObject(0).getString("value");
-	            		JSONArray key = arr.getJSONObject(0).getJSONArray("key");
-	            		String sensorStr = key.getString(1);
-	            		String timestampStr = key.getString(2);
+	            		JSONArray v = arr.getJSONObject(0).getJSONArray("value");
+	            		String sensorStr = v.getString(1);
+	            		String timestampStr = v.getString(2);
+	            		String valueStr = v.getString(3);
 	            		if (onCompletion != null)
 	            			onCompletion.report(sensorStr, timestampStr, valueStr);
 	            	} else {
@@ -131,7 +133,7 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
 				Log.e(TAG, msg);
 			}
 		};
-        couchGet(dbHost, dbPort, db, query, authToken, latestProc);
+        couchGet(dbHost, dbPort, key, pswd, db, query, authToken, latestProc);
         return true;
     }
 

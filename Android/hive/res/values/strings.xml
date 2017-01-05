@@ -19,6 +19,7 @@
     <string name="no_bluetooth">There is no Bluetooth interface available.</string>
     <string name="choose_hive">Choose the Hive to pair with</string>
     
+    <string name="enable_bluetooth">Bluetooth must be turned on to use the ble2cld bridge.  Click Ok to enable.</string>
     <string name="enable_bridge_label">Enable ble2cld bridge</string>
     <string name="enable_bridge_desc_hint">Turn on/off</string>
     
