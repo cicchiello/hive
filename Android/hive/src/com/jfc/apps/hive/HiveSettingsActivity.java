@@ -7,6 +7,7 @@ import com.jfc.misc.prop.BridgePairingsProperty;
 import com.jfc.misc.prop.EnableBridgeProperty;
 import com.jfc.misc.prop.HiveFactoryResetProperty;
 import com.jfc.misc.prop.IPropertyMgr;
+import com.jfc.misc.prop.StepsPerRevolutionProperty;
 import com.jfc.misc.prop.ThreadsPerMeterProperty;
 import com.jfc.util.misc.LocalStorageHandler;
 
@@ -79,6 +80,7 @@ public class HiveSettingsActivity extends Activity {
         mMgrs.add(new BridgePairingsProperty(this, (TextView) findViewById(R.id.hive_id_text), (ImageButton) findViewById(R.id.hive_pair_button)));
         mMgrs.add(new EnableBridgeProperty(this, (TextView) findViewById(R.id.enable_bridge_text), (ImageButton) findViewById(R.id.enable_bridge_button)));
         mMgrs.add(new ThreadsPerMeterProperty(this, (TextView) findViewById(R.id.threads_per_meter_text), (ImageButton) findViewById(R.id.threads_per_meter_button)));
+        mMgrs.add(new StepsPerRevolutionProperty(this, (TextView) findViewById(R.id.steps_per_rev_text), (ImageButton) findViewById(R.id.steps_per_rev_button)));
         if (DEBUG) 
         	mMgrs.add(new AcraTestProperty(this, (ImageButton) findViewById(R.id.acraTestButton)));
 

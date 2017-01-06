@@ -23,8 +23,6 @@ public class HiveEnv {
 	public static final String ProdDbPswd = "e4f286be1eef534f1cddd6240ed0133b968b1c9a";
 	public static final String ProdDb = "hive-sensor-log";
 	
-	public static final int StepsPerRevolution = 100;
-	
 	public static final String DevDbHost = "70.15.56.138";
 	//public static final String DevDbHost = "joes-mac-mini"
 	public static final int DevDbPort = 5984;

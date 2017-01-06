@@ -67,6 +67,10 @@
 	<string name="threads_per_meter_label">Thread Count</string>
 	<string name="threads_per_meter_desc_hint">Threads per meter</string>
 	
+	<string name="steps_per_rev_dialog_title">Steps per Revolution</string>
+	<string name="steps_per_rev_label">Motor steps per rev</string>
+	<string name="steps_per_rev_desc_hint">Steps per rev</string>
+	
 	<string name="crash_toast_text">Ooooops!  Hivewiz&#8482; has crashed, but a report has been sent to the developers so they can fix the issue!</string>
 	
 	<string name="red">R</string>

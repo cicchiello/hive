@@ -21,6 +21,7 @@ import android.widget.TextView;
 
 import com.example.hive.R;
 import com.jfc.misc.prop.ActiveHiveProperty;
+import com.jfc.misc.prop.StepsPerRevolutionProperty;
 import com.jfc.misc.prop.ThreadsPerMeterProperty;
 import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
 import com.jfc.srvc.ble2cld.PostActuatorBackground;
@@ -43,13 +44,13 @@ public class MotorProperty {
 	public static double stepsToLinearDistance(Activity activity, long steps) {
 		double lsteps = steps;
 		double threadsPerMeter = ThreadsPerMeterProperty.getThreadsPerMeter(activity);
-		double stepsPerThread = HiveEnv.StepsPerRevolution;
+		double stepsPerThread = StepsPerRevolutionProperty.getStepsPerRevolution(activity);
 		return lsteps/stepsPerThread/threadsPerMeter;
 	}
 
 	public static long linearDistanceToSteps(Activity activity, double distanceMeters) {
 		double threadsPerMeter = ThreadsPerMeterProperty.getThreadsPerMeter(activity);
-		double stepsPerThread = HiveEnv.StepsPerRevolution;
+		double stepsPerThread = StepsPerRevolutionProperty.getStepsPerRevolution(activity);
 		double steps = distanceMeters*threadsPerMeter*stepsPerThread;
 		return (long) (steps+0.5);
 	}
