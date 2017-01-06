@@ -1,4 +1,4 @@
-package com.jfc.apps.hive;
+package com.jfc.misc.prop;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -11,7 +11,7 @@ import android.view.View.OnClickListener;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
-import com.jfc.misc.prop.IPropertyMgr;
+import com.jfc.apps.hive.HiveEnv;
 import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
 import com.jfc.util.misc.SplashyText;
 

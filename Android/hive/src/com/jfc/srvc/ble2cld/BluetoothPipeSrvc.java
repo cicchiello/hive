@@ -11,10 +11,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.example.hive.R;
-import com.jfc.apps.hive.EnableBridgeProperty;
 import com.jfc.apps.hive.MainActivity;
-import com.jfc.apps.hive.NumHivesProperty;
-import com.jfc.apps.hive.PairedHiveProperty;
+import com.jfc.misc.prop.EnableBridgeProperty;
+import com.jfc.misc.prop.NumHivesProperty;
+import com.jfc.misc.prop.PairedHiveProperty;
 import com.jfc.srvc.ble2cld.BleGattExecutor.BleExecutorListener;
 
 import android.app.Notification;

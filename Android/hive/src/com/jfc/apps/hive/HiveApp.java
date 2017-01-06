@@ -8,11 +8,11 @@ import org.acra.annotation.*;
 import com.example.hive.R;
 
 @ReportsCrashes(
-	    formUri = "https://jfcenterprises.cloudant.com/acra-vtm/_design/acra-storage/_update/report",
+	    formUri = "https://jfcenterprises.cloudant.com/acra-hive/_design/acra-storage/_update/report",
 	    reportType = org.acra.sender.HttpSender.Type.JSON,
-	    httpMethod = org.acra.sender.HttpSender.Method.POST,
-	    formUriBasicAuthLogin = "watincedsonetintirrachat",
-	    formUriBasicAuthPassword = "L2OJtWBVyd0HIm43uhBJlhe7",
+	    httpMethod = org.acra.sender.HttpSender.Method.PUT,
+	    formUriBasicAuthLogin = "pludischerearionlyagodle",
+	    formUriBasicAuthPassword = "a657dda10d3147f23e561786db4395c7d559d6f9",
 	    formKey = "", // This is required for backward compatibility but not used
 	    customReportContent = {
 	    		org.acra.ReportField.APP_VERSION_CODE,
@@ -31,7 +31,7 @@ public class HiveApp extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
-        ACRA.init(this);
+//        ACRA.init(this);
     }
 }
 

@@ -1,4 +1,4 @@
-package com.jfc.apps.hive;
+package com.jfc.misc.prop;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -33,7 +33,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.hive.R;
-import com.jfc.misc.prop.IPropertyMgr;
+import com.jfc.apps.hive.HiveEnv;
 import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
 import com.jfc.util.misc.DialogUtils;
 import com.jfc.util.misc.SplashyText;

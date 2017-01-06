@@ -407,4 +407,48 @@
 	    android:layout_height="2dip"
 	    android:background="#888888" />
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+	    android:layout_marginLeft="15dip"
+        android:orientation="horizontal" >
+		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:orientation="vertical" >
+	        
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:text="@string/acra_test_label"
+	   		    android:textAppearance="?android:attr/textAppearanceMedium"
+	   		    android:textStyle="bold" />
+	
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:layout_marginLeft="15dip"
+	   		    android:text="@string/acra_test_desc_hint"
+	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+   		</LinearLayout>
+   		
+		<ImageButton
+		    android:id="@+id/acraTestButton"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_weight="0.01"
+		    android:contentDescription="@string/acra_test_desc_hint"
+		    android:src="@drawable/ic_rarrow"
+		    android:text="@string/empty" />
+
+	</LinearLayout>
+	
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
+
 </LinearLayout>

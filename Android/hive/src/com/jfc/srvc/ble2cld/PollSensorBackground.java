@@ -1,4 +1,4 @@
-package com.jfc.apps.hive;
+package com.jfc.srvc.ble2cld;
 
 import android.os.AsyncTask;
 import android.util.Log;

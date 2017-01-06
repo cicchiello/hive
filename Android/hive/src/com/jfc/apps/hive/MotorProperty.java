@@ -20,15 +20,18 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 
 import com.example.hive.R;
+import com.jfc.misc.prop.ActiveHiveProperty;
+import com.jfc.misc.prop.ThreadsPerMeterProperty;
 import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
+import com.jfc.srvc.ble2cld.PostActuatorBackground;
 import com.jfc.util.misc.SplashyText;
 
 public class MotorProperty {
 	private static final String TAG = MotorProperty.class.getName();
 
-	private static final String MOTOR_VALUE_PROPERTY = "MOTOR_VALUE_PROPERTY";
+	private static final String MOTOR_STEPS_PROPERTY = "MOTOR_VALUE_PROPERTY";
 	private static final String MOTOR_DATE_PROPERTY = "MOTOR_DATE_PROPERTY";
-	private static final String DEFAULT_MOTOR_VALUE = "0";
+	private static final String DEFAULT_MOTOR_STEPS = "0";
 	private static final String DEFAULT_MOTOR_DATE = "<TBD>";
 	
 	private AlertDialog alert;
@@ -36,6 +39,20 @@ public class MotorProperty {
 	private TextView value, timestamp;
 	private int index;
 	private String hiveId;
+	
+	public static double stepsToLinearDistance(Activity activity, long steps) {
+		double lsteps = steps;
+		double threadsPerMeter = ThreadsPerMeterProperty.getThreadsPerMeter(activity);
+		double stepsPerThread = HiveEnv.StepsPerRevolution;
+		return lsteps/stepsPerThread/threadsPerMeter;
+	}
+
+	public static long linearDistanceToSteps(Activity activity, double distanceMeters) {
+		double threadsPerMeter = ThreadsPerMeterProperty.getThreadsPerMeter(activity);
+		double stepsPerThread = HiveEnv.StepsPerRevolution;
+		double steps = distanceMeters*threadsPerMeter*stepsPerThread;
+		return (long) (steps+0.5);
+	}
 	
 	public MotorProperty(Activity _activity, int _index, TextView _value, ImageButton button, TextView _timestamp) {
 		this.activity = _activity;
@@ -57,7 +74,7 @@ public class MotorProperty {
 				
 				builder.setIcon(R.drawable.ic_hive);
 				builder.setView(R.layout.motor_dialog);
-				builder.setTitle("Motor "+Integer.toString(index+1));
+				builder.setTitle("Motor "+Integer.toString(index+1)+" distance (mm)");
 				builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
 		        	@Override
 		        	public void onClick(DialogInterface dialog, int which) {
@@ -65,7 +82,10 @@ public class MotorProperty {
 						Intent ble2cld = new Intent(activity, BluetoothPipeSrvc.class);
 						String sensor = "motor"+Integer.toString(index)+"-target";
 						EditText et = (EditText) alert.findViewById(R.id.textValue);
-						String msg = "tx|"+hiveId.replace('-', ':')+"|action|"+sensor+"|"+et.getText();
+						String linearDistanceMillimetersStr = et.getText().toString();
+						double linearDistanceMillimeters = Long.parseLong(linearDistanceMillimetersStr);
+						long steps = linearDistanceToSteps(activity, linearDistanceMillimeters/1000.0);
+						String msg = "tx|"+hiveId.replace('-', ':')+"|action|"+sensor+"|"+steps;
 						ble2cld.putExtra("cmd", msg);
 						activity.startService(ble2cld);
 		        		alert.dismiss(); 
@@ -185,8 +205,8 @@ public class MotorProperty {
 	
 	public static boolean isMotorPropertyDefined(Activity activity, int index) {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
-		if (SP.contains(MOTOR_VALUE_PROPERTY+Integer.toString(index)) && 
-			!SP.getString(MOTOR_VALUE_PROPERTY+Integer.toString(index), DEFAULT_MOTOR_VALUE).equals(DEFAULT_MOTOR_VALUE)) {
+		if (SP.contains(MOTOR_STEPS_PROPERTY+Integer.toString(index)) && 
+			!SP.getString(MOTOR_STEPS_PROPERTY+Integer.toString(index), DEFAULT_MOTOR_STEPS).equals(DEFAULT_MOTOR_STEPS)) {
 			if (SP.contains(MOTOR_DATE_PROPERTY+Integer.toString(index)) &&
 				!SP.getString(MOTOR_DATE_PROPERTY+Integer.toString(index), DEFAULT_MOTOR_DATE).equals(DEFAULT_MOTOR_DATE)) 	
 				return true;
@@ -199,8 +219,10 @@ public class MotorProperty {
 	
 	public static String getMotorValue(Activity activity, int index) {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
-		String v = SP.getString(MOTOR_VALUE_PROPERTY+Integer.toString(index), DEFAULT_MOTOR_VALUE);
-		return v;
+		String stepsStr = SP.getString(MOTOR_STEPS_PROPERTY+Integer.toString(index), DEFAULT_MOTOR_STEPS);
+		double meters = stepsToLinearDistance(activity, Long.parseLong(stepsStr));
+		double millimeters = meters*1000.0;
+		return Long.toString((long) (millimeters+0.5));
 	}
 	
 	public static long getMotorDate(Activity activity, int index) {
@@ -214,19 +236,19 @@ public class MotorProperty {
 	}
 	
 	public static void resetMotorProperty(Activity activity, int index) {
-		setMotorProperty(activity, index, DEFAULT_MOTOR_VALUE, DEFAULT_MOTOR_DATE);
+		setMotorProperty(activity, index, DEFAULT_MOTOR_STEPS, DEFAULT_MOTOR_DATE);
 	}
 	
-	public static void setMotorProperty(Activity activity, int index, String value, long date) {
-		setMotorProperty(activity, index, value, date==0 ? DEFAULT_MOTOR_DATE : Long.toString(date));
+	public static void setMotorProperty(Activity activity, int index, String steps, long date) {
+		setMotorProperty(activity, index, steps, date==0 ? DEFAULT_MOTOR_DATE : Long.toString(date));
 	}
 
-	private static void setMotorProperty(Activity activity, int index, String value, String date) {
+	private static void setMotorProperty(Activity activity, int index, String steps, String date) {
 		{
 			SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
-			if (!SP.getString(MOTOR_VALUE_PROPERTY+Integer.toString(index), DEFAULT_MOTOR_VALUE).equals(value)) {
+			if (!SP.getString(MOTOR_STEPS_PROPERTY+Integer.toString(index), DEFAULT_MOTOR_STEPS).equals(steps)) {
 				SharedPreferences.Editor editor = SP.edit();
-				editor.putString(MOTOR_VALUE_PROPERTY+Integer.toString(index), value);
+				editor.putString(MOTOR_STEPS_PROPERTY+Integer.toString(index), steps);
 				editor.commit();
 			}
 		}

@@ -6,7 +6,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.example.hive.R;
+import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
+import com.jfc.srvc.ble2cld.PollSensorBackground;
 import com.jfc.util.misc.SplashyText;
 
 import android.app.Activity;
@@ -153,6 +155,33 @@ public class MainActivity extends Activity {
 	}
 	
 	
+	private PollSensorBackground.ResultCallback getMotorOnCompletion(final int valueResid, final int timestampResid, final OnSaveValue saver) {
+		PollSensorBackground.ResultCallback onCompletion = new PollSensorBackground.ResultCallback() {
+			@Override
+	    	public void report(String sensorType, final String timestampStr, final String stepsStr) {
+				runOnUiThread(new Runnable() {
+					@Override
+					public void run() {
+						long timestampSeconds = Long.parseLong(timestampStr);
+						long timestampMillis = timestampSeconds*1000;
+						double linearDistanceMeters = MotorProperty.stepsToLinearDistance(MainActivity.this, Long.parseLong(stepsStr));
+						double linearDistanceMillimeters = linearDistanceMeters*1000.0;
+						String linearDistanceStr = Long.toString((long)(linearDistanceMillimeters+0.5));
+						setValueWithSplash(valueResid, timestampResid, linearDistanceStr, true, timestampMillis);
+						saver.save(MainActivity.this, linearDistanceStr, timestampSeconds);
+					}
+				});
+			}
+			
+			@Override
+			public void error(String msg) {
+				Log.e(TAG, "Error: "+msg);
+			}
+		};
+		return onCompletion;
+	}
+	
+	
 	private void startPolling() {
 		synchronized (this) {
 			if (mPoller == null) {
@@ -211,7 +240,7 @@ public class MainActivity extends Activity {
 						            						 createQuery(HiveId.replace(':', '-'), "humid"), onCompletion).execute();
 						            
 									onCompletion = 
-											getSensorOnCompletion(R.id.motor0Text, R.id.motor0TimestampText, new OnSaveValue() {
+											getMotorOnCompletion(R.id.motor0Text, R.id.motor0TimestampText, new OnSaveValue() {
 												@Override
 												public void save(Activity activity, String value, long timestamp) {
 													MotorProperty.setMotorProperty(MainActivity.this, 0, value, timestamp);
@@ -221,7 +250,7 @@ public class MainActivity extends Activity {
 						            						 createQuery(HiveId.replace(':', '-'), "motor0"), onCompletion).execute();
 
 									onCompletion = 
-											getSensorOnCompletion(R.id.motor1Text, R.id.motor1TimestampText, new OnSaveValue() {
+											getMotorOnCompletion(R.id.motor1Text, R.id.motor1TimestampText, new OnSaveValue() {
 												@Override
 												public void save(Activity activity, String value, long timestamp) {
 													MotorProperty.setMotorProperty(MainActivity.this, 1, value, timestamp);
@@ -231,7 +260,7 @@ public class MainActivity extends Activity {
 						            						 createQuery(HiveId.replace(':', '-'), "motor1"), onCompletion).execute();
 						            
 									onCompletion = 
-											getSensorOnCompletion(R.id.motor2Text, R.id.motor2TimestampText, new OnSaveValue() {
+											getMotorOnCompletion(R.id.motor2Text, R.id.motor2TimestampText, new OnSaveValue() {
 												@Override
 												public void save(Activity activity, String value, long timestamp) {
 													MotorProperty.setMotorProperty(MainActivity.this, 2, value, timestamp);

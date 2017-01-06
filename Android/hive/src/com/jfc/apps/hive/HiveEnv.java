@@ -3,6 +3,9 @@ package com.jfc.apps.hive;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.jfc.misc.prop.NumHivesProperty;
+import com.jfc.misc.prop.PairedHiveProperty;
+
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
@@ -19,6 +22,8 @@ public class HiveEnv {
 	public static final String ProdDbUser = "afteptsecumbehisomorther";
 	public static final String ProdDbPswd = "e4f286be1eef534f1cddd6240ed0133b968b1c9a";
 	public static final String ProdDb = "hive-sensor-log";
+	
+	public static final int StepsPerRevolution = 100;
 	
 	public static final String DevDbHost = "70.15.56.138";
 	//public static final String DevDbHost = "joes-mac-mini"
