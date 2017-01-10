@@ -186,7 +186,7 @@ int main(void)
   /* Wait for a complete enum on usb or a '#' char on serial line */
   while (1)
   {
-    pulse_led(3); // while we're waiting, blink the D13 
+    pulse_led(1); // while we're waiting, blink the D13 
 
 #if SAM_BA_INTERFACE == SAM_BA_USBCDC_ONLY  ||  SAM_BA_INTERFACE == SAM_BA_BOTH_INTERFACES
     if (pCdc->IsConfigured(pCdc) != 0)
@@ -225,7 +225,7 @@ int main(void)
 // We'll have the D13 LED slowly pulse on and off with bitbang PWM
 // for a nice 'hey we're in bootload mode' indication! -ada
 static uint16_t pulse_tick=0;
-#define BOOT_PULSE_MAX 1000
+#define BOOT_PULSE_MAX 2000
 static int8_t  pulse_dir=1;
 static int16_t pulse_pwm;
 void pulse_led(int8_t speed) {

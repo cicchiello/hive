@@ -1,5 +1,20 @@
-JFC: This entire directory was copied from the Adafruit Arduino package install at:
+/*********************************************************
+JFC START COMMENT: 
+
+This entire directory was copied from the Adafruit Arduino package install at:
+
      ~/.arduino15/packages/adafruit/hardware/samd/1.0.9/bootloaders/feather
+     
+Then some minor modifications were made so that I could determine progress (make LED
+bootload-mode flashing controllable so I could be certain I had actually uploaded code).
+
+Then, at a later time (1/10/17), I needed it again, and found a slightly updated
+source at:
+     ~/.arduino15/packages/adafruit/hardware/samd/1.0.13/bootloaders/feather
+Which I proceeded to manually merge into this directory.  Most of the differences
+appeared to be directly related to handshaking/timing for the samd21g18 -- so I took all of them.
+
+
 
 Note1: I would have prefered to use a github repo, but couldn't find it (unlike most of Adafruit's support code),
 therefore I won't benefit from any improvements made by the original authors and I also need to keep it in it's
@@ -8,6 +23,10 @@ entirety in our own repo.
 Note2: Though there are similarities, it is *not* identical to the Arduino Zero bootloader.  That module has
 an extra chip on it to provide EDBG support and it appears to provide some sort of marshalling interface for
 the low-level SWD programming interface.
+
+JFC END COMMENT: 
+*********************************************************/
+
 
 ------------------------------------------------
 # Arduino Zero Bootloader
