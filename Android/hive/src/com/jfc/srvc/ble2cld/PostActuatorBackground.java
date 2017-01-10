@@ -1,4 +1,4 @@
-package com.jfc.apps.hive;
+package com.jfc.srvc.ble2cld;
 
 import android.os.AsyncTask;
 import android.util.Log;
@@ -54,7 +54,7 @@ public class PostActuatorBackground extends AsyncTask<Void,Void,Boolean> {
     };
     
     private static void couchPost(String dbHost, int dbPort, String db, JSONObject doc, String authToken, ProcessResult proc) {
-        String urlStub = dbHost+":"+dbPort+"/"+db;
+        String urlStub = "http://"+dbHost+":"+dbPort+"/"+db;
 
         DefaultHttpClient httpclient;
         HttpPost httpPost;

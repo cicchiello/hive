@@ -19,6 +19,7 @@
     <string name="no_bluetooth">There is no Bluetooth interface available.</string>
     <string name="choose_hive">Choose the Hive to pair with</string>
     
+    <string name="enable_bluetooth">Bluetooth must be turned on to use the ble2cld bridge.  Click Ok to enable.</string>
     <string name="enable_bridge_label">Enable ble2cld bridge</string>
     <string name="enable_bridge_desc_hint">Turn on/off</string>
     
@@ -26,20 +27,24 @@
     <string name="factory_reset_desc_hint">Reset all app settings</string>
     <string name="factory_reset_question">Are you certain you wish to reset all settings?</string>
     
-    <string name="cpuTempLabel">MCU Temperature</string>
+    <string name="acra_test_label">ACRA Test</string>
+    <string name="acra_test_desc_hint">Submit an ACRA bug</string>
+    <string name="acra_test_question">Are you certain you wish to submit?</string>
+    
+    <string name="cpuTempLabel">MCU Temperature (&#8451;)</string>
 	<string name="cpuTempDesc">on-chip temp</string>
 	<string name="testTemp">134.6</string>
 	
-    <string name="tempLabel">Temperature</string>
+    <string name="tempLabel">Temperature (&#8451;)</string>
 	<string name="tempDesc">Hive temp</string>
 	
-    <string name="humidLabel">Humidity</string>
+    <string name="humidLabel">Humidity (RH%)</string>
 	<string name="humidDesc">Hive humidity</string>
-	<string name="testHumid">34.6%</string>
+	<string name="testHumid">34.6</string>
 			
-	<string name="motor0Label">Motor 1</string>
-	<string name="motor1Label">Motor 2</string>
-	<string name="motor2Label">Motor 3</string>
+	<string name="motor0Label">Motor 1 Distance (mm)</string>
+	<string name="motor1Label">Motor 2 Distance (mm)</string>
+	<string name="motor2Label">Motor 3 Distance (mm)</string>
 	<string name="motorDesc">Motor distance</string>
 	<string name="testMotor">1234</string>
 	
@@ -57,6 +62,14 @@
 	<string name="delete_warning">All pairings will be removed and you will have to rescan.</string>
 	<string name="scan">Scan...</string>
 	<string name="choose_name">Choose a name...</string>
+
+	<string name="threads_per_meter_dialog_title">Threads per Meter</string>
+	<string name="threads_per_meter_label">Thread Count</string>
+	<string name="threads_per_meter_desc_hint">Threads per meter</string>
+	
+	<string name="steps_per_rev_dialog_title">Steps per Revolution</string>
+	<string name="steps_per_rev_label">Motor steps per rev</string>
+	<string name="steps_per_rev_desc_hint">Steps per rev</string>
 	
 	<string name="crash_toast_text">Ooooops!  Hivewiz&#8482; has crashed, but a report has been sent to the developers so they can fix the issue!</string>
 	

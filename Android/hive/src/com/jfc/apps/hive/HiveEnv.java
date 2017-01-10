@@ -3,6 +3,9 @@ package com.jfc.apps.hive;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.jfc.misc.prop.NumHivesProperty;
+import com.jfc.misc.prop.PairedHiveProperty;
+
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
@@ -13,10 +16,27 @@ public class HiveEnv {
 
 	public static final boolean DEBUG = false;
 	public static final boolean RELEASE_TEST = false;
+
+	public static final String ProdDbHost = "jfcenterprises.cloudant.com";
+	public static final int ProdDbPort = 5984;
+	public static final String ProdDbUser = "afteptsecumbehisomorther";
+	public static final String ProdDbPswd = "e4f286be1eef534f1cddd6240ed0133b968b1c9a";
+	public static final String ProdDb = "hive-sensor-log";
 	
-    public static final String DbHost = "http://192.168.1.85";
-    public static final int DbPort = 5984;
-    public static final String Db = "hive-sensor-log";
+	public static final String DevDbHost = "70.15.56.138";
+	//public static final String DevDbHost = "joes-mac-mini"
+	public static final int DevDbPort = 5984;
+	public static final String DevDbUser = "admin";
+	public static final String DevDbPswd = "admin";
+	public static final String DevDb = "hive-sensor-log";
+	
+	public static final boolean IsProd = false;
+	
+    public static final String DbHost = IsProd ? ProdDbHost : DevDbHost;
+    public static final int DbPort = IsProd ? ProdDbPort : DevDbPort;
+    public static final String DbKey = IsProd ? ProdDbUser : DevDbUser;
+    public static final String DbPassword = IsProd ? ProdDbPswd : DevDbPswd;
+    public static final String Db = IsProd ? ProdDb : DevDb;
 
 	public static final int ModifiableBackgroundColor = 0xffC9EAEA;
 	public static final int ModifiedFieldSplashColor = 0xff00FF21;

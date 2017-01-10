@@ -1,4 +1,4 @@
-package com.jfc.apps.hive;
+package com.jfc.misc.prop;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -22,7 +22,7 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 
 import com.example.hive.R;
-import com.jfc.misc.prop.IPropertyMgr;
+import com.jfc.apps.hive.HiveEnv;
 import com.jfc.util.misc.SplashyText;
 
 

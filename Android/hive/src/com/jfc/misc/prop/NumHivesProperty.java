@@ -1,4 +1,4 @@
-package com.jfc.apps.hive;
+package com.jfc.misc.prop;
 
 import android.content.Context;
 import android.content.SharedPreferences;

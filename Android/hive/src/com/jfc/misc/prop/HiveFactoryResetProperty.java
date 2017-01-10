@@ -1,9 +1,8 @@
-package com.jfc.apps.hive;
+package com.jfc.misc.prop;
 
 import java.util.List;
 
 import com.example.hive.R;
-import com.jfc.misc.prop.IPropertyMgr;
 import com.jfc.util.misc.DialogUtils;
 
 import android.app.Activity;

@@ -6,7 +6,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.example.hive.R;
+import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
+import com.jfc.srvc.ble2cld.PollSensorBackground;
 import com.jfc.util.misc.SplashyText;
 
 import android.app.Activity;
@@ -136,9 +138,37 @@ public class MainActivity extends Activity {
 				runOnUiThread(new Runnable() {
 					@Override
 					public void run() {
-						long timestamp = Long.parseLong(timestampStr)*1000;
-						setValueWithSplash(valueResid, timestampResid, valueStr, true, timestamp);
-						saver.save(MainActivity.this, valueStr, timestamp);
+						long timestampSeconds = Long.parseLong(timestampStr);
+						long timestampMillis = timestampSeconds*1000;
+						setValueWithSplash(valueResid, timestampResid, valueStr, true, timestampMillis);
+						saver.save(MainActivity.this, valueStr, timestampSeconds);
+					}
+				});
+			}
+			
+			@Override
+			public void error(String msg) {
+				Log.e(TAG, "Error: "+msg);
+			}
+		};
+		return onCompletion;
+	}
+	
+	
+	private PollSensorBackground.ResultCallback getMotorOnCompletion(final int valueResid, final int timestampResid, final OnSaveValue saver) {
+		PollSensorBackground.ResultCallback onCompletion = new PollSensorBackground.ResultCallback() {
+			@Override
+	    	public void report(String sensorType, final String timestampStr, final String stepsStr) {
+				runOnUiThread(new Runnable() {
+					@Override
+					public void run() {
+						long timestampSeconds = Long.parseLong(timestampStr);
+						long timestampMillis = timestampSeconds*1000;
+						double linearDistanceMeters = MotorProperty.stepsToLinearDistance(MainActivity.this, Long.parseLong(stepsStr));
+						double linearDistanceMillimeters = linearDistanceMeters*1000.0;
+						String linearDistanceStr = Long.toString((long)(linearDistanceMillimeters+0.5));
+						setValueWithSplash(valueResid, timestampResid, linearDistanceStr, true, timestampMillis);
+						saver.save(MainActivity.this, linearDistanceStr, timestampSeconds);
 					}
 				});
 			}
@@ -186,7 +216,8 @@ public class MainActivity extends Activity {
 															MCUTempProperty.setMCUTempProperty(MainActivity.this, value, timestamp);
 														}
 													});
-						            new PollSensorBackground(HiveEnv.DbHost, HiveEnv.DbPort, HiveEnv.Db, createQuery(HiveId.replace(':', '-'), "cputemp"), onCompletion).execute();
+						            new PollSensorBackground(HiveEnv.DbHost, HiveEnv.DbPort, HiveEnv.Db, HiveEnv.DbKey, HiveEnv.DbPassword,
+						            						 createQuery(HiveId.replace(':', '-'), "cputemp"), onCompletion).execute();
 
 									onCompletion = 
 											getSensorOnCompletion(R.id.tempText, R.id.tempTimestampText, new OnSaveValue() {
@@ -195,7 +226,8 @@ public class MainActivity extends Activity {
 											        TempProperty.setTempProperty(MainActivity.this, value, timestamp);
 												}
 											});
-						            new PollSensorBackground(HiveEnv.DbHost, HiveEnv.DbPort, HiveEnv.Db, createQuery(HiveId.replace(':', '-'), "temp"), onCompletion).execute();
+						            new PollSensorBackground(HiveEnv.DbHost, HiveEnv.DbPort, HiveEnv.Db, HiveEnv.DbKey, HiveEnv.DbPassword,
+						            						 createQuery(HiveId.replace(':', '-'), "temp"), onCompletion).execute();
 						            
 									onCompletion = 
 											getSensorOnCompletion(R.id.humidText, R.id.humidTimestampText, new OnSaveValue() {
@@ -204,34 +236,38 @@ public class MainActivity extends Activity {
 											        HumidProperty.setHumidProperty(MainActivity.this, value, timestamp);
 												}
 											});
-						            new PollSensorBackground(HiveEnv.DbHost, HiveEnv.DbPort, HiveEnv.Db, createQuery(HiveId.replace(':', '-'), "humid"), onCompletion).execute();
+						            new PollSensorBackground(HiveEnv.DbHost, HiveEnv.DbPort, HiveEnv.Db, HiveEnv.DbKey, HiveEnv.DbPassword,
+						            						 createQuery(HiveId.replace(':', '-'), "humid"), onCompletion).execute();
 						            
 									onCompletion = 
-											getSensorOnCompletion(R.id.motor0Text, R.id.motor0TimestampText, new OnSaveValue() {
+											getMotorOnCompletion(R.id.motor0Text, R.id.motor0TimestampText, new OnSaveValue() {
 												@Override
 												public void save(Activity activity, String value, long timestamp) {
 													MotorProperty.setMotorProperty(MainActivity.this, 0, value, timestamp);
 												}
 											});
-						            new PollSensorBackground(HiveEnv.DbHost, HiveEnv.DbPort, HiveEnv.Db, createQuery(HiveId.replace(':', '-'), "motor0"), onCompletion).execute();
+						            new PollSensorBackground(HiveEnv.DbHost, HiveEnv.DbPort, HiveEnv.Db, HiveEnv.DbKey, HiveEnv.DbPassword,
+						            						 createQuery(HiveId.replace(':', '-'), "motor0"), onCompletion).execute();
 
 									onCompletion = 
-											getSensorOnCompletion(R.id.motor1Text, R.id.motor1TimestampText, new OnSaveValue() {
+											getMotorOnCompletion(R.id.motor1Text, R.id.motor1TimestampText, new OnSaveValue() {
 												@Override
 												public void save(Activity activity, String value, long timestamp) {
 													MotorProperty.setMotorProperty(MainActivity.this, 1, value, timestamp);
 												}
 											});
-						            new PollSensorBackground(HiveEnv.DbHost, HiveEnv.DbPort, HiveEnv.Db, createQuery(HiveId.replace(':', '-'), "motor1"), onCompletion).execute();
+						            new PollSensorBackground(HiveEnv.DbHost, HiveEnv.DbPort, HiveEnv.Db, HiveEnv.DbKey, HiveEnv.DbPassword,
+						            						 createQuery(HiveId.replace(':', '-'), "motor1"), onCompletion).execute();
 						            
 									onCompletion = 
-											getSensorOnCompletion(R.id.motor2Text, R.id.motor2TimestampText, new OnSaveValue() {
+											getMotorOnCompletion(R.id.motor2Text, R.id.motor2TimestampText, new OnSaveValue() {
 												@Override
 												public void save(Activity activity, String value, long timestamp) {
 													MotorProperty.setMotorProperty(MainActivity.this, 2, value, timestamp);
 												}
 											});
-						            new PollSensorBackground(HiveEnv.DbHost, HiveEnv.DbPort, HiveEnv.Db, createQuery(HiveId.replace(':', '-'), "motor2"), onCompletion).execute();
+						            new PollSensorBackground(HiveEnv.DbHost, HiveEnv.DbPort, HiveEnv.Db, HiveEnv.DbKey, HiveEnv.DbPassword,
+						            						 createQuery(HiveId.replace(':', '-'), "motor2"), onCompletion).execute();
 								}
 							}
 						}
