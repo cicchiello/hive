@@ -15,6 +15,12 @@ Which I proceeded to manually merge into this directory.  Most of the difference
 appeared to be directly related to handshaking/timing for the samd21g18 -- so I took all of them.
 
 
+Wiring:
+   - RPi2 GPIO header pin 6 -> GND
+   - RPi2 GPIO header pin 12 -> NRESET (pin 1 on Adafruit Feather M0+ BLE)
+   - RPi2 GPIO header pin 18 -> swdio (tiny pad on bottom of module)
+   - RPi2 GPIO header pin 22 -> swclk (tiny pad on bottom of module)
+   
 
 Note1: I would have prefered to use a github repo, but couldn't find it (unlike most of Adafruit's support code),
 therefore I won't benefit from any improvements made by the original authors and I also need to keep it in it's
