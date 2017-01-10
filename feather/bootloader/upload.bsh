@@ -1,0 +1,10 @@
+#!/bin/bash
+
+user=`whoami`
+if [ "$user" != "root" ]
+then
+    echo 'Sorry, this shell script must be run as root; perhaps you meant to use "sudo"?'
+    exit
+fi
+
+openocd --file openocd.cfg
