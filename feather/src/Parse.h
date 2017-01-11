@@ -13,7 +13,6 @@ class Parse {
   static const char *consumeNumber(const char *line);
 
   static bool hasEOL(const char *line);
-  static bool hasEOL(const char *line, bool t);
 };
 
 #endif

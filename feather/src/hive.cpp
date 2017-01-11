@@ -533,10 +533,13 @@ void handleBLEInput(Adafruit_BluefruitLE_SPI &ble)
 		        WDT_TRACE("handleBLEInput; determined line is not for sensors or actuators");
 			
 		        // assume it's randomly entered text -- report it, then try advancing to next line
-		        P("[Ignoring] "); PL(rx);
-			rx = Parse::consumeToEOL(rx);
-			if (*rx) {
-			    P("[Continue with] "); PL(rx);
+			if (Parse::hasEOL(rx)) {
+			    P("[Ignoring to EOL] "); PL(rx);
+			    rx = Parse::consumeToEOL(rx);
+			    if (*rx) 
+			        P("[Continue with] "); PL(rx);
+			} else {
+			    P("[Unprocessed] "); PL(rx);
 			}
 		    } else {
 		        WDT_TRACE("handleBLEInput; done handling sensor or actuator line");
