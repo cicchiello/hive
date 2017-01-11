@@ -57,9 +57,9 @@ public class EnableBridgeProperty implements IPropertyMgr {
 		return Integer.parseInt(v) == 0 ? false : true;
 	}
 	
-	public static void setEnableBridgeProperty(Activity activity, boolean value) {
+	public static void setEnableBridgeProperty(Context ctxt, boolean value) {
 		String valueStr = value ? "1" : "0";
-		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
+		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt.getApplicationContext());
 		if (!SP.getString(ENABLE_BRIDGE_PROPERTY, DEFAULT_ENABLE_BRIDGE).equals(valueStr)) {
 			SharedPreferences.Editor editor = SP.edit();
 			editor.putString(ENABLE_BRIDGE_PROPERTY, valueStr);

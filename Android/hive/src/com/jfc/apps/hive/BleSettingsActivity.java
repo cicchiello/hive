@@ -8,39 +8,33 @@ import com.jfc.misc.prop.DbCredentialsProperty;
 import com.jfc.misc.prop.EnableBridgeProperty;
 import com.jfc.misc.prop.HiveFactoryResetProperty;
 import com.jfc.misc.prop.IPropertyMgr;
+import com.jfc.misc.prop.NumHivesProperty;
+import com.jfc.misc.prop.PairedHiveProperty;
 import com.jfc.misc.prop.StepsPerRevolutionProperty;
 import com.jfc.misc.prop.ThreadsPerMeterProperty;
-import com.jfc.util.misc.DbAlertHandler;
+import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
 import com.jfc.util.misc.LocalStorageHandler;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import android.app.ActionBar;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
-import android.renderscript.Sampler;
 import android.util.Log;
 import android.view.MenuItem;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
-public class HiveSettingsActivity extends Activity {
-	private static final String TAG = HiveSettingsActivity.class.getName();
+public class BleSettingsActivity extends Activity {
+	private static final String TAG = BleSettingsActivity.class.getName();
 
-	private static final boolean DEBUG = HiveEnv.DEBUG;
-	private static final boolean RELEASE_TEST = HiveEnv.RELEASE_TEST;
-	
 	private List<IPropertyMgr> mMgrs = new ArrayList<IPropertyMgr>();
 	
-	private DbAlertHandler mDbAlert = null;
     
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -60,10 +54,8 @@ public class HiveSettingsActivity extends Activity {
 				Log.i(TAG, "onCreate; activity launched from other activity");
 			}
         }
-        
-        mDbAlert = new DbAlertHandler();
 
-        setContentView(DEBUG ? R.layout.settings_debug : R.layout.settings);
+        setContentView(R.layout.ble_settings);
 
         try {
         	Method m = getClass().getMethod("getActionBar", (Class<?>[]) null);
@@ -82,31 +74,33 @@ public class HiveSettingsActivity extends Activity {
         	// consume exception -- can't support normal action bar stuff
         }
 
-        mMgrs.add(new DbCredentialsProperty(this, (TextView) findViewById(R.id.db_text), (ImageButton) findViewById(R.id.db_button)));
-        mMgrs.add(new SensorSampleRateProperty(this, (TextView) findViewById(R.id.sample_rate_text), (ImageButton) findViewById(R.id.sample_rate_button), mDbAlert));
-        if (DEBUG) 
-        	mMgrs.add(new AcraTestProperty(this, (ImageButton) findViewById(R.id.acraTestButton)));
+        final ActiveHiveProperty activeHive = new ActiveHiveProperty(this, (TextView) findViewById(R.id.active_hive_text), (ImageButton) findViewById(R.id.active_hive_button));
+        BridgePairingsProperty pairing = new BridgePairingsProperty(this, (TextView) findViewById(R.id.hive_id_text), (ImageButton) findViewById(R.id.hive_pair_button)) {
+        	@Override 
+        	public void onChange() {
+        		Context ctxt = BleSettingsActivity.this;
+        		if (NumHivesProperty.isNumHivesPropertyDefined(ctxt) && (NumHivesProperty.getNumHivesProperty(ctxt) == 1)) {
+        			activeHive.setActiveHive(PairedHiveProperty.getPairedHiveName(ctxt, 0));
+        		}
+        	}
+        };
+        mMgrs.add(activeHive);
+        mMgrs.add(pairing);
+        mMgrs.add(new EnableBridgeProperty(this, (TextView) findViewById(R.id.enable_bridge_text), (ImageButton) findViewById(R.id.enable_bridge_button)));
 
         List<HiveFactoryResetProperty.Resetter> resetters = new ArrayList<HiveFactoryResetProperty.Resetter>();
     	resetters.add(new HiveFactoryResetProperty.Resetter() {
     		public void reset(Context ctxt) {
-    			SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt.getApplicationContext());
-				SharedPreferences.Editor editor = SP.edit();
-				editor.clear();
-				editor.commit();
-    			
-        		LocalStorageHandler storage = null;
-        		try {
-        			storage = new LocalStorageHandler(ctxt.getApplicationContext());
-        			storage.deleteAll();
-        		} finally {
-        			if (storage != null) 
-        				storage.close();
-        		}
+    			NumHivesProperty.clearNumHivesProperty(ctxt);
+    			ActiveHiveProperty.resetActiveHiveProperty(ctxt);
+    			EnableBridgeProperty.setEnableBridgeProperty(ctxt, false);
+    			BridgePairingsProperty.resetHiveIdProperty(ctxt);
+    	    	BluetoothPipeSrvc.startBlePipes(ctxt);
     		}});
-        mMgrs.add(new HiveFactoryResetProperty(this, (ImageButton) findViewById(R.id.factoryResetButton), resetters));
+        mMgrs.add(new HiveFactoryResetProperty(this, (ImageButton) findViewById(R.id.bleResetButton), 
+        		R.string.ble_reset_question, resetters));
 
-        setTitle(getString(R.string.app_name)+": Settings");
+        setTitle(getString(R.string.app_name)+": BLE Bridge");
     }
 
     @Override

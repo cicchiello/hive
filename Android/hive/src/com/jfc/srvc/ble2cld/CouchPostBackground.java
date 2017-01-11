@@ -17,6 +17,7 @@ import java.io.InputStreamReader;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.UnknownHostException;
 
 /**
  * Created by Joe on 12/12/2016.
@@ -84,19 +85,22 @@ public class CouchPostBackground extends AsyncTask<Void,Void,Boolean> {
             }
             onCompletion.complete("rply|"+devName+"|POST|error");
         } catch (URISyntaxException e) {
-            onCompletion.complete("rply|POST|error: "+"URISyntaxException: "+e);
+            onCompletion.complete("rply|"+devName+"|POST|error: "+"URISyntaxException: "+e);
             System.err.println("URISyntaxException: "+e);
         } catch (ClientProtocolException e) {
-            onCompletion.complete("rply|POST|error: "+"ClientProtocolException: "+e);
+            onCompletion.complete("rply|"+devName+"|POST|error: "+"ClientProtocolException: "+e);
             System.err.println("ClientProtocolException: "+e);
+        } catch (UnknownHostException e) {
+            onCompletion.complete("rply|"+devName+"|POST|error: "+"UknownHostException: "+e);
+        	System.err.println("UnknownHostException: "+e);
         } catch (IOException e) {
-            onCompletion.complete("rply|POST|error: "+"IOException: "+e);
+            onCompletion.complete("rply|"+devName+"|POST|error: "+"IOException: "+e);
             System.err.println("IOException: "+e);
         } catch (JSONException e) {
-            onCompletion.complete("rply|POST|error: "+"JSONException: "+e);
+            onCompletion.complete("rply|"+devName+"|POST|error: "+"JSONException: "+e);
             System.err.println("JSONException: " + e);
         } catch (Exception e) {
-            onCompletion.complete("rply|POST|error: "+"Exception: "+e);
+            onCompletion.complete("rply|"+devName+"|POST|error: "+"Exception: "+e);
             System.err.println("Exception: " + e);
         } finally {
             try {

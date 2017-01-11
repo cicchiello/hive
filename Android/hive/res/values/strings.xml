@@ -2,7 +2,9 @@
 <resources>
 
     <string name="app_name">Hivewiz</string>
-    <string name="action_settings">Settings</string>
+    <string name="action_settings">App settings...</string>
+    <string name="action_ble_settings">BLE bridge settings...</string>
+    <string name="action_motor_settings">Motor settings...</string>
     
     <string name="settings">Settings&#8230;</string>
     
@@ -23,9 +25,19 @@
     <string name="enable_bridge_label">Enable ble2cld bridge</string>
     <string name="enable_bridge_desc_hint">Turn on/off</string>
     
+    <string name="ble_settings">Bluetooth Settings&#8230;</string>
+    
     <string name="factory_reset_label">Factory Reset</string>
-    <string name="factory_reset_desc_hint">Reset all app settings</string>
-    <string name="factory_reset_question">Are you certain you wish to reset all settings?</string>
+    <string name="factory_reset_desc_hint">Reset ALL app settings</string>
+    <string name="factory_reset_question">Are you certain you wish to reset ALL settings?</string>
+    
+    <string name="ble_reset_label">Reset BLE settings</string>
+    <string name="ble_reset_desc_hint">Reset all Bluetooth bridge settings</string>
+    <string name="ble_reset_question">Are you certain you wish to reset the BLE settings?</string>
+    
+    <string name="motor_reset_label">Reset Motor settings</string>
+    <string name="motor_reset_desc_hint">Reset all Motor settings</string>
+    <string name="motor_reset_question">Are you certain you wish to reset the Motor settings?</string>
     
     <string name="acra_test_label">ACRA Test</string>
     <string name="acra_test_desc_hint">Submit an ACRA bug</string>
@@ -72,12 +84,20 @@
 	<string name="steps_per_rev_desc_hint">Steps per rev</string>
 	
     <string name="db_credentials_label">DB Settings</string>
-    
-	<string name="db_credentials_title">DB Settings&#8230;</string>
+    <string name="db_credentials_desc_hint">Db credentials</string>
+    <string name="db_credentials_title">DB Settings&#8230;</string>
+	
+    <string name="sample_rate_label">Sensor Rate (minutes)</string>
+    <string name="sample_rate_desc_hint">Minutes between samples</string>
+    <string name="sample_rate_dialog_title">Sensor Sample Rate&#8230;</string>
+	
     <string name="cloudant_user_label">Cloudant User:</string>
     <string name="db_key_label">Writable key:</string>
     <string name="db_pswd_label">Key\'s Password:</string>
 
+    <string name="db_inaccessible">The DB is not currently accessible; are you online and are the db credentials correct?</string>
+    <string name="db_inaccessible_ignore_txt">Prevent these alert for 5 minutes?</string>
+    
 	<string name="crash_toast_text">Ooooops!  Hivewiz&#8482; has crashed, but a report has been sent to the developers so they can fix the issue!</string>
 	
 	<string name="red">R</string>

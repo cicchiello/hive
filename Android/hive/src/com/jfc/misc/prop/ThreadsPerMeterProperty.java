@@ -44,8 +44,8 @@ public class ThreadsPerMeterProperty implements IPropertyMgr {
 		return Integer.parseInt(valueStr);
 	}
 	
-	public static void resetThreadsPerMeter(Activity activity) {
-		setThreadsPerMeter(activity, DEFAULT_THREADS_PER_METER);
+	public static void resetThreadsPerMeter(Context ctxt) {
+		setThreadsPerMeter(ctxt, DEFAULT_THREADS_PER_METER);
 	}
 	
 	public ThreadsPerMeterProperty(final Activity activity, final TextView tv, ImageButton button) {
@@ -93,7 +93,7 @@ public class ThreadsPerMeterProperty implements IPropertyMgr {
 	public AlertDialog getAlertDialog() {return mAlert;}
 
 	private void setThreadsPerMeterUndefined() {
-		mThreadsPerMeterTv.setText(DEFAULT_THREADS_PER_METER);
+		mThreadsPerMeterTv.setText(Integer.toString(DEFAULT_THREADS_PER_METER));
 	}
 	
 	private void displayThreadsPerMeter(String msg) {
@@ -105,8 +105,8 @@ public class ThreadsPerMeterProperty implements IPropertyMgr {
 		displayThreadsPerMeter(Integer.toString(threads));
 	}
 	
-	public static void setThreadsPerMeter(Activity activity, int threads) {
-		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
+	public static void setThreadsPerMeter(Context ctxt, int threads) {
+		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt.getApplicationContext());
 		if (!SP.getString(THREADS_PER_METER, Integer.toString(DEFAULT_THREADS_PER_METER)).equals(Integer.toString(threads))) {
 			SharedPreferences.Editor editor = SP.edit();
 			editor.putString(THREADS_PER_METER, Integer.toString(threads));

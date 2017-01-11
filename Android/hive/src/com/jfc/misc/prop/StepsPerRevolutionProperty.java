@@ -44,8 +44,8 @@ public class StepsPerRevolutionProperty implements IPropertyMgr {
 		return Integer.parseInt(valueStr);
 	}
 	
-	public static void resetStepsPerRevolution(Activity activity) {
-		setStepsPerRevolution(activity, DEFAULT_STEPS_PER_REV);
+	public static void resetStepsPerRevolution(Context ctxt) {
+		setStepsPerRevolution(ctxt, DEFAULT_STEPS_PER_REV);
 	}
 	
 	public StepsPerRevolutionProperty(final Activity activity, final TextView tv, ImageButton button) {
@@ -104,8 +104,8 @@ public class StepsPerRevolutionProperty implements IPropertyMgr {
 		displayStepsPerRevolution(Integer.toString(steps));
 	}
 	
-	public static void setStepsPerRevolution(Activity activity, int steps) {
-		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
+	public static void setStepsPerRevolution(Context ctxt, int steps) {
+		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt.getApplicationContext());
 		if (!SP.getString(STEPS_PER_REV, Integer.toString(DEFAULT_STEPS_PER_REV)).equals(Integer.toString(steps))) {
 			SharedPreferences.Editor editor = SP.edit();
 			editor.putString(STEPS_PER_REV, Integer.toString(steps));

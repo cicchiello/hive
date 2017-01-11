@@ -1,17 +1,22 @@
 package com.jfc.srvc.ble2cld;
 
 import android.os.AsyncTask;
+import android.util.JsonReader;
 import android.util.Log;
 
+import org.apache.http.client.HttpResponseException;
 import org.apache.http.client.ResponseHandler;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.json.JSONException;
 import org.json.JSONObject;
+import org.json.JSONTokener;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.UnknownHostException;
 
 /**
  * Created by Joe on 12/12/2016.
@@ -23,16 +28,19 @@ public class PostActuatorBackground extends AsyncTask<Void,Void,Boolean> {
     private String dbUrl, authToken;
     private JSONObject doc;
     private String docId, rev;
+    private ResultCallback onCompletion;
 
     public interface ResultCallback {
     	public void success(String id, String rev);
     	public void error(String msg);
+    	public void serviceUnavailable(String msg);
     };
     
     public PostActuatorBackground(String _dbUrl, String _authToken, JSONObject _doc, ResultCallback _onCompletion) {
     	dbUrl = _dbUrl;
     	authToken = _authToken;
         doc = _doc;
+        onCompletion = _onCompletion;
     }
 
     public String getDocId() {return docId;}
@@ -41,6 +49,7 @@ public class PostActuatorBackground extends AsyncTask<Void,Void,Boolean> {
     interface ProcessResult {
     	public void onSuccess(JSONObject obj);
     	public void onError(String msg);
+    	public void onServiceUnavailable(String msg);
     };
     
     private static void couchPost(String dbUrl, JSONObject doc, String authToken, ProcessResult proc) {
@@ -60,11 +69,25 @@ public class PostActuatorBackground extends AsyncTask<Void,Void,Boolean> {
             
             //Handles what is returned from the page 
             ResponseHandler responseHandler = new BasicResponseHandler();
-            Object o = httpclient.execute(httpPost, responseHandler);
             
-            Log.i(TAG, o.toString());
+            try {
+            	proc.onSuccess(new JSONObject(new JSONTokener((String) httpclient.execute(httpPost, responseHandler))));
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				proc.onError(e.getLocalizedMessage());
+			}
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
+        } catch (HttpResponseException e) {
+        	if (e.getStatusCode()==503) {
+        		proc.onServiceUnavailable(e.getLocalizedMessage());
+        	} else {
+        		proc.onError(e.getLocalizedMessage());
+        	}
+        } catch (UnknownHostException e) {
+        	proc.onError(e.getLocalizedMessage());
+        	System.err.println("UnknownHostException: "+e);
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
@@ -77,12 +100,24 @@ public class PostActuatorBackground extends AsyncTask<Void,Void,Boolean> {
 
 			@Override
 			public void onSuccess(JSONObject obj) {
-				Log.i(TAG, "have success");
+				try {
+					onCompletion.success(obj.getString("id"), obj.getString("rev"));
+				} catch (JSONException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+					onCompletion.error(e.getLocalizedMessage());
+				}
 			}
 
 			@Override
 			public void onError(String msg) {
+				onCompletion.error(msg);
 				Log.e(TAG, msg);
+			}
+
+			@Override
+			public void onServiceUnavailable(String msg) {
+				onCompletion.serviceUnavailable(msg);
 			}
 		};
         couchPost(dbUrl, doc, authToken, latestProc);

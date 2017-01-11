@@ -82,13 +82,15 @@ public class MotorProperty {
 		        	@Override
 		        	public void onClick(DialogInterface dialog, int which) {
 		        		postToDb(((EditText)alert.findViewById(R.id.textValue)).getText().toString());
-						Intent ble2cld = new Intent(activity, BluetoothPipeSrvc.class);
 						String sensor = "motor"+Integer.toString(index)+"-target";
 						EditText et = (EditText) alert.findViewById(R.id.textValue);
 						String linearDistanceMillimetersStr = et.getText().toString();
 						double linearDistanceMillimeters = Long.parseLong(linearDistanceMillimetersStr);
 						long steps = linearDistanceToSteps(activity, linearDistanceMillimeters/1000.0);
+						
 						String msg = "tx|"+hiveId.replace('-', ':')+"|action|"+sensor+"|"+steps;
+						
+						Intent ble2cld = new Intent(activity, BluetoothPipeSrvc.class);
 						ble2cld.putExtra("cmd", msg);
 						activity.startService(ble2cld);
 		        		alert.dismiss(); 
@@ -163,6 +165,11 @@ public class MotorProperty {
 				@Override
 				public void error(String msg) {
 					Log.e(TAG, "Error: "+msg);
+				}
+
+				@Override
+				public void serviceUnavailable(String msg) {
+					Log.e(TAG, "Service unavailable: "+msg);
 				}
 			};
 

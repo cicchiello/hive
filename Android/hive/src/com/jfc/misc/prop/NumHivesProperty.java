@@ -22,22 +22,22 @@ public class NumHivesProperty {
 	}
 	
 	public static int getNumHivesProperty(Context ctxt) {
-		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt);
+		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt.getApplicationContext());
 		String v = SP.getString(NUM_HIVES_PROPERTY, DEFAULT_NUM_HIVES);
 		return Integer.parseInt(v);
 	}
 	
 	public static void clearNumHivesProperty(Context ctxt) {
-		resetNumHivesProperty(ctxt);
+		resetNumHivesProperty(ctxt.getApplicationContext());
 	}
 	
 	private static void resetNumHivesProperty(Context ctxt) {
-		setNumHivesProperty(ctxt, 0);
+		setNumHivesProperty(ctxt.getApplicationContext(), 0);
 	}
 	
 	public static void setNumHivesProperty(Context ctxt, int value) {
 		String valueStr = Integer.toString(value);
-		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt);
+		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt.getApplicationContext());
 		if (!SP.getString(NUM_HIVES_PROPERTY, DEFAULT_NUM_HIVES).equals(valueStr)) {
 			SharedPreferences.Editor editor = SP.edit();
 			editor.putString(NUM_HIVES_PROPERTY, valueStr);
