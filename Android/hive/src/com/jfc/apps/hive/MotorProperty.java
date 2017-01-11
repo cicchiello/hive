@@ -166,6 +166,11 @@ public class MotorProperty {
 				public void error(String msg) {
 					Log.e(TAG, "Error: "+msg);
 				}
+
+				@Override
+				public void serviceUnavailable(String msg) {
+					Log.e(TAG, "Service unavailable: "+msg);
+				}
 			};
 
 			String sensor = "motor"+Integer.toString(index)+"-target";

@@ -1,23 +1,14 @@
 package com.jfc.misc.prop;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
-import android.util.Pair;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
@@ -49,6 +40,7 @@ public class DbCredentialsProperty implements IPropertyMgr {
     // created on constructions -- no need to save on pause
 	private TextView mCloudantTv;
 	private Activity mActivity;
+	private Context mCtxt;
 
 	// transient variables -- no need to save on pause
 	private AlertDialog mAlert;
@@ -66,7 +58,7 @@ public class DbCredentialsProperty implements IPropertyMgr {
 				SP.getString(DB_NAME_PROPERTY, DEFAULT_DB_NAME).equals(DEFAULT_DB_NAME);
 		
 		boolean allDefaults = cloudantIsDefault && dbKeyIsDefault && dbPswdIsDefault && dbNameIsDefault;
-		return allDefaults;
+		return !allDefaults;
 	}
 	
 	public static String getCloudantUser(Context ctxt) {
@@ -99,10 +91,11 @@ public class DbCredentialsProperty implements IPropertyMgr {
 	
 	public DbCredentialsProperty(final Activity activity, final TextView keyTv, ImageButton button) {
 		this.mActivity = activity;
+		this.mCtxt = activity.getApplicationContext();
 		this.mCloudantTv = keyTv;
 		
-		if (isDbDefined(activity)) {
-			setDbCredentials(getCloudantUser(activity), getDbName(activity), getDbKey(activity), getDbPswd(activity));
+		if (isDbDefined(mCtxt)) {
+			displayDbCredentials(getCloudantUser(mCtxt), getDbName(mCtxt), getDbKey(mCtxt), getDbPswd(mCtxt));
 		} else {
 			resetDb();
     	}
@@ -111,7 +104,7 @@ public class DbCredentialsProperty implements IPropertyMgr {
     	button.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				AlertDialog.Builder builder = new AlertDialog.Builder(activity);
+				AlertDialog.Builder builder = new AlertDialog.Builder(mActivity);
 				
 				builder.setIcon(R.drawable.ic_hive);
 				builder.setView(R.layout.db_credentials_dialog);
@@ -139,9 +132,9 @@ public class DbCredentialsProperty implements IPropertyMgr {
 		        EditText keyTv = (EditText) mAlert.findViewById(R.id.db_key_text);
 		        EditText pswdTv = (EditText) mAlert.findViewById(R.id.db_pswd_text);
 		        EditText cloudantUserTv = (EditText) mAlert.findViewById(R.id.cloudant_user_text);
-		        keyTv.setText(getDbKey(activity));
-		        pswdTv.setText(getDbPswd(activity));
-		        cloudantUserTv.setText(getCloudantUser(activity));
+		        keyTv.setText(getDbKey(mCtxt));
+		        pswdTv.setText(getDbPswd(mCtxt));
+		        cloudantUserTv.setText(getCloudantUser(mCtxt));
 			}
 		});
 	}
@@ -149,7 +142,7 @@ public class DbCredentialsProperty implements IPropertyMgr {
 	public AlertDialog getAlertDialog() {return mAlert;}
 
 	private void resetDb() {
-		setDbCredentials(mActivity, DEFAULT_CLOUDANT_USER, DEFAULT_DB_NAME, DEFAULT_DB_KEY, DEFAULT_DB_PSWD);
+		setDbCredentials(mCtxt, DEFAULT_CLOUDANT_USER, DEFAULT_DB_NAME, DEFAULT_DB_KEY, DEFAULT_DB_PSWD);
 		displayDbCredentials(DEFAULT_CLOUDANT_USER, DEFAULT_DB_NAME, DEFAULT_DB_KEY, DEFAULT_DB_PSWD);
 		//mCloudantTv.setBackgroundColor(0xffff0000); // RED
 	}
@@ -159,12 +152,12 @@ public class DbCredentialsProperty implements IPropertyMgr {
 	}
 	
 	private void setDbCredentials(String cloudantUser, String dbName, String key, String pswd) {
-		setDbCredentials(mActivity, cloudantUser, dbName, key, pswd);
+		setDbCredentials(mCtxt, cloudantUser, dbName, key, pswd);
 		displayDbCredentials(cloudantUser, dbName, key, pswd);
 	}
 	
-	public static void setDbCredentials(Activity activity, String cloudantUser, String dbName, String key, String pswd) {
-		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
+	public static void setDbCredentials(Context ctxt, String cloudantUser, String dbName, String key, String pswd) {
+		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt.getApplicationContext());
 		boolean somethingChanged = 
 				!SP.getString(CLOUDANT_USER_PROPERTY, DEFAULT_CLOUDANT_USER).equals(cloudantUser) ||
 				!SP.getString(DB_KEY_PROPERTY, DEFAULT_DB_KEY).equals(key) ||

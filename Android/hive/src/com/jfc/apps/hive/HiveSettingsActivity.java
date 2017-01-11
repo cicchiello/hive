@@ -10,6 +10,7 @@ import com.jfc.misc.prop.HiveFactoryResetProperty;
 import com.jfc.misc.prop.IPropertyMgr;
 import com.jfc.misc.prop.StepsPerRevolutionProperty;
 import com.jfc.misc.prop.ThreadsPerMeterProperty;
+import com.jfc.util.misc.DbAlertHandler;
 import com.jfc.util.misc.LocalStorageHandler;
 
 import java.lang.reflect.InvocationTargetException;
@@ -25,6 +26,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.renderscript.Sampler;
 import android.util.Log;
 import android.view.MenuItem;
 import android.widget.ImageButton;
@@ -38,6 +40,7 @@ public class HiveSettingsActivity extends Activity {
 	
 	private List<IPropertyMgr> mMgrs = new ArrayList<IPropertyMgr>();
 	
+	private DbAlertHandler mDbAlert = null;
     
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -57,6 +60,8 @@ public class HiveSettingsActivity extends Activity {
 				Log.i(TAG, "onCreate; activity launched from other activity");
 			}
         }
+        
+        mDbAlert = new DbAlertHandler();
 
         setContentView(DEBUG ? R.layout.settings_debug : R.layout.settings);
 
@@ -78,6 +83,7 @@ public class HiveSettingsActivity extends Activity {
         }
 
         mMgrs.add(new DbCredentialsProperty(this, (TextView) findViewById(R.id.db_text), (ImageButton) findViewById(R.id.db_button)));
+        mMgrs.add(new SensorSampleRateProperty(this, (TextView) findViewById(R.id.sample_rate_text), (ImageButton) findViewById(R.id.sample_rate_button), mDbAlert));
         if (DEBUG) 
         	mMgrs.add(new AcraTestProperty(this, (ImageButton) findViewById(R.id.acraTestButton)));
 

@@ -10,13 +10,16 @@ import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.DbCredentialsProperty;
 import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
 import com.jfc.srvc.ble2cld.PollSensorBackground;
+import com.jfc.util.misc.DbAlertHandler;
 import com.jfc.util.misc.DialogUtils;
 import com.jfc.util.misc.SplashyText;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.bluetooth.BluetoothAdapter;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
 import android.text.format.DateFormat;
 import android.util.Log;
 import android.view.Menu;
@@ -37,6 +40,8 @@ public class MainActivity extends Activity {
 	private Runnable mPoller = null;
 	private MotorProperty m0, m1, m2;
 	
+	private DbAlertHandler mDbAlert = null;
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -45,6 +50,8 @@ public class MainActivity extends Activity {
 		// set initial value(s)
 		setInitialValues();
 
+		mDbAlert = new DbAlertHandler();
+		
     	startPolling();
     	
     	BluetoothPipeSrvc.startBlePipes(this);
@@ -60,11 +67,6 @@ public class MainActivity extends Activity {
 
 	private void setValueWithSplash(int valueResid, int timestampResid, String value, boolean isTimestampDefined, long timestamp) {
 		setValueImplementation(valueResid, timestampResid, value, isTimestampDefined, timestamp, true);
-	}
-
-	private void setValueAsError(int valueResid) {
-		TextView valueTv = (TextView) findViewById(valueResid);
-		SplashyText.highlightErrorField(this, valueTv);
 	}
 
 	private void setInitialValues() {
@@ -139,6 +141,7 @@ public class MainActivity extends Activity {
 		public void save(Activity activity, String value, long timestamp);
 	};
 	
+	
 	private PollSensorBackground.ResultCallback getSensorOnCompletion(final int valueResid, final int timestampResid, final OnSaveValue saver) {
 		PollSensorBackground.ResultCallback onCompletion = new PollSensorBackground.ResultCallback() {
 			@Override
@@ -156,28 +159,17 @@ public class MainActivity extends Activity {
 			
 			@Override
 			public void error(final String msg) {
-    			runOnUiThread(new Runnable() {
-    				private AlertDialog mAlert = null;
-    				
-					@Override
-					public void run() {
-						String errMsg = "Attempt to get Sensor state failed with this message: "+msg;
-		        		Runnable cancelAction = new Runnable() {
-		    				@Override
-		    				public void run() {
-				            	mAlert.dismiss();
-				            	mAlert = null;
-				            	setValueAsError(valueResid);
-		    				}
-		    			};
+				String errMsg = "Attempt to get Sensor state failed with this message: "+msg;
+				mDbAlert.informDbInaccessible(MainActivity.this, errMsg, valueResid);
+			}
 
-						mAlert = DialogUtils.createAndShowErrorDialog(MainActivity.this, errMsg, android.R.string.cancel, cancelAction);
-					}});
+			@Override
+			public void dbAccessibleError(final String msg) {
+				mDbAlert.informDbInaccessible(MainActivity.this, getString(R.string.db_inaccessible), valueResid);
 			}
 		};
 		return onCompletion;
 	}
-	
 	
 	private PollSensorBackground.ResultCallback getMotorOnCompletion(final int valueResid, final int timestampResid, final OnSaveValue saver) {
 		PollSensorBackground.ResultCallback onCompletion = new PollSensorBackground.ResultCallback() {
@@ -199,23 +191,13 @@ public class MainActivity extends Activity {
 			
 			@Override
 			public void error(final String msg) {
-    			runOnUiThread(new Runnable() {
-    				private AlertDialog mAlert = null;
-    				
-					@Override
-					public void run() {
-						String errMsg = "Attempt to get Motor location failed with this message: "+msg;
-		        		Runnable cancelAction = new Runnable() {
-		    				@Override
-		    				public void run() {
-				            	mAlert.dismiss();
-				            	mAlert = null;
-				            	setValueAsError(valueResid);
-		    				}
-		    			};
+				String errMsg = "Attempt to get Motor location failed with this message: "+msg;
+				mDbAlert.informDbInaccessible(MainActivity.this, errMsg, valueResid);
+			}
 
-						mAlert = DialogUtils.createAndShowErrorDialog(MainActivity.this, errMsg, android.R.string.cancel, cancelAction);
-					}});
+			@Override
+			public void dbAccessibleError(final String msg) {
+				mDbAlert.informDbInaccessible(MainActivity.this, msg, valueResid);
 			}
 		};
 		return onCompletion;
@@ -326,6 +308,8 @@ public class MainActivity extends Activity {
 	@Override
 	protected void onPause() {
 		cancelPoller();
+		
+		mDbAlert.onPause(this);
 		
 		super.onPause();
 	}

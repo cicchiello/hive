@@ -11,12 +11,14 @@ import org.json.JSONObject;
 import org.json.JSONTokener;
 
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.ConnectException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.UnknownHostException;
 
 /**
  * Created by Joe on 12/12/2016.
@@ -32,6 +34,7 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
     public interface ResultCallback {
     	public void report(String sensorType, String timestampStr, String valueStr);
     	public void error(String msg);
+    	public void dbAccessibleError(String msg);
     };
     
     public PollSensorBackground(String _dbUrl, String _query, ResultCallback _onCompletion) {
@@ -46,6 +49,7 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
     interface ProcessResult {
     	public void onSuccess(JSONObject obj);
     	public void onError(String msg);
+    	public void couchInaccessibleError(String msg);
     };
     
     private static void couchGet(String dbUrl, String query, ProcessResult proc) {
@@ -75,6 +79,12 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
             proc.onError("error: "+"ClientProtocolException: "+e);
             System.err.println("ClientProtocolException: "+e);
 			ACRA.getErrorReporter().handleException(e);
+        } catch (UnknownHostException e) {
+        	proc.couchInaccessibleError("error: "+"UnknownHostException: "+e);
+            System.err.println("UnknownHostException: "+e);
+        } catch (FileNotFoundException e) {
+        	proc.couchInaccessibleError("error: "+"FileNotFoundException: "+e);
+            System.err.println("UnknownHostException: "+e);
         } catch (IOException e) {
         	proc.onError("error: "+"IOException: "+e);
             System.err.println("IOException: "+e);
@@ -135,6 +145,12 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
 				Log.e(TAG, msg);
 				if (onCompletion != null)
 					onCompletion.error(msg);
+			}
+
+			@Override
+			public void couchInaccessibleError(String msg) {
+				if (onCompletion != null)
+					onCompletion.dbAccessibleError(msg);
 			}
 		};
         couchGet(dbUrl, query, latestProc);
