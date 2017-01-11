@@ -36,7 +36,7 @@ public class ActiveHiveProperty implements IPropertyMgr {
 	
     // created on constructions -- no need to save on pause
 	private TextView mActiveHiveTv;
-	private Activity mActivity;
+	private Context mCtxt;
 
 	// transient variables -- no need to save on pause
 	private AlertDialog mAlert;
@@ -44,22 +44,22 @@ public class ActiveHiveProperty implements IPropertyMgr {
 
 	
 	public static boolean isActiveHivePropertyDefined(Context ctxt) {
-		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt);
+		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt.getApplicationContext());
 		return SP.contains(ACTIVE_HIVE_PROPERTY) && 
 			!SP.getString(ACTIVE_HIVE_PROPERTY, DEFAULT_ACTIVE_HIVE).equals(DEFAULT_ACTIVE_HIVE);
 	}
 	
 	public static String getActiveHiveProperty(Context ctxt) {
-		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt);
+		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt.getApplicationContext());
 		String id = SP.getString(ACTIVE_HIVE_PROPERTY, DEFAULT_ACTIVE_HIVE);
 		return id;
 	}
 	
-	public static void resetActiveHiveProperty(Activity activity) {
-		setActiveHiveProperty(activity, DEFAULT_ACTIVE_HIVE);
+	public static void resetActiveHiveProperty(Context ctxt) {
+		setActiveHiveProperty(ctxt.getApplicationContext(), DEFAULT_ACTIVE_HIVE);
 	}
 	
-	private void loadExistingPairs(Activity activity)
+	private void loadExistingPairs(Context ctxt)
 	{
     	mExistingPairs = new ArrayList<Pair<String,String>>();
     	if (BluetoothAdapter.getDefaultAdapter() == null) {
@@ -67,20 +67,20 @@ public class ActiveHiveProperty implements IPropertyMgr {
     		// F0-17-66-FC-5E-A1
 	    	mExistingPairs.add(new Pair<String,String>("Joe's Hive", "F0-17-66-FC-5E-A1"));
     	} else {
-	    	int sz = NumHivesProperty.getNumHivesProperty(mActivity);
+	    	int sz = NumHivesProperty.getNumHivesProperty(ctxt);
 	    	for (int i = 0; i < sz; i++) {
-	    		String name = PairedHiveProperty.getPairedHiveName(mActivity, i);
-	    		String id = PairedHiveProperty.getPairedHiveId(mActivity, i);
+	    		String name = PairedHiveProperty.getPairedHiveName(ctxt, i);
+	    		String id = PairedHiveProperty.getPairedHiveId(ctxt, i);
 	    		mExistingPairs.add(new Pair<String,String>(name,id));
 	    	}
     	}
     	
     	if (mExistingPairs.size() == 1) {
     		setActiveHive(mExistingPairs.get(0).first);
-    		setActiveHiveProperty(activity, mExistingPairs.get(0).first);
+    		setActiveHiveProperty(ctxt, mExistingPairs.get(0).first);
     	} else {
-    		if (isActiveHivePropertyDefined(activity)) {
-    			setActiveHive(getActiveHiveProperty(activity));
+    		if (isActiveHivePropertyDefined(ctxt)) {
+    			setActiveHive(getActiveHiveProperty(ctxt));
     		} else {
     			setActiveHiveUndefined();
     		}
@@ -88,10 +88,10 @@ public class ActiveHiveProperty implements IPropertyMgr {
 	}
 
 	public ActiveHiveProperty(final Activity activity, final TextView idTv, ImageButton button) {
-		this.mActivity = activity;
+		this.mCtxt = activity.getApplicationContext();
 		this.mActiveHiveTv = idTv;
 		
-		loadExistingPairs(activity);
+		loadExistingPairs(mCtxt);
 		
     	mExistingPairs = new ArrayList<Pair<String,String>>();
     	if (BluetoothAdapter.getDefaultAdapter() == null) {
@@ -99,20 +99,20 @@ public class ActiveHiveProperty implements IPropertyMgr {
     		// F0-17-66-FC-5E-A1
 	    	mExistingPairs.add(new Pair<String,String>("Joe's Hive", "F0-17-66-FC-5E-A1"));
     	} else {
-	    	int sz = NumHivesProperty.getNumHivesProperty(mActivity);
+	    	int sz = NumHivesProperty.getNumHivesProperty(mCtxt);
 	    	for (int i = 0; i < sz; i++) {
-	    		String name = PairedHiveProperty.getPairedHiveName(mActivity, i);
-	    		String id = PairedHiveProperty.getPairedHiveId(mActivity, i);
+	    		String name = PairedHiveProperty.getPairedHiveName(mCtxt, i);
+	    		String id = PairedHiveProperty.getPairedHiveId(mCtxt, i);
 	    		mExistingPairs.add(new Pair<String,String>(name,id));
 	    	}
     	}
     	
     	if (mExistingPairs.size() == 1) {
     		setActiveHive(mExistingPairs.get(0).first);
-    		setActiveHiveProperty(activity, mExistingPairs.get(0).first);
+    		setActiveHiveProperty(mCtxt, mExistingPairs.get(0).first);
     	} else {
-    		if (isActiveHivePropertyDefined(activity)) {
-    			setActiveHive(getActiveHiveProperty(activity));
+    		if (isActiveHivePropertyDefined(mCtxt)) {
+    			setActiveHive(getActiveHiveProperty(mCtxt));
     		} else {
     			setActiveHiveUndefined();
     		}
@@ -122,9 +122,9 @@ public class ActiveHiveProperty implements IPropertyMgr {
 			@Override
 			public void onClick(View v) {
 		    	
-				loadExistingPairs(activity);
+				loadExistingPairs(mCtxt);
 				
-		        final ArrayAdapter<Pair<String,String>> arrayAdapter = new PairAdapter(mActivity, mExistingPairs);
+		        final ArrayAdapter<Pair<String,String>> arrayAdapter = new PairAdapter(mCtxt, mExistingPairs);
 		        
 		        arrayAdapter.sort(new Comparator<Pair<String,String>>() {
 					@Override
@@ -133,7 +133,7 @@ public class ActiveHiveProperty implements IPropertyMgr {
 					}
 				});
 		        
-		    	AlertDialog.Builder builder = new AlertDialog.Builder(mActivity);
+		    	AlertDialog.Builder builder = new AlertDialog.Builder(mCtxt);
 		        builder.setIcon(R.drawable.ic_hive);
 		        builder.setTitle(R.string.active_hive_choice);
 		        builder.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
@@ -151,8 +151,8 @@ public class ActiveHiveProperty implements IPropertyMgr {
 	            		mAlert = null;
 	            		
 	            		setActiveHive(selection);
-	            		setActiveHiveProperty(activity, selection);
-                		SplashyText.highlightModifiedField(mActivity, mActiveHiveTv);
+	            		setActiveHiveProperty(mCtxt, selection);
+                		SplashyText.highlightModifiedField(activity, mActiveHiveTv);
 	                }
 	            });
 		        mAlert = builder.show();
@@ -172,13 +172,13 @@ public class ActiveHiveProperty implements IPropertyMgr {
 		mActiveHiveTv.setBackgroundColor(grayColor);
 	}
 	
-	private void setActiveHive(String msg) {
-		setActiveHiveProperty(mActivity, msg);
+	public void setActiveHive(String msg) {
+		setActiveHiveProperty(mCtxt, msg);
 		displayPairingState(msg);
 	}
 	
-	public static void setActiveHiveProperty(Activity activity, String id) {
-		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
+	public static void setActiveHiveProperty(Context ctxt, String id) {
+		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt.getApplicationContext());
 		if (!SP.getString(ACTIVE_HIVE_PROPERTY, DEFAULT_ACTIVE_HIVE).equals(id)) {
 			SharedPreferences.Editor editor = SP.edit();
 			editor.putString(ACTIVE_HIVE_PROPERTY, id);

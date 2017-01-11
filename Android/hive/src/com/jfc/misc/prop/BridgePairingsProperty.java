@@ -77,8 +77,12 @@ public class BridgePairingsProperty implements IPropertyMgr {
 		return id;
 	}
 	
-	public static void resetHiveIdProperty(Activity activity) {
-		setHiveIdProperty(activity, DEFAULT_HIVE_ID);
+	public static void resetHiveIdProperty(Context ctxt) {
+		setHiveIdProperty(ctxt, DEFAULT_HIVE_ID);
+	}
+	
+	public void onChange() {
+		// do nothing, by default -- callers can extend to gain access
 	}
 	
 	public BridgePairingsProperty(final Activity activity, final TextView idTv, ImageButton button) {
@@ -197,8 +201,8 @@ public class BridgePairingsProperty implements IPropertyMgr {
 		displayPairingState(msg);
 	}
 	
-	public static void setHiveIdProperty(Activity activity, String id) {
-		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
+	public static void setHiveIdProperty(Context ctxt, String id) {
+		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt.getApplicationContext());
 		if (!SP.getString(HIVE_ID_PROPERTY, DEFAULT_HIVE_ID).equals(id)) {
 			SharedPreferences.Editor editor = SP.edit();
 			editor.putString(HIVE_ID_PROPERTY, id);
@@ -281,6 +285,7 @@ public class BridgePairingsProperty implements IPropertyMgr {
 	            				NumHivesProperty.setNumHivesProperty(mActivity, mExistingPairs.size());
 	            				PairedHiveProperty.setPairedHiveId(mActivity, mExistingPairs.size()-1, address);
 	            				PairedHiveProperty.setPairedHiveName(mActivity, mExistingPairs.size()-1, chosenName);
+	            				onChange();
 	            				
 	            		    	switch(mExistingPairs.size()) {
 	            		    	case 0: displayPairingState("no hives"); break;

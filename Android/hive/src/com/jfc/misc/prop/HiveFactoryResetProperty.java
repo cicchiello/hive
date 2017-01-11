@@ -7,6 +7,7 @@ import com.jfc.util.misc.DialogUtils;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -18,10 +19,10 @@ public class HiveFactoryResetProperty implements IPropertyMgr {
 	private AlertDialog alert;
 
 	public interface Resetter {
-		void reset(Activity activity);
+		void reset(Context ctxt);
 	};
 	
-	public HiveFactoryResetProperty(final Activity activity, ImageButton button, final List<Resetter> resetters) {
+	private void init(final Activity activity, ImageButton button, final int resetQuestionResid, final List<Resetter> resetters) {
     	button.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
@@ -39,10 +40,18 @@ public class HiveFactoryResetProperty implements IPropertyMgr {
 					@Override
 					public void run() {alert=null;}
 		    	};
-		    	alert = DialogUtils.createAndShowAlertDialog(activity, R.string.factory_reset_question, 
-		    										    	 R.string.yes, scrubAction, R.string.cancel, cancelAction);
+		    	alert = DialogUtils.createAndShowAlertDialog(activity, resetQuestionResid, 
+  										    	 R.string.yes, scrubAction, R.string.cancel, cancelAction);
 			}
 		});
+	}
+	
+	public HiveFactoryResetProperty(Activity activity, ImageButton button, int resetQuestionResid, List<Resetter> resetters) {
+		init(activity, button, resetQuestionResid, resetters);
+	}
+	
+	public HiveFactoryResetProperty(Activity activity, ImageButton button, List<Resetter> resetters) {
+		init(activity, button, R.string.factory_reset_question, resetters);
 	}
 
 	public AlertDialog getAlertDialog() {return alert;}

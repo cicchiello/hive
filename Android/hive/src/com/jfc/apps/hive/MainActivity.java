@@ -364,11 +364,29 @@ public class MainActivity extends Activity {
 			onSettings();
 			return true;
 		}
+		if (id == R.id.action_ble_settings) {
+			onBleSettings();
+			return true;
+		}
+		if (id == R.id.action_motor_settings) {
+			onMotorSettings();
+			return true;
+		}
 		return super.onOptionsItemSelected(item);
 	}
 	
 	public void onSettings() {
 		Intent intent = new Intent(this, HiveSettingsActivity.class);
+		startActivityForResult(intent, 0);
+	}
+	
+	public void onBleSettings() {
+		Intent intent = new Intent(this, BleSettingsActivity.class);
+		startActivityForResult(intent, 0);
+	}
+	
+	public void onMotorSettings() {
+		Intent intent = new Intent(this, MotorSettingsActivity.class);
 		startActivityForResult(intent, 0);
 	}
 	
