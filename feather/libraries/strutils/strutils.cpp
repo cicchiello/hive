@@ -88,3 +88,20 @@ void StringUtils::urlEncodePrint(Stream &stream, const char *msg)
 }
 
 
+#define nibHigh(b) (((b)&0xf0)>>4)
+#define nibLow(b) ((b)&0x0f)
+
+inline static char hex2asc(unsigned char n) 
+{
+    return n>9 ? n-10+'a' : n+'0';
+}
+
+
+/* STATIC */
+void StringUtils::itoahex(char buf[2], char i)
+{
+  buf[0] = hex2asc(nibHigh(i));
+  buf[1] = hex2asc(nibLow(i));
+}
+
+

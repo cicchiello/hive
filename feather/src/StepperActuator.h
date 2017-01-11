@@ -9,7 +9,8 @@ class Str;
 
 class StepperActuator : public Actuator {
  public:
-    StepperActuator(const char *name, int port, unsigned long now);
+    StepperActuator(const char *name, int address, int port, unsigned long now,
+		    bool isBackwards=false);
     // ports: 1==M1 & M2; 2==M3 & M4
     
     ~StepperActuator();
@@ -24,12 +25,22 @@ class StepperActuator : public Actuator {
     void scheduleNextAction(unsigned long now);
     
     bool isMyCommand(const char *response) const;
-    char *processCommand(const char *response);
+    const char *processCommand(const char *response);
     
  private:
+    bool isItTimeYetForSelfDrive(unsigned long now);
+    
+    static const int SAMPLES_PER_SECOND = 10000;
+    static StepperActuator **s_steppers;
+    static bool s_pulseInitialized;
+    static void PulseCallback();
+    
+    Str TAG(const char *memberfunc, const char *msg) const;
+    
     Str *mPrev, *mName;
     int mLoc, mTarget, mMsPerStep;
     unsigned long mLastSampleTime;
+    bool mRunning, mIsBackwards;
     class Adafruit_StepperMotor *m;
     class Adafruit_MotorShield *AFMS;
 };

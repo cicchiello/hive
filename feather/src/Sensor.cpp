@@ -5,6 +5,7 @@
 
 
 #define HEADLESS
+#define NDEBUG
 
 #ifndef HEADLESS
 #define P(args) Serial.print(args)
@@ -15,7 +16,6 @@
 #endif
 
 
-#define NDEBUG
 #ifndef NDEBUG
 #define D(args) P(args)
 #define DL(args) PL(args)
@@ -26,6 +26,7 @@
 
 
 #include <str.h>
+#include <Parse.h>
 
 #include <cloudpipe.h>
 
@@ -44,8 +45,10 @@ public:
     mValue = value;
   }
   
-  void post(class Adafruit_BluefruitLE_SPI &ble);
+  void post(const char *sensorName, class Adafruit_BluefruitLE_SPI &ble);
 
+  const char *getName() const {return mSensorName.c_str();}
+  
 private:
   Str mSensorName, mTimestamp, mValue;
 };
@@ -73,13 +76,25 @@ static TxQueue<QueueEntry> *getQueue()
 
 
 
-Sensor::Sensor(unsigned long now)
+Sensor::Sensor(const char *sensorName, unsigned long now)
 {
+    mName = new Str(sensorName);
+    
     // schedule first sample time
     mNextSampleTime = now + 20*1000;
 }
 
 
+Sensor::~Sensor()
+{
+    delete mName;
+}
+
+const char *Sensor::getName() const
+{
+    return mName->c_str();
+}
+    
 bool Sensor::isItTimeYet(unsigned long now)
 {
     return now >= mNextSampleTime;
@@ -95,8 +110,22 @@ void Sensor::scheduleNextSample(unsigned long now)
 bool Sensor::isMyResponse(const char *rsp) const
 {
     DL("Sensor::isMyResponse");
-    const char *prefix = "rply|POST|";
-    return (strncmp(rsp, prefix, strlen(prefix)) == 0);
+    const char *token = "rply|";
+    if (strncmp(rsp, token, strlen(token)) == 0) {
+        rsp += strlen(token);
+	if (strncmp(rsp, mName->c_str(), mName->len()) == 0) {
+	    rsp += mName->len();
+	    token = "|POST|";
+	    return (strncmp(rsp, token, strlen(token)) == 0);
+	}
+    } 
+    return false;
+}
+
+
+void Sensor::enqueueRequest(const char *value, const char *timestamp)
+{
+    enqueueFullRequest(mName->c_str(), value, timestamp);
 }
 
 
@@ -116,21 +145,13 @@ void Sensor::attemptPost(Adafruit_BluefruitLE_SPI &ble)
 }
 
 
-static char *consumeToEOL(const char *rsp)
+const char *Sensor::processResponse(const char *rsp)
 {
-    char *c = (char*) rsp;
-    if (*c == '\n' || *c == '\l')
-        c++;
-    if (*c == '\\' && *(c+1) == 'n')
-        c += 2;
-    return c;
-}
+    const char *token0 = "rply|";
+    const char *token1 = mName->c_str();
+    const char *token2 = "|POST|";
+    Str response(rsp + strlen(token0) + strlen(token1) + strlen(token2));
 
-
-char *Sensor::processResponse(const char *rsp)
-{
-    const char *prefix = "rply|POST|";
-    Str response(rsp + strlen(prefix));
     D("Received reply to POST: ");
     DL(response.c_str());
 
@@ -138,23 +159,34 @@ char *Sensor::processResponse(const char *rsp)
     if (strncmp(response.c_str(), success, strlen(success)) == 0) {
         getQueue()->receivedSuccessConfirmation(getFreelist());
 
-	return consumeToEOL(response.c_str() + strlen(success));
+	return Parse::consumeEOL(response.c_str() + strlen(success));
     } else {
-        getQueue()->receivedFailureConfirmation();
+        static const char *err = "error";
+	if (strncmp(response.c_str(), err, strlen(err)) == 0) {
+	    getQueue()->receivedFailureConfirmation();
 
-	return consumeToEOL(response.c_str());
+	    P("Received reply to POST: "); P(prefix); PL(response.c_str());
+	    PL("Treating as error and consuming to EOL");
+	    return Parse::consumeToEOL(response.c_str() + strlen(err));
+	} else {
+	    getQueue()->receivedFailureConfirmation();
+
+	    return Parse::consumeEOL(response.c_str());
+	}
     }
 }
 
 
 
-void QueueEntry::post(Adafruit_BluefruitLE_SPI &ble)
+void QueueEntry::post(const char *sensorName, Adafruit_BluefruitLE_SPI &ble)
 {
     Str macAddress;
     CloudPipe::singleton().getMacAddress(&macAddress);
     
     ble.print("AT+BLEUARTTX=");
-    ble.print("cmd|POST|");
+    ble.print("cmd|");
+    ble.print(sensorName);
+    ble.print("|POST|");
     ble.print(CloudPipe::SensorLogDb);
     ble.print("|");
     ble.print("{\"hiveid\":\"");

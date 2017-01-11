@@ -2,19 +2,12 @@
 
 #include <Arduino.h>
 
-//#define NDEBUG
+#define NDEBUG
 #include <strutils.h>
 
 
 #define EARLY_WARNING_TIME_MS 61l
 
-#define nibHigh(b) (((b)&0xf0)>>4)
-#define nibLow(b) ((b)&0x0f)
-
-inline static char hex2asc(unsigned char n) 
-{
-    return n>9 ? n-10+'a' : n+'0';
-}
 
 /* STATIC */
 PlatformUtils PlatformUtils::s_singleton;
@@ -23,46 +16,32 @@ PlatformUtils PlatformUtils::s_singleton;
 const char *PlatformUtils::s_traceStr = NULL;
 
 
+void WDT_TRACE(const char *msg) {PlatformUtils::s_traceStr = msg;}
+
 // buf must be 17 bytes
 static const char *serialId(char *buf)
 {
     volatile uint8_t *p1 = (volatile uint8_t *)0x0080A00C;
-    buf[0] = hex2asc(nibHigh(*p1));
-    buf[1] = hex2asc(nibLow(*p1++));
-    buf[2] = hex2asc(nibHigh(*p1));
-    buf[3] = hex2asc(nibLow(*p1++));
-    buf[4] = hex2asc(nibHigh(*p1));
-    buf[5] = hex2asc(nibLow(*p1++));
-    buf[6] = hex2asc(nibHigh(*p1));
-    buf[7] = hex2asc(nibLow(*p1++));
+    StringUtils::itoahex(&buf[0], *p1++);
+    StringUtils::itoahex(&buf[2], *p1++);
+    StringUtils::itoahex(&buf[4], *p1++);
+    StringUtils::itoahex(&buf[6], *p1++);
     
     p1 = (volatile uint8_t *)0x0080A040;
-    buf[8] = hex2asc(nibHigh(*p1));
-    buf[9] = hex2asc(nibLow(*p1++));
-    buf[10] = hex2asc(nibHigh(*p1));
-    buf[11] = hex2asc(nibLow(*p1++));
-    buf[12] = hex2asc(nibHigh(*p1));
-    buf[13] = hex2asc(nibLow(*p1++));
-    buf[14] = hex2asc(nibHigh(*p1));
-    buf[15] = hex2asc(nibLow(*p1++));
+    StringUtils::itoahex(&buf[8], *p1++);
+    StringUtils::itoahex(&buf[10], *p1++);
+    StringUtils::itoahex(&buf[12], *p1++);
+    StringUtils::itoahex(&buf[14], *p1++);
 
-    buf[16] = hex2asc(nibHigh(*p1));
-    buf[17] = hex2asc(nibLow(*p1++));
-    buf[18] = hex2asc(nibHigh(*p1));
-    buf[19] = hex2asc(nibLow(*p1++));
-    buf[20] = hex2asc(nibHigh(*p1));
-    buf[21] = hex2asc(nibLow(*p1++));
-    buf[22] = hex2asc(nibHigh(*p1));
-    buf[23] = hex2asc(nibLow(*p1++));
+    StringUtils::itoahex(&buf[16], *p1++);
+    StringUtils::itoahex(&buf[18], *p1++);
+    StringUtils::itoahex(&buf[20], *p1++);
+    StringUtils::itoahex(&buf[22], *p1++);
 
-    buf[24] = hex2asc(nibHigh(*p1));
-    buf[25] = hex2asc(nibLow(*p1++));
-    buf[26] = hex2asc(nibHigh(*p1));
-    buf[27] = hex2asc(nibLow(*p1++));
-    buf[28] = hex2asc(nibHigh(*p1));
-    buf[29] = hex2asc(nibLow(*p1++));
-    buf[30] = hex2asc(nibHigh(*p1));
-    buf[31] = hex2asc(nibLow(*p1++));
+    StringUtils::itoahex(&buf[24], *p1++);
+    StringUtils::itoahex(&buf[26], *p1++);
+    StringUtils::itoahex(&buf[28], *p1++);
+    StringUtils::itoahex(&buf[30], *p1++);
 }
 
 
@@ -275,7 +254,7 @@ void PlatformUtils::stopPulseGenerator(int whichGenerator)
 void PlatformUtils::resetToBootloader()
 {
     // by setting this magic number, I'll be indicating to the bootloader that a double-tap
-    // was already started -- so it'll move right to bootloader mode on the reset the follows
+    // was already started -- so it'll move right to bootloader mode on the reset that follows
     BOOT_DOUBLE_TAP_DATA = DOUBLE_TAP_MAGIC;
 
     // force an immediate system reset 

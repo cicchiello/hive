@@ -8,24 +8,29 @@ class Str;
 
 class Sensor {
  public:
-    Sensor(unsigned long now);
-    ~Sensor() {}
+    Sensor(const char *sensorName, unsigned long now);
+    ~Sensor();
 
     virtual bool isItTimeYet(unsigned long now);
     virtual void scheduleNextSample(unsigned long now);
     
     virtual bool sensorSample(Str *value) = 0;
     
-    virtual void enqueueRequest(const char *value, const char *timestamp) = 0;
+    virtual void enqueueRequest(const char *value, const char *timestamp);
 
     void attemptPost(Adafruit_BluefruitLE_SPI &ble);
     bool isMyResponse(const char *response) const;
-    char *processResponse(const char *response);
+    const char *processResponse(const char *response);
 
+    const char *getName() const;
+    
  protected:
     void enqueueFullRequest(const char *sensorName, const char *value, const char *timestamp);
 
     unsigned long mNextSampleTime;
+
+ private:
+    Str *mName;
 };
 
 

@@ -12,19 +12,24 @@ class Timestamp {
     public:
         QueueEntry() {}
       
-	void post(Adafruit_BluefruitLE_SPI &ble);
+	const char *getName() const {return "timestamp";}
+    
+	void post(const char *sensorName, Adafruit_BluefruitLE_SPI &ble);
     };
   
     Timestamp() : mRequestedTimestamp(false), mHaveTimestamp(false) {}
     ~Timestamp() {}
 
+    const char *getName() const {return "timestamp";}
+    // since there can be only one
+    
     void toString(unsigned long now, Str *str);
     
     void enqueueRequest();
 
     void attemptPost(Adafruit_BluefruitLE_SPI &ble);
     
-    char *processTimestampResponse(const char *response);
+    const char *processTimestampResponse(const char *response);
 
     bool isTimestampResponse(const char *response) const;
     

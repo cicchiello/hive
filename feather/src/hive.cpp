@@ -1,17 +1,3 @@
-/*********************************************************************
- This is an example for our nRF51822 based Bluefruit LE modules
-
- Pick one up today in the adafruit shop!
-
- Adafruit invests time and resources providing this open source code,
- please support Adafruit and open-source hardware by purchasing
- products from Adafruit!
-
- MIT license, check LICENSE for more information
- All text above, and the splash screen below must be included in
- any redistribution
-*********************************************************************/
-
 #include <Arduino.h>
 
 #include <SPI.h>
@@ -23,16 +9,16 @@
 
 #include "BluefruitConfig.h"
 
-
 #define HEADLESS
 #define NDEBUG
+
 
 #ifndef HEADLESS
 #define P(args) Serial.print(args)
 #define PL(args) Serial.println(args)
 #else
-#define P(args) 
-#define PL(args) 
+#define P(args) do {} while (0)
+#define PL(args) do {} while (0)
 #endif
 
 #ifndef NDEBUG
@@ -44,22 +30,25 @@
 #endif
 
 
+#ifndef NDEBUG
 #define assert(c,msg) if (!(c)) {PL("ASSERT"); WDT_TRACE(msg); while(1);}
-
+#else
+#define assert(c,msg) do {} while(0);
+#endif
 
 #include <platformutils.h>
+#include <strutils.h>
+#include <Parse.h>
 #include <cloudpipe.h>
 #include <str.h>
 #include <txqueue.h>
 #include <Timestamp.h>
-//#include <RxBLE.h>
 
 #include <CpuTempSensor.h>
 #include <TempSensor.h>
 #include <HumidSensor.h>
 #include <StepperMonitor.h>
 #include <StepperActuator.h>
-
 
 
 /*=========================================================================
@@ -102,6 +91,8 @@
 Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_RST);
 
 
+#define CONNECTED_LED           13
+
 #define INIT 0
 #define CHECK_BLE_RX            (INIT+1)
 #define LOOP                    CHECK_BLE_RX
@@ -119,22 +110,24 @@ static int s_mainState = INIT;
 #define BLE_INPUT_POLL_RATE 1000
 #define MAX_SENSORS 20
 #define MAX_ACTUATORS 20
-static Timestamp *s_timestamp = 0;
 static int s_sensorSampleState = 0;
-static Sensor *s_sensors[MAX_SENSORS];
-static Actuator *s_actuators[MAX_ACTUATORS];
 static int s_currSensor = -1;
 static int s_currActuator = -1;
 static bool s_connected = false;
-
+static unsigned long s_nextConnectCheckTime = 0;
+static Str *s_rxLine = NULL;
+static unsigned long s_nextDisconnectTime = 2*60*1000;
+static Timestamp *s_timestamp = 0;
+static Sensor *s_sensors[MAX_SENSORS];
+static Actuator *s_actuators[MAX_ACTUATORS];
 
 
 static bool setIsBLEConnected(bool v);
 static void handleBLEInput(Adafruit_BluefruitLE_SPI &ble);
   
-static bool pollChar(char buffer[]);
-static void error(const __FlashStringHelper*err) {
+static void error(const char *err) {
   PL(err);
+  WDT_TRACE(err);
   while (1);
 }
 
@@ -167,47 +160,59 @@ static void wdtEarlyWarningHandler()
 /**************************************************************************/
 void setup(void)
 {
+    delay(500);
+
 #ifndef HEADLESS
     while (!Serial);  // required for Flora & Micro
     delay(500);
     Serial.begin(115200);
 #endif
   
-    pinMode(13, OUTPUT);
+    pinMode(CONNECTED_LED, OUTPUT);  // indicates BLE connection
 
+    pinMode(19, INPUT);               // used for preventing runnaway on reset
+    while (digitalRead(19) == HIGH) {
+        delay(500);
+	PL("within the runnaway prevention loop");
+    }
+    PL("digitalRead(19) returned LOW");
+
+    //pinMode(5, OUTPUT);         // for debugging: used to indicate ISR invocations for motor drivers
+    
     delay(500);
 
-    // setup WDT
-    PlatformUtils::nonConstSingleton().initWDT(wdtEarlyWarningHandler);
-  
-    PL(F("Hive Controller debug console"));
-    PL(F("---------------------------------------"));
+    PL("Hive Controller debug console");
+    PL("---------------------------------------");
 
     /* Initialise the module */
-    P(F("Initialising the Bluefruit LE module: "));
+    P("Initialising the Bluefruit LE module: ");
 
 #ifndef HEADLESS
     if ( !ble.begin(VERBOSE_MODE) )
     {
-        error(F("Couldn't find Bluefruit, make sure it's in CoMmanD mode & check wiring?"));
+        error("Couldn't find Bluefruit, make sure it's in CoMmanD mode & check wiring?");
     }
 #else
     if ( !ble.begin(false) )
     {
-        error(F("Couldn't find Bluefruit, make sure it's in CoMmanD mode & check wiring?"));
+        error("Couldn't find Bluefruit, make sure it's in CoMmanD mode & check wiring?");
     }
 #endif
+
+    delay(1500); // a little extra delay after the BLE reboot
+    WDT_TRACE("ble initialized");
   
-    PL( F("OK!") );
+    PL("OK!");
 
     if ( FACTORYRESET_ENABLE )
     {
         /* Perform a factory reset to make sure everything is in a known state */
-        PL(F("Performing a factory reset: "));
+        PL("Performing a factory reset: ");
 	if ( ! ble.factoryReset() ){
-	    error(F("Couldn't factory reset"));
+	    error("Couldn't factory reset");
 	}
     }
+    delay(1500); // a little extra delay after the BLE reset
 
     /* Disable command echo from Bluefruit */
     ble.echo(false);
@@ -218,9 +223,10 @@ void setup(void)
     ble.info();
 #endif
 
+    // setup WDT
     PL();
     PL("Awaiting connection");
-
+    
     ble.verbose(false);  // debug info is a little annoying after this point!
 
     setIsBLEConnected(false);
@@ -231,7 +237,12 @@ void setup(void)
 	delay(500);
     }
 
+    DL("starting WDT");
+    PlatformUtils::nonConstSingleton().initWDT(wdtEarlyWarningHandler);
+    WDT_TRACE("wdt handler registered");
+  
     setIsBLEConnected(true);
+    WDT_TRACE("Connected");
     PL("Connected");
     PL();
   
@@ -239,10 +250,10 @@ void setup(void)
     if ( ble.isVersionAtLeast(MINIMUM_FIRMWARE_VERSION) )
     {
         // Change Mode LED Activity
-        PL(F("******************************"));
-	PL(F("Change LED activity to " MODE_LED_BEHAVIOUR));
+        PL("******************************");
+	PL("Change LED activity to " MODE_LED_BEHAVIOUR);
 	ble.sendCommandCheckOK("AT+HWModeLED=" MODE_LED_BEHAVIOUR);
-	PL(F("******************************"));
+	PL("******************************");
     }
 }
 
@@ -258,31 +269,39 @@ void loop(void)
     unsigned long now = millis();
     switch (s_mainState) {
     case INIT: {
-        D("BUFSIZE: ");
-	DL(BUFSIZE);
+        WDT_TRACE("Initializing sensors and actuators");
+	s_mainState = LOOP;
+	CloudPipe::nonConstSingleton().initMacAddress(ble);
+	s_timestamp = new Timestamp();
+
 	for (int i = 0; i < MAX_SENSORS; i++) {
 	    s_sensors[i] = NULL;
 	}
 	for (int i = 0; i < MAX_ACTUATORS; i++) {
 	    s_actuators[i] = NULL;
 	}
-	s_mainState = LOOP;
-	CloudPipe::nonConstSingleton().initMacAddress(ble);
-	s_timestamp = new Timestamp();
-
-	// register sensors
+	
 	s_currSensor = 0;
 	s_currActuator = 0;
-	s_sensors[0] = new CpuTempSensor(now, ble);
-	s_sensors[1] = new TempSensor(now);
-	s_sensors[2] = new HumidSensor(now);
-	StepperActuator *motor0 = new StepperActuator("motor0", 1, now);
+
+	DL("Creating sensors and actuators");
+	
+	// register sensors
+	s_sensors[0] = new CpuTempSensor("cputemp", now, ble);
+	s_sensors[1] = new TempSensor("temp", now);
+	s_sensors[2] = new HumidSensor("humid", now);
+	StepperActuator *motor0 = new StepperActuator("motor0", 0x60, 1, now);
 	s_sensors[3] = new StepperMonitor(*motor0, now);
 	s_actuators[0] = motor0;
-//	s_sensors[4] = new StepperMonitor("motor1", now, -20);
-//	s_sensors[5] = new StepperMonitor("motor2", now, 30);
-
+	StepperActuator *motor1 = new StepperActuator("motor1", 0x60, 2, now);
+	s_sensors[4] = new StepperMonitor(*motor1, now);
+	s_actuators[1] = motor1;
+	StepperActuator *motor2 = new StepperActuator("motor2", 0x61, 2, now);
+	s_sensors[5] = new StepperMonitor(*motor2, now);
+	s_actuators[2] = motor2;
+	
 	PL("Sensors initialized;");
+	WDT_TRACE("Sensors initialized;");
   
 	// wait a bit for comms to settle
 	delay(500);
@@ -321,81 +340,33 @@ void loop(void)
 	s_mainState = LOOP;
     }
       break;
-      
+
     case SENSOR_SAMPLE: {
         WDT_TRACE("Sensor sample state");
-        switch (s_sensorSampleState) {
-	case 0: {
-	    // see if it's time to sample
-	    if (s_sensors[s_currSensor]->isItTimeYet(now)) {
-	        WDT_TRACE("starting sampling sensor");
-		//D("starting sampling sensor ");
-		//D(s_currSensor);
-		//D(" (now == ");
-		//D(now);
-		//DL(")");
+	
+	// see if it's time to sample
+	if (s_sensors[s_currSensor]->isItTimeYet(now)) {
+	    WDT_TRACE("starting sampling sensor");
+	    s_sensors[s_currSensor]->scheduleNextSample(now);
 
-		s_sensors[s_currSensor]->scheduleNextSample(now);
-
-		Str sensorValueStr;
-		if (s_sensors[s_currSensor]->sensorSample(&sensorValueStr)) {
-		    Str timestampStr;
-		    s_timestamp->toString(now, &timestampStr);
-	    
-		    //D("queueing an entry with timestamp=");
-		    //DL(timestampStr.c_str());
-
-		    s_sensors[s_currSensor]->enqueueRequest(sensorValueStr.c_str(),
-							    timestampStr.c_str());
-		    //D("done sampling sensor (now == ");
-		    //D(millis());
-		    //DL(")");
-		    WDT_TRACE("done sampling sensor");
-		
-		    s_mainState = ATTEMPT_SENSOR_POST;
-		    s_sensorSampleState = 0;
-		} else {
-		    s_mainState = VISIT_ACTUATOR;
-		    s_sensorSampleState = 1;
-		}
-	    } else {
-	        s_mainState = ATTEMPT_SENSOR_POST;
-	    }
-	}
-	  break;
-
-	case 1: {
-	    D("continuing sampling sensor ");
-	    D(s_currSensor);
-	    D(" (now == ");
-	    D(now);
-	    DL(")");
 	    Str sensorValueStr;
 	    if (s_sensors[s_currSensor]->sensorSample(&sensorValueStr)) {
-	        DL("have value");
 	        Str timestampStr;
 		s_timestamp->toString(now, &timestampStr);
 	    
-		//D("queueing an entry with timestamp=");
-		//DL(timestampStr.c_str());
-
 		s_sensors[s_currSensor]->enqueueRequest(sensorValueStr.c_str(),
 							timestampStr.c_str());
-		D("done sampling sensor (now==");
-		D(millis());
-		DL(")");
 		WDT_TRACE("done sampling sensor");
 		
 		s_mainState = ATTEMPT_SENSOR_POST;
 		s_sensorSampleState = 0;
 	    } else {
-	        DL("still don't have value");
 	        s_mainState = VISIT_ACTUATOR;
+		s_sensorSampleState = 1;
 	    }
+	} else {
+	    s_mainState = ATTEMPT_SENSOR_POST;
 	}
-	  break;
-	}
-	
     }
       break;
 
@@ -416,6 +387,7 @@ void loop(void)
         // see if it's time to sample
         WDT_TRACE("visiting actuator");
         if (s_actuators[s_currActuator]->isItTimeYet(now)) {
+	    PL("Shouldn't get here for the current actuator implementations!");
 	    s_actuators[s_currActuator]->scheduleNextAction(now);
 
 	    s_actuators[s_currActuator]->act();
@@ -429,14 +401,12 @@ void loop(void)
 	}
 
 	s_mainState = TEST_CONNECTION;
-	
     }
       break;
-
+      
     case TEST_CONNECTION: {
-        static unsigned long nextConnectCheckTime = 0;
 	WDT_TRACE("testing connection");
-	if (now > nextConnectCheckTime) {
+	if (now > s_nextConnectCheckTime) {
 	    if (s_connected) {
 	        if (!ble.isConnected()) {
 		    PL("Discovered disconnect; checking again in 5s");
@@ -453,15 +423,14 @@ void loop(void)
 		    PL("Not connected; Scheduling a connection check in 5s");
 		}
 	    }
-	    nextConnectCheckTime = millis() + 5*1000;
+	    s_nextConnectCheckTime = millis() + 5*1000;
 	}
 	s_mainState = LOOP;
     }
       break;
       
     case TEST_DISCONNECT: {
-        static unsigned long nextDisconnectTime = 2*60*1000;
-        if (now > nextDisconnectTime) {
+        if (now > s_nextDisconnectTime) {
 
 	    if (s_connected) {
 	        if (ble.isConnected()) {
@@ -473,32 +442,32 @@ void loop(void)
 		    PlatformUtils::nonConstSingleton().clearWDT();
 		    delay(500);
 		    if (ble.isConnected()) {
-		        nextDisconnectTime = millis() + 70*1000;
+		        s_nextDisconnectTime = millis() + 70*1000;
 			PL("Reconnected!");
 			PlatformUtils::nonConstSingleton().clearWDT();
 			delay(500);
 			setIsBLEConnected(true);
 		    } else {
 			PL("Disconnected!");
-		        nextDisconnectTime = millis() + 5*1000;
+		        s_nextDisconnectTime = millis() + 5*1000;
 			setIsBLEConnected(false);
 		    }
 		} else {
 		    PL("Discovered disconnect; checking again in 5s");
 		    setIsBLEConnected(false);
-		    nextDisconnectTime = millis() + 5*1000;
+		    s_nextDisconnectTime = millis() + 5*1000;
 		}
 	    } else {
 	        // see if reconnection has happened
 	        if (ble.isConnected()) {
-		    nextDisconnectTime = millis() + 70*1000;
+		    s_nextDisconnectTime = millis() + 70*1000;
 		    PL("Reconnected!");
 		    PlatformUtils::nonConstSingleton().clearWDT();
 		    delay(500);
 		    setIsBLEConnected(true);
 		} else {
 		    PL("Not connected; Scheduling a connection check in 5s");
-		    nextDisconnectTime = millis() + 5*1000;
+		    s_nextDisconnectTime = millis() + 5*1000;
 		}
 	    }
 	}
@@ -510,53 +479,41 @@ void loop(void)
 }
 
 
-/**************************************************************************/
-/*!
-    @brief  Checks for user input (via the Serial Monitor)
-*/
-/**************************************************************************/
-bool pollChar(char buffer[])
-{
-    if (Serial.available()) {
-        PL("Poll detected a character");
-        int len = strlen(buffer);
-        Serial.readBytes(buffer + len, 1);
-	buffer[len+1] = 0;
-	return true;
-    } else {
-        return false;
-    }
-}
-
 
 void handleBLEInput(Adafruit_BluefruitLE_SPI &ble)
 {
-    static Str s_rxLine;
-    
+    if (s_rxLine == NULL) s_rxLine = new Str();
+
+    WDT_TRACE("handleBLEInput; entry");
     ble.println("AT+BLEUARTRX");
     ble.readline();
     if (strcmp(ble.buffer, "OK") != 0) {
-        s_rxLine.append(ble.buffer);
-	int len = s_rxLine.len();
+        WDT_TRACE("handleBLEInput; received something");
+        s_rxLine->append(ble.buffer);
 
 	// see if we have a full line
-	char *rx = (char*) s_rxLine.c_str();
-	if ((rx[len-2] == '\\') && (rx[len-1] == 'n')) {
-	      
-	    // A full line was collected -- figure out what it's for...
-	    rx[len-2] = 0;
-		
+	const char *rx = s_rxLine->c_str();
+	if (Parse::hasEOL(rx)) {
+	    WDT_TRACE("handleBLEInput; have a line to process");
+	    
+            // A full line was collected -- figure out what it's for...
 	    //D("Received: ");
-	    //DL(s_rxLine.c_str());
+	    //DL(s_rxLine->c_str());
 
-	    while ((rx != NULL) && *rx) {
-	        if (s_timestamp->isTimestampResponse(rx)) {
+	    while (Parse::hasEOL(rx) && (rx != NULL) && *rx) {
+	        WDT_TRACE("handleBLEInput; processing line");
+	        D("Considering: "); DL(rx);
+		if (s_timestamp->isTimestampResponse(rx)) {
+		    WDT_TRACE("handleBLEInput; is timestamp response");
 		    rx = s_timestamp->processTimestampResponse(rx);
+		    WDT_TRACE("handleBLEInput; done processing timestamp");
 		} else {
+		    WDT_TRACE("handleBLEInput; considering if response is for sensors or actuators");
 		    int i = 0;
 		    bool found = false;
 		    while (!found && (s_sensors[i] != NULL)) {
 		        if (s_sensors[i]->isMyResponse(rx)) {
+			    //D("Sensor "); D(i); DL(" has claimed the response");
 			    found = true;
 			    rx = s_sensors[i]->processResponse(rx);
 			}
@@ -565,24 +522,43 @@ void handleBLEInput(Adafruit_BluefruitLE_SPI &ble)
 		    i = 0;
 		    while (!found && (s_actuators[i] != NULL)) {
 		        if (s_actuators[i]->isMyCommand(rx)) {
+			    //D("Actuator "); D(i); DL(" has claimed the command");
 			    found = true;
 			    rx = s_actuators[i]->processCommand(rx);
 			}
 			i++;
 		    }
+		    
 		    if (!found && (rx && *rx)) {
-		        // assume it's randomly entered text -- report it
-		        P(F("[Recv] ")); PL(rx);
-			P(F("[Recv 2] ")); PL(s_rxLine.c_str());
-			rx == NULL;
+		        WDT_TRACE("handleBLEInput; determined line is not for sensors or actuators");
+			
+		        // assume it's randomly entered text -- report it, then try advancing to next line
+		        P("[Ignoring] "); PL(rx);
+			rx = Parse::consumeToEOL(rx);
+			if (*rx) {
+			    P("[Continue with] "); PL(rx);
+			}
+		    } else {
+		        WDT_TRACE("handleBLEInput; done handling sensor or actuator line");
 		    }
 		}
 	    }
-	    
-	    // reset s_rxLine
-	    s_rxLine.clear();
+
+	    if ((rx == NULL) || (*rx == 0)) {
+	        // reset s_rxLine
+	        WDT_TRACE("handleBLEInput; reset s_rxLine");
+		s_rxLine->clear();
+	    } else {
+	        WDT_TRACE("handleBLEInput; truncating s_rxLine to just the unprocessed part");
+		Str holder(rx);
+		*s_rxLine = holder;
+		D("Left with a partial line: "); DL(s_rxLine->c_str());
+	    }
+	} else {
+	    WDT_TRACE("handleBLEInput; received partial line");
+	    D("Received partial line: "); DL(rx);
 	}
-	    
+
 	ble.waitForOK();
     }
 }
@@ -593,6 +569,6 @@ bool setIsBLEConnected(bool v)
 {
     bool r = s_connected;
     s_connected = v;
-    digitalWrite(13, v ? HIGH : LOW);
+    digitalWrite(CONNECTED_LED, v ? HIGH : LOW);
     return r;
 }

@@ -35,6 +35,11 @@ Actuator::Actuator(unsigned long now)
 }
 
 
+Actuator::~Actuator()
+{
+}
+
+
 bool Actuator::isItTimeYet(unsigned long now)
 {
     return now >= mNextActionTime;
@@ -47,22 +52,14 @@ void Actuator::scheduleNextAction(unsigned long now)
 }
 
 
-bool Actuator::isMyCommand(const char *msg) const
-{
-    PL("Actuator::isMyCommand (not overridden by derived class)");
-    const char *prefix = "action|";
-    return (strncmp(msg, prefix, strlen(prefix)) == 0);
-}
-
-
-char *Actuator::processCommand(const char *msg)
+const char *Actuator::processCommand(const char *msg)
 {
     PL("Actuator::processCommand (not overridden by derived class)");
     const char *prefix = "action|";
     Str command(msg + strlen(prefix));
     D("Received action cmd: ");
     DL(command.c_str());
-    return (char*) msg;
+    return msg;
 }
 
 

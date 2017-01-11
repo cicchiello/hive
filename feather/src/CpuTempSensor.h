@@ -10,15 +10,11 @@ class Str;
 
 class CpuTempSensor : public Sensor {
  public:
-    CpuTempSensor(unsigned long now, Adafruit_BluefruitLE_SPI &ble);
+    CpuTempSensor(const char *name, unsigned long now, Adafruit_BluefruitLE_SPI &ble);
     ~CpuTempSensor() {}
 
     bool sensorSample(Str *value);
     
-    bool isMyResponse(const char *rsp) const;
-    
-    void enqueueRequest(const char *value, const char *timestamp);
-
  private:
     Adafruit_BluefruitLE_SPI &mBle;
     Str *result;

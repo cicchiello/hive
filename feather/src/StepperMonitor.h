@@ -14,8 +14,6 @@ class StepperMonitor : public Sensor {
 
     bool sensorSample(Str *value);
     
-    void enqueueRequest(const char *value, const char *timestamp);
-
     void scheduleNextSample(unsigned long now);
     
  private:

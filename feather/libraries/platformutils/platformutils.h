@@ -18,7 +18,7 @@ class PlatformUtils {
 
     
     //---------------------------------------------------------------------------
-    // WDT routines
+    // Pulse Generator routines
     //
     typedef void (*PulseCallbackFunc)();
     const int NumPulseGenerators = 2;
@@ -62,7 +62,8 @@ class PlatformUtils {
 };
 
 
-#define WDT_TRACE(msg) PlatformUtils::s_traceStr = msg
+extern void WDT_TRACE(const char *msg);
+
 
 inline
 const PlatformUtils &PlatformUtils::singleton()

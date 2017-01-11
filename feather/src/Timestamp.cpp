@@ -4,6 +4,7 @@
 
 
 #define HEADLESS
+#define NDEBUG
 
 #ifndef HEADLESS
 #define P(args) Serial.print(args)
@@ -14,7 +15,6 @@
 #endif
 
 
-#define NDEBUG
 #ifndef NDEBUG
 #define D(args) P(args)
 #define DL(args) PL(args)
@@ -24,6 +24,7 @@
 #endif
 
 #include <str.h>
+#include <Parse.h>
 
 #include <txqueue.h>
 #include <freelist.h>
@@ -50,11 +51,13 @@ static TxQueue<Timestamp::QueueEntry> *getQueue()
 }
 
 
-void Timestamp::QueueEntry::post(Adafruit_BluefruitLE_SPI &ble)
+void Timestamp::QueueEntry::post(const char *sensorName, Adafruit_BluefruitLE_SPI &ble)
 {
     DL("Timestamp::QueueEntry::post");
     ble.print("AT+BLEUARTTX=");
-    ble.print("cmd|GETTIME");
+    ble.print("cmd|");
+    ble.print(sensorName);
+    ble.print("|GETTIME");
     ble.println("\\n");
 
     // check response status
@@ -92,38 +95,37 @@ void Timestamp::attemptPost(Adafruit_BluefruitLE_SPI &ble)
 
 bool Timestamp::isTimestampResponse(const char *rsp) const
 {
-    //DL("Timestamp::isTimestampResponse");
-    const char *prefix = "rply|GETTIME|";
-    return (strncmp(rsp, prefix, strlen(prefix)) == 0);
+    DL("Timestamp::isTimestampResponse");
+    const char *token = "rply|";
+    if (strncmp(rsp, token, strlen(token)) == 0) {
+        rsp += strlen(token);
+	if (strncmp(rsp, getName(), strlen(getName())) == 0) {
+	    rsp += strlen(getName());
+	    token = "|GETTIME|";
+	    return (strncmp(rsp, token, strlen(token)) == 0);
+	}
+    } 
+    return false;
 }
 
 
-static char *consumeToEOL(const char *rsp)
-{
-    char *c = (char*) rsp;
-    while (*c && ((*c >= '0') && (*c <= '9')))
-        c++;
-    if (*c == '\n' || *c == '\l')
-        c++;
-    if (*c == '\\' && *(c+1) == 'n')
-        c += 2;
-    return c;
-}
-
-
-char *Timestamp::processTimestampResponse(const char *rsp)
+const char *Timestamp::processTimestampResponse(const char *rsp)
 {
     DL("Timestamp::processTimestampResponse");
-    const char *prefix = "rply|GETTIME|";
+    const char *token0 = "rply|";
+    const char *token1 = getName();
+    const char *token2 = "|GETTIME|";
+    Str response(rsp + strlen(token0) + strlen(token1) + strlen(token2));
+
     char *endPtr;
-    mTimestamp = strtol(rsp + strlen(prefix), &endPtr, 10);
-    P("Received reply to GETTIME: ");
-    PL(mTimestamp);
-    bool stat = endPtr > rsp+strlen(prefix);
+    mTimestamp = strtol(response.c_str(), &endPtr, 10);
+    D("Received reply to GETTIME: ");
+    DL(mTimestamp);
+    bool stat = endPtr > response.c_str();
     mHaveTimestamp = true;
     mSecondsAtMark = (millis()+500)/1000;
     getQueue()->receivedSuccessConfirmation(getFreelist());
-    return consumeToEOL(endPtr);
+    return Parse::consumeToEOL(endPtr);
 }
 
 

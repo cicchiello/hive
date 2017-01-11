@@ -30,17 +30,11 @@
 
 static unsigned long lastSampleTime = 0;
 
-HumidSensor::HumidSensor(unsigned long now)
-  : Sensor(now), mPrev(new Str("NAN"))
+HumidSensor::HumidSensor(const char *name, unsigned long now)
+  : Sensor(name, now), mPrev(new Str("NAN"))
 {
     lastSampleTime = millis();
     mNextSampleTime += 5*1000; // offset the sample times so that it doesn't come too close to TempSensor's
-}
-
-
-void HumidSensor::enqueueRequest(const char *value, const char *timestamp)
-{
-    enqueueFullRequest("humid", value, timestamp);
 }
 
 

@@ -11,13 +11,11 @@ class Str;
 class HumidSensor : public Sensor {
  public:
 
-    HumidSensor(unsigned long now);
+    HumidSensor(const char *name, unsigned long now);
     ~HumidSensor() {}
 
     bool sensorSample(Str *value);
     
-    void enqueueRequest(const char *value, const char *timestamp);
-
  private:
     Str *mPrev;
 };

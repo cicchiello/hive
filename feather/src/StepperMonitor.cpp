@@ -29,7 +29,7 @@
 
 
 StepperMonitor::StepperMonitor(const StepperActuator &actuator, unsigned long now)
-  : Sensor(now), mActuator(actuator), mPrev(new Str("NAN"))
+  : Sensor(actuator.getName(), now), mActuator(actuator), mPrev(new Str("NAN"))
 {
     DL("StepperMonitor::StepperMonitor called");
 }
@@ -40,12 +40,6 @@ StepperMonitor::~StepperMonitor()
     DL("StepperMonitor::~StepperMonitor called");
     
     delete mPrev;
-}
-
-
-void StepperMonitor::enqueueRequest(const char *value, const char *timestamp)
-{
-    enqueueFullRequest(mActuator.getName(), value, timestamp);
 }
 
 

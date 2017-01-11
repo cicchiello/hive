@@ -4,6 +4,7 @@
 
 
 #define HEADLESS
+#define NDEBUG
 
 #ifndef HEADLESS
 #define P(args) Serial.print(args)
@@ -14,7 +15,6 @@
 #endif
 
 
-#define NDEBUG
 #ifndef NDEBUG
 #define D(args) P(args)
 #define DL(args) PL(args)
@@ -28,13 +28,13 @@
 #include <DHT.h>
 
 #define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
-#define DHTPIN 12       // what digital pin we're connected to
+#define DHTPIN A3       // what pin we're connected to for data
 
 static DHT dht(DHTPIN, DHTTYPE);
 static unsigned long lastSampleTime = 0;
 
-TempSensor::TempSensor(unsigned long now)
-  : Sensor(now), mPrev(new Str("NAN"))
+TempSensor::TempSensor(const char *name, unsigned long now)
+  : Sensor(name, now), mPrev(new Str("NAN"))
 {
     dht.begin();
     lastSampleTime = millis();
@@ -52,12 +52,6 @@ DHT &TempSensor::getDht()
 {
     return dht;
 }
-
-void TempSensor::enqueueRequest(const char *value, const char *timestamp)
-{
-    enqueueFullRequest("temp", value, timestamp);
-}
-
 
 bool TempSensor::sensorSample(Str *value)
 {

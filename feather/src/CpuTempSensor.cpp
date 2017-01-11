@@ -5,6 +5,8 @@
 #include "Adafruit_BluefruitLE_SPI.h"
 
 #define HEADLESS
+#define NDEBUG
+
 
 #ifndef HEADLESS
 #define P(args) Serial.print(args)
@@ -14,8 +16,6 @@
 #define PL(args) 
 #endif
 
-
-#define NDEBUG
 
 #ifndef NDEBUG
 #define D(args) P(args)
@@ -33,25 +33,9 @@
 #include <str.h>
 
 
-CpuTempSensor::CpuTempSensor(unsigned long now, Adafruit_BluefruitLE_SPI &ble)
-  : Sensor(now), mBle(ble), result(new Str()), mState(0)
+CpuTempSensor::CpuTempSensor(const char *name, unsigned long now, Adafruit_BluefruitLE_SPI &ble)
+  : Sensor(name, now), mBle(ble), result(new Str()), mState(0)
 {
-}
-
-
-void CpuTempSensor::enqueueRequest(const char *value, const char *timestamp)
-{
-    const char *sensorName = "cputemp";
-    enqueueFullRequest(sensorName, value, timestamp);
-}
-
-
-bool CpuTempSensor::isMyResponse(const char *rsp) const
-{
-    if (mState > 0) {
-      DL("CpuTempSensor::isMyResponse");
-    }
-    return false;
 }
 
 

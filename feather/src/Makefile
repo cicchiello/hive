@@ -1,7 +1,7 @@
 ROOT=/home/pi/hive/feather/src
 SKETCH=hive
 
-LOCALOBJS=CpuTempSensor.o Timestamp.o Sensor.o Actuator.o \
+LOCALOBJS=CpuTempSensor.o Parse.o Timestamp.o Sensor.o Actuator.o \
 	HumidSensor.o TempSensor.o \
 	StepperMonitor.o StepperActuator.o
 MYPACKAGES=strutils couchutils tests platformutils cloudpipe DHT

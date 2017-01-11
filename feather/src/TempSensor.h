@@ -10,13 +10,11 @@ class Str;
 class TempSensor : public Sensor {
  public:
 
-    TempSensor(unsigned long now);
+    TempSensor(const char *name, unsigned long now);
     ~TempSensor();
 
     bool sensorSample(Str *value);
     
-    void enqueueRequest(const char *value, const char *timestamp);
-
  private:
     Str *mPrev;
 
