@@ -3,6 +3,7 @@ package com.jfc.srvc.ble2cld;
 import android.os.AsyncTask;
 import android.util.Log;
 
+import org.acra.ACRA;
 import org.apache.http.client.ClientProtocolException;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -13,9 +14,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.ConnectException;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.List;
 
 /**
  * Created by Joe on 12/12/2016.
@@ -24,8 +25,7 @@ import java.util.List;
 public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
     private static final String TAG = PollSensorBackground.class.getName();
 
-    private String dbHost, db, key, pswd, query;
-    private int dbPort;
+    private String dbUrl, query;
     private String docId, rev;
     private ResultCallback onCompletion;
 
@@ -34,12 +34,8 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
     	public void error(String msg);
     };
     
-    public PollSensorBackground(String _dbHost, int _dbPort, String _db, String _key, String _pswd, String _query, ResultCallback _onCompletion) {
-        dbHost = _dbHost;
-        dbPort = _dbPort;
-        db = _db;
-        key = _key;
-        pswd = _pswd;
+    public PollSensorBackground(String _dbUrl, String _query, ResultCallback _onCompletion) {
+    	dbUrl = _dbUrl;
         query = _query;
         onCompletion = _onCompletion;
     }
@@ -52,8 +48,8 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
     	public void onError(String msg);
     };
     
-    private static void couchGet(String dbHost, int dbPort, String dbKey, String dbPswd, String db, String query, String authToken, ProcessResult proc) {
-        String urlStub = "http://" + dbKey + ":" + dbPswd + "@" + dbHost+":"+dbPort+"/"+db+"/"+query;
+    private static void couchGet(String dbUrl, String query, ProcessResult proc) {
+    	String urlStub = dbUrl+"/"+query;
 
 		HttpURLConnection conn = null;
 		BufferedReader rd = null;
@@ -63,8 +59,6 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
             URL url = new URL(urlStub);
 			conn = (HttpURLConnection) url.openConnection();
 			conn.setRequestMethod("GET");
-			if (authToken != null)
-				conn.setRequestProperty("Authorization", "Basic "+authToken);
 			
 			rd = new BufferedReader(isr = new InputStreamReader(is = conn.getInputStream()));
             StringBuilder builder = new StringBuilder();
@@ -75,18 +69,24 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
 
             JSONObject r = new JSONObject(new JSONTokener(builder.toString()));
             proc.onSuccess(r);
+        } catch (ConnectException ce) {
+        	proc.onError(ce.getLocalizedMessage());
         } catch (ClientProtocolException e) {
             proc.onError("error: "+"ClientProtocolException: "+e);
             System.err.println("ClientProtocolException: "+e);
+			ACRA.getErrorReporter().handleException(e);
         } catch (IOException e) {
         	proc.onError("error: "+"IOException: "+e);
             System.err.println("IOException: "+e);
+			ACRA.getErrorReporter().handleException(e);
         } catch (JSONException e) {
         	proc.onError("error: "+"JSONException: "+e);
             System.err.println("JSONException: " + e);
+			ACRA.getErrorReporter().handleException(e);
         } catch (Exception e) {
         	proc.onError("error: "+"Exception: "+e);
             System.err.println("Exception: " + e);
+			ACRA.getErrorReporter().handleException(e);
         } finally {
             try {
                 if (conn != null) {
@@ -94,10 +94,12 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
                 }
                 if (rd != null) rd.close();
                 if (is != null) is.close();
+                if (isr != null) isr.close();
             } catch (IOException ioe) {
                 // ignore
             }
             rd = null;
+            isr = null;
             is = null;
             conn = null;
         }
@@ -131,9 +133,11 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
 			@Override
 			public void onError(String msg) {
 				Log.e(TAG, msg);
+				if (onCompletion != null)
+					onCompletion.error(msg);
 			}
 		};
-        couchGet(dbHost, dbPort, key, pswd, db, query, authToken, latestProc);
+        couchGet(dbUrl, query, latestProc);
         return true;
     }
 

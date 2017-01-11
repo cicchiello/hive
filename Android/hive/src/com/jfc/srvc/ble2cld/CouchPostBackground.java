@@ -25,26 +25,25 @@ import java.net.URISyntaxException;
 public class CouchPostBackground extends AsyncTask<Void,Void,Boolean> {
     private static final String TAG = CouchPostBackground.class.getName();
 
-    private String dbHost, db, doc;
-    private int dbPort;
+    private String doc, dbUrl, authToken, devName;
     private String docId, rev;
     private CmdOnCompletion onCompletion;
 
-    public CouchPostBackground(String _dbHost, int _dbPort, String _db, String _doc, CmdOnCompletion _onCompletion) {
-        dbHost = _dbHost;
-        dbPort = _dbPort;
-        db = _db;
+    public CouchPostBackground(String _dbUrl, String _authToken, String _devName, String _doc, CmdOnCompletion _onCompletion) {
+    	dbUrl = _dbUrl;
+    	authToken = _authToken;
         doc = _doc;
+        devName = _devName;
         onCompletion = _onCompletion;
     }
 
     public String getDocId() {return docId;}
     public String getRev() {return rev;}
+    public String getDevName() {return devName;}
 
     @Override
     protected Boolean doInBackground(Void... params) {
-        String authToken = null;
-        String urlStub = dbHost+":"+dbPort+"/"+db;
+        String urlStub = dbUrl;
 
         InputStreamReader is = null;
         BufferedReader br = null;
@@ -64,7 +63,7 @@ public class CouchPostBackground extends AsyncTask<Void,Void,Boolean> {
             //System.err.println("Response: "+response.getStatusLine());
             if (response.getStatusLine().getStatusCode() != 201) {
                 System.err.println("CouchDb PUT of attachment mapper failed; HTTP error code : " + response.getStatusLine().getStatusCode());
-                onCompletion.complete("rply|POST|error");
+                onCompletion.complete("rply|"+devName+"|POST|error");
                 return false;
             }
 
@@ -80,10 +79,10 @@ public class CouchPostBackground extends AsyncTask<Void,Void,Boolean> {
                 docId = new JSONObject(new JSONTokener(builder.toString())).getString("id");
                 rev = new JSONObject(new JSONTokener(builder.toString())).getString("rev");
 
-                onCompletion.complete("rply|POST|success");
+                onCompletion.complete("rply|"+devName+"|POST|success");
                 return true;
             }
-            onCompletion.complete("rply|POST|error");
+            onCompletion.complete("rply|"+devName+"|POST|error");
         } catch (URISyntaxException e) {
             onCompletion.complete("rply|POST|error: "+"URISyntaxException: "+e);
             System.err.println("URISyntaxException: "+e);

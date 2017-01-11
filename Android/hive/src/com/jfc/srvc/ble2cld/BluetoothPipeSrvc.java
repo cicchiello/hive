@@ -10,6 +10,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.acra.ACRA;
+
 import com.example.hive.R;
 import com.jfc.apps.hive.MainActivity;
 import com.jfc.misc.prop.EnableBridgeProperty;
@@ -179,7 +181,7 @@ public class BluetoothPipeSrvc extends Service {
 		            			if (mQueueIsIdle.get()) {
 		            				mQueueIsIdle.set(false);
 		    	            		String results[] = new String[2];
-		            				CmdProcess.process(cmd, results, onCompletion);
+		            				CmdProcess.process(BluetoothPipeSrvc.this, cmd, results, onCompletion);
 		            				waitingForIdle = false;
 		            			} else {
 			            			try {
@@ -360,6 +362,14 @@ public class BluetoothPipeSrvc extends Service {
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
+		if (intent == null) {
+			ACRA.getErrorReporter().handleException(new Exception("intent is null upon entry to BluetoothPipeSrvc::onStartCommand"));
+			return START_STICKY;
+		}
+		if (intent.getExtras() == null) {
+			ACRA.getErrorReporter().handleException(new Exception("intent doesn't have extras upon entry to BluetoothPipeSrvc::onStartCommand"));
+			return START_STICKY;
+		}
 		String cmd = intent.getExtras().getString("cmd");
 		if ("setup".equals(cmd)) {
 	    	mEnabled = EnableBridgeProperty.getEnableBridgeProperty(this);

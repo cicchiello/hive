@@ -10,16 +10,8 @@ import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.json.JSONObject;
 
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.util.List;
 
 /**
  * Created by Joe on 12/12/2016.
@@ -28,9 +20,8 @@ import java.util.List;
 public class PostActuatorBackground extends AsyncTask<Void,Void,Boolean> {
     private static final String TAG = PostActuatorBackground.class.getName();
 
-    private String dbHost, db;
+    private String dbUrl, authToken;
     private JSONObject doc;
-    private int dbPort;
     private String docId, rev;
 
     public interface ResultCallback {
@@ -38,10 +29,9 @@ public class PostActuatorBackground extends AsyncTask<Void,Void,Boolean> {
     	public void error(String msg);
     };
     
-    public PostActuatorBackground(String _dbHost, int _dbPort, String _db, JSONObject _doc, ResultCallback _onCompletion) {
-        dbHost = _dbHost;
-        dbPort = _dbPort;
-        db = _db;
+    public PostActuatorBackground(String _dbUrl, String _authToken, JSONObject _doc, ResultCallback _onCompletion) {
+    	dbUrl = _dbUrl;
+    	authToken = _authToken;
         doc = _doc;
     }
 
@@ -53,8 +43,8 @@ public class PostActuatorBackground extends AsyncTask<Void,Void,Boolean> {
     	public void onError(String msg);
     };
     
-    private static void couchPost(String dbHost, int dbPort, String db, JSONObject doc, String authToken, ProcessResult proc) {
-        String urlStub = "http://"+dbHost+":"+dbPort+"/"+db;
+    private static void couchPost(String dbUrl, JSONObject doc, String authToken, ProcessResult proc) {
+        String urlStub = dbUrl;
 
         DefaultHttpClient httpclient;
         HttpPost httpPost;
@@ -65,6 +55,8 @@ public class PostActuatorBackground extends AsyncTask<Void,Void,Boolean> {
             httpPost.setEntity(se);
             httpPost.setHeader("Accept", "application/json");
             httpPost.setHeader("Content-type", "application/json");
+            if (authToken != null)
+            	httpPost.addHeader("Authorization", "Basic "+authToken);
             
             //Handles what is returned from the page 
             ResponseHandler responseHandler = new BasicResponseHandler();
@@ -81,7 +73,6 @@ public class PostActuatorBackground extends AsyncTask<Void,Void,Boolean> {
     
     @Override
     protected Boolean doInBackground(Void... params) {
-        final String authToken = null;
         ProcessResult latestProc = new ProcessResult() {
 
 			@Override
@@ -94,7 +85,7 @@ public class PostActuatorBackground extends AsyncTask<Void,Void,Boolean> {
 				Log.e(TAG, msg);
 			}
 		};
-        couchPost(dbHost, dbPort, db, doc, authToken, latestProc);
+        couchPost(dbUrl, doc, authToken, latestProc);
         return true;
     }
 

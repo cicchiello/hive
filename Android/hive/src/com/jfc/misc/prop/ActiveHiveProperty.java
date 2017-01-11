@@ -32,7 +32,7 @@ public class ActiveHiveProperty implements IPropertyMgr {
 	private static final String ACTIVE_HIVE_PROPERTY = "ACTIVE_HIVE_PROPERTY";
 	private static final String DEFAULT_ACTIVE_HIVE = "???";
 	
-    static final int grayColor = HiveEnv.ModifiableBackgroundColor;
+    static final int grayColor = HiveEnv.ModifiableFieldBackgroundColor;
 	
     // created on constructions -- no need to save on pause
 	private TextView mActiveHiveTv;

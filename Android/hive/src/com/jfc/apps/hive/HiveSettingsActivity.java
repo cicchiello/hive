@@ -4,6 +4,7 @@ import com.example.hive.R;
 import com.jfc.misc.prop.AcraTestProperty;
 import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.BridgePairingsProperty;
+import com.jfc.misc.prop.DbCredentialsProperty;
 import com.jfc.misc.prop.EnableBridgeProperty;
 import com.jfc.misc.prop.HiveFactoryResetProperty;
 import com.jfc.misc.prop.IPropertyMgr;
@@ -22,9 +23,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.MenuItem;
-import android.view.View;
 import android.widget.ImageButton;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 
 public class HiveSettingsActivity extends Activity {
@@ -81,6 +80,7 @@ public class HiveSettingsActivity extends Activity {
         mMgrs.add(new EnableBridgeProperty(this, (TextView) findViewById(R.id.enable_bridge_text), (ImageButton) findViewById(R.id.enable_bridge_button)));
         mMgrs.add(new ThreadsPerMeterProperty(this, (TextView) findViewById(R.id.threads_per_meter_text), (ImageButton) findViewById(R.id.threads_per_meter_button)));
         mMgrs.add(new StepsPerRevolutionProperty(this, (TextView) findViewById(R.id.steps_per_rev_text), (ImageButton) findViewById(R.id.steps_per_rev_button)));
+        mMgrs.add(new DbCredentialsProperty(this, (TextView) findViewById(R.id.db_text), (ImageButton) findViewById(R.id.db_button)));
         if (DEBUG) 
         	mMgrs.add(new AcraTestProperty(this, (ImageButton) findViewById(R.id.acraTestButton)));
 

@@ -57,7 +57,7 @@ public class StepsPerRevolutionProperty implements IPropertyMgr {
 		} else {
 			setStepsPerRevolutionUndefined();
     	}
-		mStepsPerRevTv.setBackgroundColor(HiveEnv.ModifiableBackgroundColor);
+		mStepsPerRevTv.setBackgroundColor(HiveEnv.ModifiableFieldBackgroundColor);
 		
     	button.setOnClickListener(new OnClickListener() {
 			@Override

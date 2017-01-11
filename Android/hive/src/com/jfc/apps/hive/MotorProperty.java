@@ -19,8 +19,10 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
+import com.adobe.xmp.impl.Base64;
 import com.example.hive.R;
 import com.jfc.misc.prop.ActiveHiveProperty;
+import com.jfc.misc.prop.DbCredentialsProperty;
 import com.jfc.misc.prop.StepsPerRevolutionProperty;
 import com.jfc.misc.prop.ThreadsPerMeterProperty;
 import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
@@ -180,7 +182,15 @@ public class MotorProperty {
 				e.printStackTrace();
 			}
 			
-			new PostActuatorBackground(HiveEnv.DbHost, HiveEnv.DbPort, HiveEnv.Db, doc, onCompletion).execute();
+			String cloudantUser = DbCredentialsProperty.getCloudantUser(activity);
+			String dbName = DbCredentialsProperty.getDbName(activity);
+			String dbUrl = DbCredentialsProperty.CouchDbUrl(cloudantUser, dbName);
+			
+			String dbKey = DbCredentialsProperty.getDbKey(activity);
+			String dbPswd = DbCredentialsProperty.getDbPswd(activity);
+			String authToken = Base64.encode(dbKey+":"+dbPswd);
+			
+			new PostActuatorBackground(dbUrl, authToken, doc, onCompletion).execute();
 		}
 	}
 	

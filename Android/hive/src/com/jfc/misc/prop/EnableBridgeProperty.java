@@ -20,7 +20,7 @@ public class EnableBridgeProperty implements IPropertyMgr {
 	@SuppressWarnings("unused")
 	private static final String TAG = EnableBridgeProperty.class.getName();
 
-    static final int grayColor = HiveEnv.ModifiableBackgroundColor;
+    static final int grayColor = HiveEnv.ModifiableFieldBackgroundColor;
 
 	private TextView mEnableText;
 	private AlertDialog mAlert;

@@ -1,9 +1,7 @@
 #!/bin/bash
 
-couchHost="http://70.15.56.138:5984"
-#couchHost="http://joes-mac-mini:5984"
-authCouchHost="http://admin:admin@70.15.56.138:5984"
-#authCouchHost="http://admin:admin@joes-mac-mini:5984"
+couchHost="http://jfcenterprises.cloudant.com"
+authCouchHost="http://afteptsecumbehisomorther:e4f286be1eef534f1cddd6240ed0133b968b1c9a@jfcenterprises.cloudant.com"
 db="hive-sensor-log"
 
 tf=$(mktemp)
@@ -28,14 +26,8 @@ do
 	then
 	    nt=$(( ${t} / 1000 ))
 	    nd=$(echo ${d} | sed "s/${t}/${nt}/g")
-	    echo "found a case; changing to: "${nd}
+	    echo "found a case; that should be changed to: "${nd}
 	    curl -X PUT ${authCouchHost}/${db}/${id} -d ${nd}
 	fi
     fi
-#    id=${id%$'\r'}
-#    rev=$(curl ${couchHost}/${db}/${id} 2> /dev/null | jq -r ._rev)
-#    rev=${rev%$'\r'}
-#    echo "Will delete doc with id=${id} rev=${rev}"
-#    s=$(curl -X DELETE ${authCouchHost}/${db}/${id}?rev=${rev} 2> /dev/null)
-#    echo $s
 done

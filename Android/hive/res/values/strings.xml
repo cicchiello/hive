@@ -5,7 +5,7 @@
     <string name="action_settings">Settings</string>
     
     <string name="settings">Settings&#8230;</string>
-
+    
     <string name="active_hive">Active Hivewiz</string>
     <string name="active_hive_desc_hint">Hivewiz to monitor?</string>
     <string name="active_hive_hint">\?\?\?</string>
@@ -71,6 +71,13 @@
 	<string name="steps_per_rev_label">Motor steps per rev</string>
 	<string name="steps_per_rev_desc_hint">Steps per rev</string>
 	
+    <string name="db_credentials_label">DB Settings</string>
+    
+	<string name="db_credentials_title">DB Settings&#8230;</string>
+    <string name="cloudant_user_label">Cloudant User:</string>
+    <string name="db_key_label">Writable key:</string>
+    <string name="db_pswd_label">Key\'s Password:</string>
+
 	<string name="crash_toast_text">Ooooops!  Hivewiz&#8482; has crashed, but a report has been sent to the developers so they can fix the issue!</string>
 	
 	<string name="red">R</string>

@@ -57,7 +57,7 @@ public class ThreadsPerMeterProperty implements IPropertyMgr {
 		} else {
 			setThreadsPerMeterUndefined();
     	}
-		mThreadsPerMeterTv.setBackgroundColor(HiveEnv.ModifiableBackgroundColor);
+		mThreadsPerMeterTv.setBackgroundColor(HiveEnv.ModifiableFieldBackgroundColor);
 		
     	button.setOnClickListener(new OnClickListener() {
 			@Override

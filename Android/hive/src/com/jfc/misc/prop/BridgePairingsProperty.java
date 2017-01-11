@@ -50,7 +50,7 @@ public class BridgePairingsProperty implements IPropertyMgr {
     private static final int PERMISSION_REQUEST_COARSE_LOCATION = 1;
 	private static final long SCAN_PERIOD = 12000;  // stop scanning after 12 seconds
 
-    static final int grayColor = HiveEnv.ModifiableBackgroundColor;
+    static final int grayColor = HiveEnv.ModifiableFieldBackgroundColor;
 	
     // created on constructions -- no need to save on pause
 	private TextView mIdTv;

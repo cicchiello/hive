@@ -1,8 +1,6 @@
 #!/bin/bash
 
-#couchHost="http://afteptsecumbehisomorther:e4f286be1eef534f1cddd6240ed0133b968b1c9a@jfcenterprises.cloudant.com"
 couchHost="http://jfcenterprises.cloudant.com"
-#couchHost="http://70.15.56.138:5984"
 db="hive-sensor-log"
 designDoc="_design/SensorLog"
 view="by-hive-sensor"

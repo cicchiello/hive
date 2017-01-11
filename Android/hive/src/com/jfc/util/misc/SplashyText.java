@@ -12,8 +12,8 @@ public class SplashyText {
 			@Override
 			public void run() {
 				final int numSteps = 10;
-				final int blastColor = HiveEnv.ModifiedFieldSplashColor;
-				final int finalColor = HiveEnv.ModifiableBackgroundColor;
+				final int blastColor = HiveEnv.ModifiableFieldSplashColor;
+				final int finalColor = HiveEnv.ModifiableFieldBackgroundColor;
 				int sr = ((blastColor >> 16) & 0xff), sg = ((blastColor >> 8) & 0xff), sb = ((blastColor >> 0) & 0xff);
 				int fr = (finalColor&0x00ff0000 >> 16), fg = (finalColor&0x0000ff00 >> 8), fb = (finalColor&0x000000ff);
 				float dr = (fr-sr)/(numSteps*1f), dg = (fg-sg)/(numSteps*1f), db = (fb-sb)/(numSteps*1f);
@@ -45,6 +45,10 @@ public class SplashyText {
 		};
 		Thread flairThread = new Thread(flair);
 		flairThread.start();
+	}
+	
+	public static void highlightErrorField(Activity activity, TextView t) {
+		t.setBackgroundColor(HiveEnv.ModifiableFieldErrorColor);
 	}
 	
 
