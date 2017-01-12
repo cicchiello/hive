@@ -3,7 +3,8 @@ SKETCH=hive
 
 LOCALOBJS=CpuTempSensor.o Parse.o Timestamp.o Sensor.o Actuator.o \
 	HumidSensor.o TempSensor.o \
-	StepperMonitor.o StepperActuator.o
+	StepperMonitor.o StepperActuator.o \
+	SensorRateActuator.o
 MYPACKAGES=strutils couchutils tests platformutils cloudpipe DHT
 OTHERPACKAGES=SPI arduino arduino_zero USB Wire
 PACKAGES=$(MYPACKAGES) $(OTHERPACKAGES)

@@ -9,9 +9,12 @@ class Str;
 
 class StepperMonitor : public Sensor {
  public:
-    StepperMonitor(const class StepperActuator &actuator, unsigned long now);
+    StepperMonitor(const class StepperActuator &actuator, const class SensorRateActuator &rateProvider,
+		   unsigned long now);
     ~StepperMonitor();
 
+    virtual bool isItTimeYet(unsigned long now);
+    
     bool sensorSample(Str *value);
     
     void scheduleNextSample(unsigned long now);
@@ -19,6 +22,7 @@ class StepperMonitor : public Sensor {
  private:
     const class StepperActuator &mActuator;
     Str *mPrev;
+    int mTarget;
 };
 
 

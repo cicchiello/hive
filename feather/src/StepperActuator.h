@@ -17,9 +17,8 @@ class StepperActuator : public Actuator {
 
     int getLocation() const;
     int getTarget() const;
-    const char *getName() const;
     
-    void act();
+    virtual void act(class Adafruit_BluefruitLE_SPI &ble);
 
     bool isItTimeYet(unsigned long now);
     void scheduleNextAction(unsigned long now);
@@ -27,8 +26,13 @@ class StepperActuator : public Actuator {
     bool isMyCommand(const char *response) const;
     const char *processCommand(const char *response);
     
+ protected:
+    virtual const char *className() const {return "StepperActuator";}
+
  private:
+    void setNextActionTime(unsigned long now);
     bool isItTimeYetForSelfDrive(unsigned long now);
+    void step();
     
     static const int SAMPLES_PER_SECOND = 10000;
     static StepperActuator **s_steppers;

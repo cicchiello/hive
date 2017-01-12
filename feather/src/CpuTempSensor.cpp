@@ -27,14 +27,14 @@
 
 #define assert(c,msg) if (!(c)) {PL("ASSERT"); WDT_TRACE(msg); while(1);}
 
-
 #include <platformutils.h>
 
 #include <str.h>
 
 
-CpuTempSensor::CpuTempSensor(const char *name, unsigned long now, Adafruit_BluefruitLE_SPI &ble)
-  : Sensor(name, now), mBle(ble), result(new Str()), mState(0)
+CpuTempSensor::CpuTempSensor(const char *name, const SensorRateActuator &rateProvider,
+			     unsigned long now, Adafruit_BluefruitLE_SPI &ble)
+  : Sensor(name, rateProvider, now), mBle(ble), result(new Str()), mState(0)
 {
 }
 

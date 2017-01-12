@@ -28,7 +28,8 @@
 #include <str.h>
 
 
-Actuator::Actuator(unsigned long now)
+Actuator::Actuator(const char *name, unsigned long now)
+  : mName(new Str(name))
 {
     // schedule first sample time
     mNextActionTime = now + 5*1000;
@@ -37,8 +38,13 @@ Actuator::Actuator(unsigned long now)
 
 Actuator::~Actuator()
 {
+    delete mName;
 }
 
+const char *Actuator::getName() const
+{
+    return mName->c_str();
+}
 
 bool Actuator::isItTimeYet(unsigned long now)
 {
@@ -61,6 +67,19 @@ const char *Actuator::processCommand(const char *msg)
     DL(command.c_str());
     return msg;
 }
+
+Str Actuator::TAG(const char *memberfunc, const char *msg) const
+{
+    Str tag = className();
+    tag.append("(");
+    tag.append(*mName);
+    tag.append(")::");
+    tag.append(memberfunc);
+    tag.append("; ");
+    tag.append(msg);
+    return tag;
+}
+
 
 
 

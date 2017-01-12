@@ -4,14 +4,13 @@
 
 #include <Sensor.h>
 
-class Adafruit_BluefruitLE_SPI;
 class Str;
 
 
 class HumidSensor : public Sensor {
  public:
 
-    HumidSensor(const char *name, unsigned long now);
+    HumidSensor(const char *name, const class SensorRateActuator &rateProvider, unsigned long now);
     ~HumidSensor() {}
 
     bool sensorSample(Str *value);

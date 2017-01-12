@@ -28,10 +28,13 @@
 #include <str.h>
 
 
-StepperMonitor::StepperMonitor(const StepperActuator &actuator, unsigned long now)
-  : Sensor(actuator.getName(), now), mActuator(actuator), mPrev(new Str("NAN"))
+StepperMonitor::StepperMonitor(const StepperActuator &actuator,
+			       const class SensorRateActuator &rateProvider,
+			       unsigned long now)
+: Sensor(actuator.getName(), rateProvider, now), mActuator(actuator), mPrev(new Str("NAN"))
 {
     DL("StepperMonitor::StepperMonitor called");
+    mTarget = actuator.getTarget();
 }
 
 
@@ -56,10 +59,24 @@ bool StepperMonitor::sensorSample(Str *value)
 }
 
 
+bool StepperMonitor::isItTimeYet(unsigned long now)
+{
+    int currTarget = mActuator.getTarget();
+    if (mTarget != currTarget) {
+        DL("StepperMonitor::isItTimeYet; determined that motor is moving");
+	mTarget = currTarget;
+        mNextSampleTime = now + 100; // force a sample soon (100ms) since the motor should now be running
+	return false;
+    } else {
+        return Sensor::isItTimeYet(now);
+    }
+}
+
+
 void StepperMonitor::scheduleNextSample(unsigned long now)
 {
     if (mActuator.getLocation() != mActuator.getTarget())
-        mNextSampleTime = now + 5*1000;
+        mNextSampleTime = now + 2*1000;
     else
         Sensor::scheduleNextSample(now);
 }
