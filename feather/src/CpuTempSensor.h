@@ -10,7 +10,8 @@ class Str;
 
 class CpuTempSensor : public Sensor {
  public:
-    CpuTempSensor(const char *name, unsigned long now, Adafruit_BluefruitLE_SPI &ble);
+    CpuTempSensor(const char *name, const class SensorRateActuator &rateProvider,
+		  unsigned long now, Adafruit_BluefruitLE_SPI &ble);
     ~CpuTempSensor() {}
 
     bool sensorSample(Str *value);

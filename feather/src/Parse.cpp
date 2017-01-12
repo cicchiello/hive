@@ -97,23 +97,6 @@ bool Parse::hasEOL(const char *line)
     return false;
 }
 
-/* STATIC */
-bool Parse::hasEOL(const char *line, bool t)
-{
-    TEST();
-    int i = 0;
-    while (line && *line) {
-        PL(i++);
-        if (isEOL(line++)) {
-	    PL("returning true");
-	    return true;
-	}
-    }
-    PL("returning false");
-    return false;
-}
-
-
 
 void ParseTester::test()
 {

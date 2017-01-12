@@ -33,8 +33,8 @@
 static DHT dht(DHTPIN, DHTTYPE);
 static unsigned long lastSampleTime = 0;
 
-TempSensor::TempSensor(const char *name, unsigned long now)
-  : Sensor(name, now), mPrev(new Str("NAN"))
+TempSensor::TempSensor(const char *name, const class SensorRateActuator &rateProvider, unsigned long now)
+  : Sensor(name, rateProvider, now), mPrev(new Str("NAN"))
 {
     dht.begin();
     lastSampleTime = millis();

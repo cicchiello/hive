@@ -57,11 +57,11 @@ void StepperActuator::PulseCallback()
 	int i = 0;
 	while (!didSomething && s_steppers[i]) {
 	    if (s_steppers[i]->isItTimeYetForSelfDrive(now)) {
-	      
-	        s_steppers[i]->scheduleNextAction(now); // must be done before act!
-		// (act may remove the stepper from this list we're iterating!)
+
+	        s_steppers[i]->setNextActionTime(now); // must be done before step!
+		// (step may remove the stepper from this list we're iterating!)
 		
-	        s_steppers[i]->act();
+	        s_steppers[i]->step();
 		
 		now = millis();
 		didSomething = true;
@@ -74,7 +74,7 @@ void StepperActuator::PulseCallback()
 
 StepperActuator::StepperActuator(const char *name, int address, int port, unsigned long now,
 				 bool isBackwards)
-  : Actuator(now), mName(new Str(name)), mLoc(0), mTarget(0),
+  : Actuator(name, now), mName(new Str(name)), mLoc(0), mTarget(0),
     mRunning(false), mIsBackwards(isBackwards)
 {
     WDT_TRACE("StepperActuator CTOR; entry");
@@ -121,13 +121,13 @@ StepperActuator::~StepperActuator()
 }
 
 
-const char *StepperActuator::getName() const
+void StepperActuator::act(class Adafruit_BluefruitLE_SPI &ble)
 {
-    return mName->c_str();
+  // no-op
 }
 
 
-void StepperActuator::act()
+void StepperActuator::step()
 {
     //DL("StepperActuator::act called");
 
@@ -137,7 +137,7 @@ void StepperActuator::act()
 	                 (mIsBackwards ? FORWARD : BACKWARD);
 	mLoc += mLoc < mTarget ? 1 : -1;
 
-	//D("StepperActuator::act stepping: "); D(mName->c_str()); D(" "); DL(dir);
+	//D("StepperActuator::act stepping: "); D(getName()); D(" "); DL(dir);
 	m->onestep(dir, DOUBLE);
 
 	//to see a pulse on the scope, enable "5" as an output and uncomment:
@@ -145,7 +145,7 @@ void StepperActuator::act()
 	//PORT->Group[p.ulPort].OUTTGL.reg = (1ul << p.ulPin) ;
 	
 	if (mLoc == mTarget) {
-	    D("StepperActuator::processCommand; "); D(mName->c_str()); DL(";Stopped.");
+	    D("StepperActuator::processCommand; "); D(getName()); DL(";Stopped.");
 	    m->release();
 	    mRunning = false;
 
@@ -179,7 +179,7 @@ void StepperActuator::act()
 
 bool StepperActuator::isItTimeYet(unsigned long now)
 {
-    return false;
+    return true;
 }
 
 
@@ -198,19 +198,13 @@ bool StepperActuator::isItTimeYetForSelfDrive(unsigned long now)
 
 void StepperActuator::scheduleNextAction(unsigned long now)
 {
-    mNextActionTime = now + mMsPerStep;
+  // no-op
 }
 
 
-Str StepperActuator::TAG(const char *memberfunc, const char *msg) const
+void StepperActuator::setNextActionTime(unsigned long now)
 {
-    Str tag = "StepperActuator(";
-    tag.append(*mName);
-    tag.append(")::");
-    tag.append(memberfunc);
-    tag.append("; ");
-    tag.append(msg);
-    return tag;
+    mNextActionTime = now + mMsPerStep;
 }
 
 
@@ -220,8 +214,9 @@ bool StepperActuator::isMyCommand(const char *msg) const
     const char *token = "action|";
     if (strncmp(msg, token, strlen(token)) == 0) {
         msg += strlen(token);
-	if (strncmp(msg, mName->c_str(), mName->len()) == 0) {
-	    msg += mName->len();
+	const char *name = getName();
+	if (strncmp(msg, name, strlen(name)) == 0) {
+	    msg += strlen(name);
 	    token = "-target|";
 	    return (strncmp(msg, token, strlen(token)) == 0);
 	}
@@ -233,7 +228,7 @@ bool StepperActuator::isMyCommand(const char *msg) const
 const char *StepperActuator::processCommand(const char *msg)
 {
     const char *token0 = "action|";
-    const char *token1 = mName->c_str();
+    const char *token1 = getName();
     const char *token2 = "-target|";
     Str command(msg + strlen(token0) + strlen(token1) + strlen(token2));
 
@@ -244,7 +239,7 @@ const char *StepperActuator::processCommand(const char *msg)
 	D(TAG("processCommand", "new target is ").c_str()); DL(newTarget);
         mTarget = newTarget;
         if (mTarget != mLoc) {
-	    D("StepperActuator::processCommand; "); D(mName->c_str()); DL("; Running...");
+	  D("StepperActuator::processCommand; "); D(getName()); DL("; Running...");
 
 	    // put this StepperActuator on the ISR handler list
 	    // (consider that it might already be there)
@@ -259,8 +254,8 @@ const char *StepperActuator::processCommand(const char *msg)
 	    } else {
 	        PL("stepper already on the list!?!?");
 	    }
-	    
-	    scheduleNextAction(millis());
+
+	    setNextActionTime(millis());
 	    
 	    mRunning = true;
 	}

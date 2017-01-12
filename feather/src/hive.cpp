@@ -44,6 +44,7 @@
 #include <txqueue.h>
 #include <Timestamp.h>
 
+#include <SensorRateActuator.h>
 #include <CpuTempSensor.h>
 #include <TempSensor.h>
 #include <HumidSensor.h>
@@ -287,18 +288,20 @@ void loop(void)
 	DL("Creating sensors and actuators");
 	
 	// register sensors
-	s_sensors[0] = new CpuTempSensor("cputemp", now, ble);
-	s_sensors[1] = new TempSensor("temp", now);
-	s_sensors[2] = new HumidSensor("humid", now);
+	SensorRateActuator *rate = new SensorRateActuator("sample-rate", now);
+	s_sensors[0] = new CpuTempSensor("cputemp", *rate, now, ble);
+	s_sensors[1] = new TempSensor("temp", *rate, now);
+	s_sensors[2] = new HumidSensor("humid", *rate, now);
 	StepperActuator *motor0 = new StepperActuator("motor0", 0x60, 1, now);
-	s_sensors[3] = new StepperMonitor(*motor0, now);
+	s_sensors[3] = new StepperMonitor(*motor0, *rate, now);
 	s_actuators[0] = motor0;
 	StepperActuator *motor1 = new StepperActuator("motor1", 0x60, 2, now);
-	s_sensors[4] = new StepperMonitor(*motor1, now);
+	s_sensors[4] = new StepperMonitor(*motor1, *rate, now);
 	s_actuators[1] = motor1;
 	StepperActuator *motor2 = new StepperActuator("motor2", 0x61, 2, now);
-	s_sensors[5] = new StepperMonitor(*motor2, now);
+	s_sensors[5] = new StepperMonitor(*motor2, *rate, now);
 	s_actuators[2] = motor2;
+	s_actuators[3] = rate;
 	
 	PL("Sensors initialized;");
 	WDT_TRACE("Sensors initialized;");
@@ -387,10 +390,9 @@ void loop(void)
         // see if it's time to sample
         WDT_TRACE("visiting actuator");
         if (s_actuators[s_currActuator]->isItTimeYet(now)) {
-	    PL("Shouldn't get here for the current actuator implementations!");
 	    s_actuators[s_currActuator]->scheduleNextAction(now);
 
-	    s_actuators[s_currActuator]->act();
+	    s_actuators[s_currActuator]->act(ble);
 	    
 	    s_currActuator++;
 	    if (s_actuators[s_currActuator] == NULL) {
@@ -533,10 +535,13 @@ void handleBLEInput(Adafruit_BluefruitLE_SPI &ble)
 		        WDT_TRACE("handleBLEInput; determined line is not for sensors or actuators");
 			
 		        // assume it's randomly entered text -- report it, then try advancing to next line
-		        P("[Ignoring] "); PL(rx);
-			rx = Parse::consumeToEOL(rx);
-			if (*rx) {
-			    P("[Continue with] "); PL(rx);
+			if (Parse::hasEOL(rx)) {
+			    P("[Ignoring to EOL] "); PL(rx);
+			    rx = Parse::consumeToEOL(rx);
+			    if (*rx) 
+			        P("[Continue with] "); PL(rx);
+			} else {
+			    P("[Unprocessed] "); PL(rx);
 			}
 		    } else {
 		        WDT_TRACE("handleBLEInput; done handling sensor or actuator line");

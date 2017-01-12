@@ -30,8 +30,8 @@
 
 static unsigned long lastSampleTime = 0;
 
-HumidSensor::HumidSensor(const char *name, unsigned long now)
-  : Sensor(name, now), mPrev(new Str("NAN"))
+HumidSensor::HumidSensor(const char *name, const class SensorRateActuator &rateProvider, unsigned long now)
+  : Sensor(name, rateProvider, now), mPrev(new Str("NAN"))
 {
     lastSampleTime = millis();
     mNextSampleTime += 5*1000; // offset the sample times so that it doesn't come too close to TempSensor's

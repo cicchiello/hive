@@ -26,6 +26,8 @@ class TxQueue {
       //DL("TxQueue::TxQueue");
   }
 
+  int getLen() const {return len;}
+  
   void push(FreeList<E> *freeList, const char *sensorName, const char *value, const char *timestamp)
   {
       //DL("TxQueue::push(...)");

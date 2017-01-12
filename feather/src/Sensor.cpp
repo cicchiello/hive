@@ -24,7 +24,7 @@
 #define DL(args)
 #endif
 
-
+#include <SensorRateActuator.h>
 #include <str.h>
 #include <Parse.h>
 
@@ -76,7 +76,8 @@ static TxQueue<QueueEntry> *getQueue()
 
 
 
-Sensor::Sensor(const char *sensorName, unsigned long now)
+Sensor::Sensor(const char *sensorName, const SensorRateActuator &rateProvider, unsigned long now)
+  : mRateProvider(rateProvider)
 {
     mName = new Str(sensorName);
     
@@ -103,7 +104,15 @@ bool Sensor::isItTimeYet(unsigned long now)
 
 void Sensor::scheduleNextSample(unsigned long now)
 {
-    mNextSampleTime = now + 60*1000;
+    unsigned long deltaSeconds = mRateProvider.secondsBetweenSamples();
+    
+    D("Sensor::scheduleNextSample(");
+    D(getName());
+    D("); scheduling next sample in ");
+    D(deltaSeconds);
+    DL(" seconds");
+    
+    mNextSampleTime = now + deltaSeconds*1000;
 }
 
 
@@ -165,7 +174,7 @@ const char *Sensor::processResponse(const char *rsp)
 	if (strncmp(response.c_str(), err, strlen(err)) == 0) {
 	    getQueue()->receivedFailureConfirmation();
 
-	    P("Received reply to POST: "); P(prefix); PL(response.c_str());
+	    P("Received reply to POST: "); PL(response.c_str());
 	    PL("Treating as error and consuming to EOL");
 	    return Parse::consumeToEOL(response.c_str() + strlen(err));
 	} else {
