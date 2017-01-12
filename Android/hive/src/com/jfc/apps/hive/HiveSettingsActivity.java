@@ -1,15 +1,9 @@
 package com.jfc.apps.hive;
 
-import com.example.hive.R;
 import com.jfc.misc.prop.AcraTestProperty;
-import com.jfc.misc.prop.ActiveHiveProperty;
-import com.jfc.misc.prop.BridgePairingsProperty;
 import com.jfc.misc.prop.DbCredentialsProperty;
-import com.jfc.misc.prop.EnableBridgeProperty;
 import com.jfc.misc.prop.HiveFactoryResetProperty;
 import com.jfc.misc.prop.IPropertyMgr;
-import com.jfc.misc.prop.StepsPerRevolutionProperty;
-import com.jfc.misc.prop.ThreadsPerMeterProperty;
 import com.jfc.util.misc.DbAlertHandler;
 import com.jfc.util.misc.LocalStorageHandler;
 
@@ -17,7 +11,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import android.app.ActionBar;
 import android.app.Activity;
@@ -26,7 +19,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.renderscript.Sampler;
 import android.util.Log;
 import android.view.MenuItem;
 import android.widget.ImageButton;

@@ -32,8 +32,8 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.example.hive.R;
 import com.jfc.apps.hive.HiveEnv;
+import com.jfc.apps.hive.R;
 import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
 import com.jfc.util.misc.DialogUtils;
 import com.jfc.util.misc.SplashyText;

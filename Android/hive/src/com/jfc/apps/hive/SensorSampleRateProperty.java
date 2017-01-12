@@ -10,7 +10,6 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
-import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.EditText;
@@ -18,7 +17,6 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 
 import com.adobe.xmp.impl.Base64;
-import com.example.hive.R;
 import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.DbCredentialsProperty;
 import com.jfc.misc.prop.IPropertyMgr;

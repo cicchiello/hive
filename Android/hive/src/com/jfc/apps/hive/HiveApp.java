@@ -5,7 +5,6 @@ import org.acra.ReportingInteractionMode;
 import android.app.Application;
 import org.acra.annotation.*;
 
-import com.example.hive.R;
 
 @ReportsCrashes(
 	    formUri = "https://jfcenterprises.cloudant.com/acra-hive/_design/acra-storage/_update/report",

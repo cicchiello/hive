@@ -1,19 +1,13 @@
 package com.jfc.apps.hive;
 
-import com.example.hive.R;
-import com.jfc.misc.prop.AcraTestProperty;
 import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.BridgePairingsProperty;
-import com.jfc.misc.prop.DbCredentialsProperty;
 import com.jfc.misc.prop.EnableBridgeProperty;
 import com.jfc.misc.prop.HiveFactoryResetProperty;
 import com.jfc.misc.prop.IPropertyMgr;
 import com.jfc.misc.prop.NumHivesProperty;
 import com.jfc.misc.prop.PairedHiveProperty;
-import com.jfc.misc.prop.StepsPerRevolutionProperty;
-import com.jfc.misc.prop.ThreadsPerMeterProperty;
 import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
-import com.jfc.util.misc.LocalStorageHandler;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;

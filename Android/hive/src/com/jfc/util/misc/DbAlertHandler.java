@@ -2,12 +2,13 @@ package com.jfc.util.misc;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.jfc.apps.hive.R;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.os.Handler;
 import android.widget.TextView;
 
-import com.example.hive.R;
 
 public class DbAlertHandler {
 	private static final long BLOCK_PERIOD = 5*60*1000;  // block access dialogs for 5 minutes

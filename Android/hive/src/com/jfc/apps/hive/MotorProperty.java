@@ -20,7 +20,6 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 
 import com.adobe.xmp.impl.Base64;
-import com.example.hive.R;
 import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.DbCredentialsProperty;
 import com.jfc.misc.prop.StepsPerRevolutionProperty;
