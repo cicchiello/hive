@@ -3,6 +3,7 @@
 
 
 #include <Actuator.h>
+#include <pulsegen_consumer.h>
 
 class Str;
 
@@ -25,16 +26,19 @@ class StepperActuator : public Actuator {
     
     bool isMyCommand(const char *response) const;
     const char *processCommand(const char *response);
+
+    PulseGenConsumer *getPulseGenConsumer();
     
  protected:
     virtual const char *className() const {return "StepperActuator";}
 
  private:
+    friend class StepperActuatorPulseGenConsumer;
+    
     void setNextActionTime(unsigned long now);
     bool isItTimeYetForSelfDrive(unsigned long now);
     void step();
     
-    static const int SAMPLES_PER_SECOND = 10000;
     static StepperActuator **s_steppers;
     static bool s_pulseInitialized;
     static void PulseCallback();

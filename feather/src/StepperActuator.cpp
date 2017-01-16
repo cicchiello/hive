@@ -36,13 +36,82 @@
 #define RPM 60
 
 
-/* STATIC */
-StepperActuator **StepperActuator::s_steppers = NULL;
-bool StepperActuator::s_pulseInitialized = false;
+class StepperActuatorPulseGenConsumer : public PulseGenConsumer {
+private:
+  StepperActuatorPulseGenConsumer();
+
+  StepperActuator **mSteppers;
+
+public:
+  static StepperActuatorPulseGenConsumer *nonConstSingleton();
+
+  void addStepper(StepperActuator *stepper);
+  void removeStepper(StepperActuator *stepper);
+  
+  void pulse();
+};
 
 
+void StepperActuatorPulseGenConsumer::addStepper(StepperActuator *stepper)
+{
+    // put given StepperActuator on the ISR handler list
+    // (consider that it might already be there)
+    bool found = false;
+    int i = 0;
+    while (!found && mSteppers[i]) {
+        found = mSteppers[i++] == stepper;
+    }
+    if (!found) {
+        D("adding stepper to ISR list at entry "); D(i); DL("");
+	mSteppers[i] = stepper;
+    } else {
+        PL("stepper already on the list!?!?");
+    }
+}
+
+
+void StepperActuatorPulseGenConsumer::removeStepper(StepperActuator *stepper)
+{
+    // remove given StepperActuator from the ISR handler list
+    int i = 0;
+    while ((mSteppers[i] != stepper) && mSteppers[i]) 
+        i++;
+    if (mSteppers[i]) {
+        PL("Removing stepper from ISR handler list");
+	int j = 0;
+	while (mSteppers[j])
+	    j++;
+	j--; // went one too far
+	if (i == j) {
+	    P("Removing item "); P(i); PL(" from ISR handler list (i==j)");
+	    mSteppers[i] = NULL;
+	} else {
+	    P("Moving item "); P(j); P(" down to "); P(i); PL(" on ISR handler list");
+	    mSteppers[i] = mSteppers[j];
+	    mSteppers[j] = NULL;
+	}
+    } else {
+        PL("Stepper wasn't found on the ISR handler list!?!?");
+    }
+}
+
+
+StepperActuatorPulseGenConsumer::StepperActuatorPulseGenConsumer()
+{
+    mSteppers = new StepperActuator*[10];
+    for (int i = 0; i < 10; i++)
+        mSteppers[i] = NULL;
+}
+
 /* STATIC */
-void StepperActuator::PulseCallback()
+StepperActuatorPulseGenConsumer *StepperActuatorPulseGenConsumer::nonConstSingleton()
+{
+    static StepperActuatorPulseGenConsumer sSingleton;
+    return &sSingleton;
+}
+
+
+void StepperActuatorPulseGenConsumer::pulse()
 {
     //PL("StepperPulseCallback; ");
 
@@ -55,13 +124,13 @@ void StepperActuator::PulseCallback()
     while (didSomething) {
         didSomething = false;
 	int i = 0;
-	while (!didSomething && s_steppers[i]) {
-	    if (s_steppers[i]->isItTimeYetForSelfDrive(now)) {
+	while (!didSomething && mSteppers[i]) {
+	    if (mSteppers[i]->isItTimeYetForSelfDrive(now)) {
 
-	        s_steppers[i]->setNextActionTime(now); // must be done before step!
+	        mSteppers[i]->setNextActionTime(now); // must be done before step!
 		// (step may remove the stepper from this list we're iterating!)
 		
-	        s_steppers[i]->step();
+	        mSteppers[i]->step();
 		
 		now = millis();
 		didSomething = true;
@@ -71,6 +140,14 @@ void StepperActuator::PulseCallback()
     }
 }
 
+
+
+
+
+PulseGenConsumer *StepperActuator::getPulseGenConsumer()
+{
+    return StepperActuatorPulseGenConsumer::nonConstSingleton();
+}
 
 StepperActuator::StepperActuator(const char *name, int address, int port, unsigned long now,
 				 bool isBackwards)
@@ -92,18 +169,7 @@ StepperActuator::StepperActuator(const char *name, int address, int port, unsign
     D("Scheduling steps at the rate of once per ");
     D(mMsPerStep);
     DL(" ms");
-
-    if (!s_pulseInitialized) {
-        WDT_TRACE("StepperActuator CTOR; initializing pulse generator");
-        PlatformUtils::nonConstSingleton().initPulseGenerator(0, SAMPLES_PER_SECOND);
-	PlatformUtils::nonConstSingleton().startPulseGenerator(0, StepperActuator::PulseCallback);
-
-	s_steppers = new StepperActuator*[10];
-	for (int i = 0; i < 10; i++)
-	    s_steppers[i] = NULL;
-
-	s_pulseInitialized = true;
-    }
+    
     WDT_TRACE("StepperActuator CTOR; exit");
 }
 
@@ -150,26 +216,7 @@ void StepperActuator::step()
 	    mRunning = false;
 
 	    // remove this StepperActuator from the ISR handler list
-	    int i = 0;
-	    while ((s_steppers[i] != this) && s_steppers[i]) 
-	        i++;
-	    if (s_steppers[i]) {
-	        PL("Removing stepper from ISR handler list");
-	        int j = 0;
-		while (s_steppers[j])
-		    j++;
-		j--; // went one too far
-		if (i == j) {
-		    P("Removing item "); P(i); PL(" from ISR handler list (i==j)");
-		    s_steppers[i] = NULL;
-		} else {
-		    P("Moving item "); P(j); P(" down to "); P(i); PL(" on ISR handler list");
-		    s_steppers[i] = s_steppers[j];
-		    s_steppers[j] = NULL;
-		}
-	    } else {
-	        PL("Stepper wasn't found on the ISR handler list!?!?");
-	    }
+	    StepperActuatorPulseGenConsumer::nonConstSingleton()->removeStepper(this);
 	    
 	    PL("Released the stepper motor");
 	}
@@ -243,17 +290,7 @@ const char *StepperActuator::processCommand(const char *msg)
 
 	    // put this StepperActuator on the ISR handler list
 	    // (consider that it might already be there)
-	    bool found = false;
-	    int i = 0;
-	    while (!found && s_steppers[i]) {
-	        found = s_steppers[i++] == this;
-	    }
-	    if (!found) {
-	        D("adding stepper to ISR list at entry "); D(i); DL("");
-	        s_steppers[i] = this;
-	    } else {
-	        PL("stepper already on the list!?!?");
-	    }
+	    StepperActuatorPulseGenConsumer::nonConstSingleton()->addStepper(this);
 
 	    setNextActionTime(millis());
 	    

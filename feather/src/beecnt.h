@@ -3,11 +3,12 @@
 
 
 #include <Sensor.h>
+#include <pulsegen_consumer.h>
 
 class Str;
 
 
-class BeeCounter : public Sensor {
+class BeeCounter : public Sensor, private PulseGenConsumer {
  public:
     BeeCounter(const char *name, const class RateProvider &rateProvider, unsigned long now,
 	       int ploadPin, int clockPin, int dataPin);
@@ -15,10 +16,11 @@ class BeeCounter : public Sensor {
 
     bool sensorSample(Str *value);
     
-    bool isItTimeYet(unsigned long now);
+    PulseGenConsumer *getPulseGenConsumer();
     
  private:
-    void display_pin_values() const;
+    void pulse();
+    
     void readReg();
 
     static const int NUM_BYTES = 3;
@@ -32,6 +34,7 @@ class BeeCounter : public Sensor {
     unsigned long mInTime[NUM_GATES], mPrevInTime[NUM_GATES], mOutTime[NUM_GATES], mPrevOutTime[NUM_GATES];
     unsigned long mInDuration[NUM_GATES], mOutDuration[NUM_GATES];
     int mNumBees;
+    unsigned long mLastSampleTime;
     
     int ploadPin, clockEnablePin, clockPin, dataPin;
 };

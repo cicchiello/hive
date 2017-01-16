@@ -23,48 +23,21 @@
 
 
 #ifndef NDEBUG
-#define assert(c,msg) if (!(c)) {PL("ASSERT"); WDT_TRACE(msg); while(1);}
+#define assert(c,msg) if (!(c)) {PL("ASSERT"); HivePlatform::singleton()->trace(msg); while(1);}
 #else
 #define assert(c,msg) do {} while(0);
 #endif
 
 
-#include <platformutils.h>
+#include <hive_platform.h>
 #include <RateProvider.h>
 #include <beecnt.h>
 #include <str.h>
 
 
-static void error(const char *err) {
-  PL(err);
-  WDT_TRACE(err);
-  while (1);
-}
-
-
-static void wdtEarlyWarningHandler()
-{
-    // first, prevent the WDT from doing a full system reset by resetting the timer
-    PlatformUtils::nonConstSingleton().clearWDT();
-
-    PL("wdtEarlyWarningHandler; BARK!");
-    PL("");
-
-    if (PlatformUtils::s_traceStr != NULL) {
-        P("WDT Trace message: ");
-	PL(PlatformUtils::s_traceStr);
-    } else {
-        PL("No WDT trace message registered");
-    }
-    
-    // Next, do a more useful system reset
-    PlatformUtils::nonConstSingleton().resetToBootloader();
-}
-
-
 void setup(void)
 {
-    const char *rcause = PlatformUtils::singleton().resetCause();
+    const char *rcause = HivePlatform::singleton()->getResetCause();
   
     delay(500);
 
@@ -90,8 +63,8 @@ void setup(void)
     PL();
 
     DL("starting WDT");
-    PlatformUtils::nonConstSingleton().initWDT(wdtEarlyWarningHandler);
-    WDT_TRACE("wdt handler registered");
+    HivePlatform::nonConstSingleton()->startWDT();
+    HivePlatform::singleton()->trace("wdt handler registered");
   
     PL();
 }
@@ -126,24 +99,28 @@ void loop(void)
 	s_beeCounter = new BeeCounter("bee", *s_rateProvider, now,
 				      BEECNT_PLOAD_PIN, BEECNT_CLOCK_PIN, BEECNT_DATA_PIN);
 
+	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_10K(s_beeCounter->getPulseGenConsumer());
+	HivePlatform::nonConstSingleton()->pulseGen_10K_init();
+	PL("PulseGenerators initialized;");
+	
 	s_mainState = LOOP;
     }
       break;
       
     case SENSOR_SAMPLE: {
-        WDT_TRACE("Sensor sample state");
-        PlatformUtils::nonConstSingleton().clearWDT();
+        HivePlatform::singleton()->trace("Sensor sample state");
+	HivePlatform::nonConstSingleton()->clearWDT();
 	
 	// see if it's time to sample
 	if (s_beeCounter->isItTimeYet(now)) {
-	    WDT_TRACE("starting sampling sensor");
-//	    PL("Starting sampling sensor");
+	    HivePlatform::singleton()->trace("starting sampling sensor");
+	    DL("Starting sampling sensor");
 	    s_beeCounter->scheduleNextSample(now);
 
 	    Str sensorValueStr;
 	    if (s_beeCounter->sensorSample(&sensorValueStr)) {
-//	        P("Sampled bee counter: ");
-//		PL(sensorValueStr.c_str());
+	        P("Sampled bee counter: ");
+		PL(sensorValueStr.c_str());
 	    }
 	}
 	s_mainState = LOOP;
@@ -151,6 +128,6 @@ void loop(void)
       break;
 
     default:
-      error("Unknown s_mainState in loop; quitting");
+      HivePlatform::singleton()->error("Unknown s_mainState in loop; quitting");
     };
 }

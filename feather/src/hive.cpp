@@ -9,7 +9,7 @@
 
 #include "BluefruitConfig.h"
 
-#define HEADLESS
+//#define HEADLESS
 #define NDEBUG
 
 
@@ -38,8 +38,8 @@
 
 
 #include <hive_platform.h>
-#define TRACE(msg) HivePlatform::trace(msg)
-#define ERR(msg) HivePlatform::error(msg)
+#define TRACE(msg) HivePlatform::singleton()->trace(msg)
+#define ERR(msg) HivePlatform::singleton()->error(msg)
 
 
 #include <strutils.h>
@@ -145,7 +145,8 @@ static void handleBLEInput(Adafruit_BluefruitLE_SPI &ble);
 /**************************************************************************/
 void setup(void)
 {
-    ResetCause = HivePlatform::getResetCause(); // capture the reason for previous reset so I can inform the app
+    // capture the reason for previous reset so I can inform the app
+    ResetCause = HivePlatform::singleton()->getResetCause(); 
     
     delay(500);
 
@@ -217,14 +218,14 @@ void setup(void)
 
     setIsBLEConnected(false);
   
+    HivePlatform::nonConstSingleton()->startWDT();
+  
     /* Wait for connection */
     while (! ble.isConnected()) {
-        HivePlatform::clearWDT();
+        HivePlatform::nonConstSingleton()->clearWDT();
 	delay(500);
     }
 
-    HivePlatform::startWDT();
-  
     setIsBLEConnected(true);
     TRACE("Connected");
     PL("Connected");
@@ -288,12 +289,20 @@ void loop(void)
 	s_sensors[5] = new StepperMonitor(*motor2, *rate, now);
 	s_actuators[2] = motor2;
 	s_actuators[3] = rate;
-	s_sensors[6] = new BeeCounter("beecnt", *rate, now,
-				      BEECNT_PLOAD_PIN, BEECNT_CLOCK_PIN, BEECNT_DATA_PIN);
+	BeeCounter *beecnt = new BeeCounter("beecnt", *rate, now,
+					    BEECNT_PLOAD_PIN, BEECNT_CLOCK_PIN, BEECNT_DATA_PIN);
+	s_sensors[6] = beecnt;
 	
 	PL("Sensors initialized;");
 	TRACE("Sensors initialized;");
-  
+
+	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_10K(beecnt->getPulseGenConsumer());
+	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_10K(motor0->getPulseGenConsumer());
+	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_10K(motor1->getPulseGenConsumer());
+	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_10K(motor2->getPulseGenConsumer());
+	HivePlatform::nonConstSingleton()->pulseGen_10K_init();
+	PL("PulseGenerators initialized;");
+	
 	// wait a bit for comms to settle
 	delay(500);
     }
@@ -301,7 +310,7 @@ void loop(void)
       
     case CHECK_BLE_RX: {
         TRACE("checking for BLE rx");
-	HivePlatform::clearWDT();
+	HivePlatform::nonConstSingleton()->clearWDT();
 	
         // Check for incoming transmission from Bluefruit
         handleBLEInput(ble);
@@ -406,7 +415,7 @@ void loop(void)
 	        // see if reconnection has happened
 	        if (ble.isConnected()) {
 		    PL("Reconnected!");
-		    HivePlatform::clearWDT();
+		    HivePlatform::nonConstSingleton()->clearWDT();
 		    delay(500);
 		    setIsBLEConnected(true);
 		} else {
@@ -429,12 +438,12 @@ void loop(void)
 		    setIsBLEConnected(false);
 		
 		    // see if reconnection has happened immediately
-		    HivePlatform::clearWDT();
+		    HivePlatform::nonConstSingleton()->clearWDT();
 		    delay(500);
 		    if (ble.isConnected()) {
 		        s_nextDisconnectTime = millis() + 70*1000;
 			PL("Reconnected!");
-			HivePlatform::clearWDT();
+			HivePlatform::nonConstSingleton()->clearWDT();
 			delay(500);
 			setIsBLEConnected(true);
 		    } else {
@@ -452,7 +461,7 @@ void loop(void)
 	        if (ble.isConnected()) {
 		    s_nextDisconnectTime = millis() + 70*1000;
 		    PL("Reconnected!");
-		    HivePlatform::clearWDT();
+		    HivePlatform::nonConstSingleton()->clearWDT();
 		    delay(500);
 		    setIsBLEConnected(true);
 		} else {
@@ -565,3 +574,5 @@ bool setIsBLEConnected(bool v)
     digitalWrite(CONNECTED_LED, v ? HIGH : LOW);
     return r;
 }
+
+
