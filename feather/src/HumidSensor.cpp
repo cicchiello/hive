@@ -25,12 +25,13 @@
 #endif
 
 #include <str.h>
+#include <RateProvider.h>
 
 #include <DHT.h>
 
 static unsigned long lastSampleTime = 0;
 
-HumidSensor::HumidSensor(const char *name, const class SensorRateActuator &rateProvider, unsigned long now)
+HumidSensor::HumidSensor(const char *name, const class RateProvider &rateProvider, unsigned long now)
   : Sensor(name, rateProvider, now), mPrev(new Str("NAN"))
 {
     lastSampleTime = millis();

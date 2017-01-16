@@ -5,6 +5,7 @@
 #define NDEBUG
 #include <strutils.h>
 
+#include <pm.h>
 
 #define EARLY_WARNING_TIME_MS 61l
 
@@ -345,3 +346,20 @@ void WDT_Handler (void)
 }
 
 
+/* STATIC */
+const char *PlatformUtils::resetCause()
+{
+    static Str s_holder;
+    unsigned char rcause = PM->RCAUSE.reg;
+    if (rcause & PM_RCAUSE_EXT) {
+        return "External Reset";
+    } else if (rcause & PM_RCAUSE_SYST) {
+        return "System Reset Request:";
+    } else {
+        s_holder = "Unknown reason: 0x";
+	char buf[4];
+	itoa(rcause, buf, 16);
+	s_holder.append(buf);
+	return s_holder.c_str();
+    }
+}

@@ -9,19 +9,26 @@ class Timestamp {
  public:
 
     class QueueEntry {
+    private:
+        Timestamp *mParent;
+	
     public:
-        QueueEntry() {}
-      
+        QueueEntry(Timestamp *parent) {mParent = parent;}
+
+	Timestamp *getTimestamp() {return mParent;}
+	
 	const char *getName() const {return "timestamp";}
     
 	void post(const char *sensorName, Adafruit_BluefruitLE_SPI &ble);
     };
   
-    Timestamp() : mRequestedTimestamp(false), mHaveTimestamp(false) {}
-    ~Timestamp() {}
+    Timestamp(const char *resetCause);
+    ~Timestamp();
 
     const char *getName() const {return "timestamp";}
     // since there can be only one
+
+    const char *getResetCause() const;
     
     void toString(unsigned long now, Str *str);
     
@@ -41,6 +48,7 @@ class Timestamp {
  private:
     bool mRequestedTimestamp, mHaveTimestamp;
     unsigned long mTimestamp, mSecondsAtMark;
+    Str *mRCause;
 };
 
 

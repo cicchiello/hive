@@ -2,10 +2,12 @@
 #define sensorrate_h
 
 #include <Actuator.h>
+#include <RateProvider.h>
+
 
 class Str;
 
-class SensorRateActuator : public Actuator {
+class SensorRateActuator : public Actuator, public RateProvider {
  public:
     class QueueEntry {
     public:

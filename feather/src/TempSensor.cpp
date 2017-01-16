@@ -24,6 +24,7 @@
 #endif
 
 #include <str.h>
+#include <RateProvider.h>
 
 #include <DHT.h>
 
@@ -33,7 +34,7 @@
 static DHT dht(DHTPIN, DHTTYPE);
 static unsigned long lastSampleTime = 0;
 
-TempSensor::TempSensor(const char *name, const class SensorRateActuator &rateProvider, unsigned long now)
+TempSensor::TempSensor(const char *name, const class RateProvider &rateProvider, unsigned long now)
   : Sensor(name, rateProvider, now), mPrev(new Str("NAN"))
 {
     dht.begin();

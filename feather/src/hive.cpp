@@ -36,7 +36,12 @@
 #define assert(c,msg) do {} while(0);
 #endif
 
-#include <platformutils.h>
+
+#include <hive_platform.h>
+#define TRACE(msg) HivePlatform::trace(msg)
+#define ERR(msg) HivePlatform::error(msg)
+
+
 #include <strutils.h>
 #include <Parse.h>
 #include <cloudpipe.h>
@@ -50,6 +55,7 @@
 #include <HumidSensor.h>
 #include <StepperMonitor.h>
 #include <StepperActuator.h>
+#include <beecnt.h>
 
 
 /*=========================================================================
@@ -106,6 +112,7 @@ Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_
 #define TEST_DISCONNECT         (TEST_CONNECTION+1)
 
 
+static const char *ResetCause = "unknown";
 static int s_mainState = INIT;
 
 #define BLE_INPUT_POLL_RATE 1000
@@ -125,31 +132,8 @@ static Actuator *s_actuators[MAX_ACTUATORS];
 
 static bool setIsBLEConnected(bool v);
 static void handleBLEInput(Adafruit_BluefruitLE_SPI &ble);
-  
-static void error(const char *err) {
-  PL(err);
-  WDT_TRACE(err);
-  while (1);
-}
 
-static void wdtEarlyWarningHandler()
-{
-    // first, prevent the WDT from doing a full system reset by resetting the timer
-    PlatformUtils::nonConstSingleton().clearWDT();
 
-    PL("wdtEarlyWarningHandler; BARK!");
-    PL("");
-
-    if (PlatformUtils::s_traceStr != NULL) {
-        P("WDT Trace message: ");
-	PL(PlatformUtils::s_traceStr);
-    } else {
-        PL("No WDT trace message registered");
-    }
-    
-    // Next, do a more useful system reset
-    PlatformUtils::nonConstSingleton().resetToBootloader();
-}
 
 
 
@@ -161,6 +145,8 @@ static void wdtEarlyWarningHandler()
 /**************************************************************************/
 void setup(void)
 {
+    ResetCause = HivePlatform::getResetCause(); // capture the reason for previous reset so I can inform the app
+    
     delay(500);
 
 #ifndef HEADLESS
@@ -191,17 +177,17 @@ void setup(void)
 #ifndef HEADLESS
     if ( !ble.begin(VERBOSE_MODE) )
     {
-        error("Couldn't find Bluefruit, make sure it's in CoMmanD mode & check wiring?");
+        ERR("Couldn't find Bluefruit, make sure it's in CoMmanD mode & check wiring?");
     }
 #else
     if ( !ble.begin(false) )
     {
-        error("Couldn't find Bluefruit, make sure it's in CoMmanD mode & check wiring?");
+        ERR("Couldn't find Bluefruit, make sure it's in CoMmanD mode & check wiring?");
     }
 #endif
 
     delay(1500); // a little extra delay after the BLE reboot
-    WDT_TRACE("ble initialized");
+    TRACE("ble initialized");
   
     PL("OK!");
 
@@ -210,7 +196,7 @@ void setup(void)
         /* Perform a factory reset to make sure everything is in a known state */
         PL("Performing a factory reset: ");
 	if ( ! ble.factoryReset() ){
-	    error("Couldn't factory reset");
+	    ERR("Couldn't factory reset");
 	}
     }
     delay(1500); // a little extra delay after the BLE reset
@@ -224,7 +210,6 @@ void setup(void)
     ble.info();
 #endif
 
-    // setup WDT
     PL();
     PL("Awaiting connection");
     
@@ -234,16 +219,14 @@ void setup(void)
   
     /* Wait for connection */
     while (! ble.isConnected()) {
-        PlatformUtils::nonConstSingleton().clearWDT();
+        HivePlatform::clearWDT();
 	delay(500);
     }
 
-    DL("starting WDT");
-    PlatformUtils::nonConstSingleton().initWDT(wdtEarlyWarningHandler);
-    WDT_TRACE("wdt handler registered");
+    HivePlatform::startWDT();
   
     setIsBLEConnected(true);
-    WDT_TRACE("Connected");
+    TRACE("Connected");
     PL("Connected");
     PL();
   
@@ -258,6 +241,9 @@ void setup(void)
     }
 }
 
+#define BEECNT_PLOAD_PIN        10
+#define BEECNT_CLOCK_PIN         9
+#define BEECNT_DATA_PIN         11
 
 /**************************************************************************/
 /*!
@@ -270,10 +256,10 @@ void loop(void)
     unsigned long now = millis();
     switch (s_mainState) {
     case INIT: {
-        WDT_TRACE("Initializing sensors and actuators");
+        TRACE("Initializing sensors and actuators");
 	s_mainState = LOOP;
 	CloudPipe::nonConstSingleton().initMacAddress(ble);
-	s_timestamp = new Timestamp();
+	s_timestamp = new Timestamp(ResetCause);
 
 	for (int i = 0; i < MAX_SENSORS; i++) {
 	    s_sensors[i] = NULL;
@@ -302,9 +288,11 @@ void loop(void)
 	s_sensors[5] = new StepperMonitor(*motor2, *rate, now);
 	s_actuators[2] = motor2;
 	s_actuators[3] = rate;
+	s_sensors[6] = new BeeCounter("beecnt", *rate, now,
+				      BEECNT_PLOAD_PIN, BEECNT_CLOCK_PIN, BEECNT_DATA_PIN);
 	
 	PL("Sensors initialized;");
-	WDT_TRACE("Sensors initialized;");
+	TRACE("Sensors initialized;");
   
 	// wait a bit for comms to settle
 	delay(500);
@@ -312,8 +300,8 @@ void loop(void)
       break;
       
     case CHECK_BLE_RX: {
-        WDT_TRACE("checking for BLE rx");
-        PlatformUtils::nonConstSingleton().clearWDT();
+        TRACE("checking for BLE rx");
+	HivePlatform::clearWDT();
 	
         // Check for incoming transmission from Bluefruit
         handleBLEInput(ble);
@@ -338,18 +326,18 @@ void loop(void)
     break;
     
     case ATTEMPT_TIMESTAMP_POST: {
-        WDT_TRACE("Attempting timestamp post");
+        TRACE("Attempting timestamp post");
         s_timestamp->attemptPost(ble);
 	s_mainState = LOOP;
     }
       break;
 
     case SENSOR_SAMPLE: {
-        WDT_TRACE("Sensor sample state");
+        TRACE("Sensor sample state");
 	
 	// see if it's time to sample
 	if (s_sensors[s_currSensor]->isItTimeYet(now)) {
-	    WDT_TRACE("starting sampling sensor");
+	    TRACE("starting sampling sensor");
 	    s_sensors[s_currSensor]->scheduleNextSample(now);
 
 	    Str sensorValueStr;
@@ -359,7 +347,7 @@ void loop(void)
 	    
 		s_sensors[s_currSensor]->enqueueRequest(sensorValueStr.c_str(),
 							timestampStr.c_str());
-		WDT_TRACE("done sampling sensor");
+		TRACE("done sampling sensor");
 		
 		s_mainState = ATTEMPT_SENSOR_POST;
 		s_sensorSampleState = 0;
@@ -374,7 +362,7 @@ void loop(void)
       break;
 
     case ATTEMPT_SENSOR_POST: {
-        WDT_TRACE("Attempting sensor post");
+        TRACE("Attempting sensor post");
         s_sensors[s_currSensor]->attemptPost(ble);
 	
 	s_currSensor++;
@@ -388,7 +376,7 @@ void loop(void)
       
     case VISIT_ACTUATOR: {
         // see if it's time to sample
-        WDT_TRACE("visiting actuator");
+        TRACE("visiting actuator");
         if (s_actuators[s_currActuator]->isItTimeYet(now)) {
 	    s_actuators[s_currActuator]->scheduleNextAction(now);
 
@@ -399,7 +387,7 @@ void loop(void)
 	        s_currActuator = 0;
 	    }
 	
-	    WDT_TRACE("done visiting actuator");
+	    TRACE("done visiting actuator");
 	}
 
 	s_mainState = TEST_CONNECTION;
@@ -407,7 +395,7 @@ void loop(void)
       break;
       
     case TEST_CONNECTION: {
-	WDT_TRACE("testing connection");
+	TRACE("testing connection");
 	if (now > s_nextConnectCheckTime) {
 	    if (s_connected) {
 	        if (!ble.isConnected()) {
@@ -418,7 +406,7 @@ void loop(void)
 	        // see if reconnection has happened
 	        if (ble.isConnected()) {
 		    PL("Reconnected!");
-		    PlatformUtils::nonConstSingleton().clearWDT();
+		    HivePlatform::clearWDT();
 		    delay(500);
 		    setIsBLEConnected(true);
 		} else {
@@ -441,12 +429,12 @@ void loop(void)
 		    setIsBLEConnected(false);
 		
 		    // see if reconnection has happened immediately
-		    PlatformUtils::nonConstSingleton().clearWDT();
+		    HivePlatform::clearWDT();
 		    delay(500);
 		    if (ble.isConnected()) {
 		        s_nextDisconnectTime = millis() + 70*1000;
 			PL("Reconnected!");
-			PlatformUtils::nonConstSingleton().clearWDT();
+			HivePlatform::clearWDT();
 			delay(500);
 			setIsBLEConnected(true);
 		    } else {
@@ -464,7 +452,7 @@ void loop(void)
 	        if (ble.isConnected()) {
 		    s_nextDisconnectTime = millis() + 70*1000;
 		    PL("Reconnected!");
-		    PlatformUtils::nonConstSingleton().clearWDT();
+		    HivePlatform::clearWDT();
 		    delay(500);
 		    setIsBLEConnected(true);
 		} else {
@@ -486,31 +474,31 @@ void handleBLEInput(Adafruit_BluefruitLE_SPI &ble)
 {
     if (s_rxLine == NULL) s_rxLine = new Str();
 
-    WDT_TRACE("handleBLEInput; entry");
+    TRACE("handleBLEInput; entry");
     ble.println("AT+BLEUARTRX");
     ble.readline();
     if (strcmp(ble.buffer, "OK") != 0) {
-        WDT_TRACE("handleBLEInput; received something");
+        TRACE("handleBLEInput; received something");
         s_rxLine->append(ble.buffer);
 
 	// see if we have a full line
 	const char *rx = s_rxLine->c_str();
 	if (Parse::hasEOL(rx)) {
-	    WDT_TRACE("handleBLEInput; have a line to process");
+	    TRACE("handleBLEInput; have a line to process");
 	    
             // A full line was collected -- figure out what it's for...
 	    //D("Received: ");
 	    //DL(s_rxLine->c_str());
 
 	    while (Parse::hasEOL(rx) && (rx != NULL) && *rx) {
-	        WDT_TRACE("handleBLEInput; processing line");
+	        TRACE("handleBLEInput; processing line");
 	        D("Considering: "); DL(rx);
 		if (s_timestamp->isTimestampResponse(rx)) {
-		    WDT_TRACE("handleBLEInput; is timestamp response");
+		    TRACE("handleBLEInput; is timestamp response");
 		    rx = s_timestamp->processTimestampResponse(rx);
-		    WDT_TRACE("handleBLEInput; done processing timestamp");
+		    TRACE("handleBLEInput; done processing timestamp");
 		} else {
-		    WDT_TRACE("handleBLEInput; considering if response is for sensors or actuators");
+		    TRACE("handleBLEInput; considering if response is for sensors or actuators");
 		    int i = 0;
 		    bool found = false;
 		    while (!found && (s_sensors[i] != NULL)) {
@@ -532,7 +520,7 @@ void handleBLEInput(Adafruit_BluefruitLE_SPI &ble)
 		    }
 		    
 		    if (!found && (rx && *rx)) {
-		        WDT_TRACE("handleBLEInput; determined line is not for sensors or actuators");
+		        TRACE("handleBLEInput; determined line is not for sensors or actuators");
 			
 		        // assume it's randomly entered text -- report it, then try advancing to next line
 			if (Parse::hasEOL(rx)) {
@@ -544,23 +532,23 @@ void handleBLEInput(Adafruit_BluefruitLE_SPI &ble)
 			    P("[Unprocessed] "); PL(rx);
 			}
 		    } else {
-		        WDT_TRACE("handleBLEInput; done handling sensor or actuator line");
+		        TRACE("handleBLEInput; done handling sensor or actuator line");
 		    }
 		}
 	    }
 
 	    if ((rx == NULL) || (*rx == 0)) {
 	        // reset s_rxLine
-	        WDT_TRACE("handleBLEInput; reset s_rxLine");
+	        TRACE("handleBLEInput; reset s_rxLine");
 		s_rxLine->clear();
 	    } else {
-	        WDT_TRACE("handleBLEInput; truncating s_rxLine to just the unprocessed part");
+	        TRACE("handleBLEInput; truncating s_rxLine to just the unprocessed part");
 		Str holder(rx);
 		*s_rxLine = holder;
 		D("Left with a partial line: "); DL(s_rxLine->c_str());
 	    }
 	} else {
-	    WDT_TRACE("handleBLEInput; received partial line");
+	    TRACE("handleBLEInput; received partial line");
 	    D("Received partial line: "); DL(rx);
 	}
 

@@ -1,10 +1,12 @@
 ROOT=/home/pi/hive/feather/src
 SKETCH=hive
+DFAMILY=samd21
 
 LOCALOBJS=CpuTempSensor.o Parse.o Timestamp.o Sensor.o Actuator.o \
 	HumidSensor.o TempSensor.o \
 	StepperMonitor.o StepperActuator.o \
-	SensorRateActuator.o
+	SensorRateActuator.o hive_platform.o \
+	beecnt.o
 MYPACKAGES=strutils couchutils tests platformutils cloudpipe DHT
 OTHERPACKAGES=SPI arduino arduino_zero USB Wire
 PACKAGES=$(MYPACKAGES) $(OTHERPACKAGES)
@@ -65,9 +67,9 @@ PKG_INCS=$(addprefix -I$(ROOT)/,$(PACKAGES))
 CPKG_INCS=-I$(ROOT)/Adafruit_BluefruitLE_nRF51 -I$(ROOT)/Adafruit_Motorshield
 HPKG_INCS=$(addprefix -I$(ROOT)/,$(addsuffix /src,$(HPACKAGES)))
 
-
 CPP_INCS=-I$(ARDUINO_TOOLS)/CMSIS/4.0.0-atmel/CMSIS/Include/ \
 	-I$(ARDUINO_TOOLS)/CMSIS/4.0.0-atmel/Device/ATMEL/ \
+	-I$(ARDUINO_TOOLS)/CMSIS/4.0.0-atmel/Device/ATMEL/$(DFAMILY)/include/component/ \
 	-I$(ADAFRUIT_TOOLS)/cores/arduino \
 	-I$(ADAFRUIT_TOOLS)/variants/arduino_zero \
 	-I$(ADAFRUIT_TOOLS)/libraries/SPI \
@@ -89,19 +91,32 @@ HEADERS=$(wildcard $(addsuffix *.h,$(addprefix $(ROOT),$(PACKAGES))))
 all: $(SKETCH).bin
 	@echo all done
 
+beecnt: beecnt.t.bin
+	@echo done beecnt
+
 $(SKETCH).bin: $(SKETCH).elf
 	$(OBJCPY) -O binary $(SKETCH).elf $@
+
+beecnt.t.bin: beecnt.t.elf
+	$(OBJCPY) -O binary $< $@
 
 $(SKETCH).elf: objs
 	@echo $(PACKAGE_LIBS)
 	$(CC) -Os -Wl,--gc-sections -save-temps  -T$(LD_SCRIPT) "-Wl,-Map,$(SKETCH).map" --specs=nano.specs --specs=nosys.specs -mcpu=cortex-m0plus -mthumb -Wl,--cref -Wl,--check-sections -Wl,--gc-sections -Wl,--unresolved-symbols=report-all -Wl,--warn-common -Wl,--warn-section-align -o $@ $(SKETCH).o -Wl,--start-group -lm $(ROOT)/app.a -Wl,--end-group
 
+beecnt.t.elf: objs
+	@echo $(PACKAGE_LIBS)
+	$(CC) -Os -Wl,--gc-sections -save-temps  -T$(LD_SCRIPT) "-Wl,-Map,beecnt.t.map" --specs=nano.specs --specs=nosys.specs -mcpu=cortex-m0plus -mthumb -Wl,--cref -Wl,--check-sections -Wl,--gc-sections -Wl,--unresolved-symbols=report-all -Wl,--warn-common -Wl,--warn-section-align -o $@ beecnt.t.o -Wl,--start-group -lm $(ROOT)/app.a -Wl,--end-group
 
-objs: $(SKETCH).o $(LOCALOBJS) $(PACKAGE_LIBS)
+
+objs: $(SKETCH).o $(LOCALOBJS) $(PACKAGE_LIBS) beecnt.t.o
 	@echo PACKAGE_LIBS == $(PACKAGE_LIBS)
 	@echo OBJS done
 
 $(SKETCH).o : $(SKETCH).cpp
+	$(CPP) $(CPP_FLAGS) $(CPP_DEFS) $(CPP_INCS) $< -o $@
+
+beecnt.t.o : beecnt.t.cpp
 	$(CPP) $(CPP_FLAGS) $(CPP_DEFS) $(CPP_INCS) $< -o $@
 
 %.a : $(patsubst %.cpp,%.o,$(wildcard *.cpp)) $(patsubst %.c,%.o,$(wildcard *.c))

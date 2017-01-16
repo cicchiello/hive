@@ -10,7 +10,7 @@ class Str;
 class TempSensor : public Sensor {
  public:
 
-    TempSensor(const char *name, const class SensorRateActuator &rateProvider, unsigned long now);
+    TempSensor(const char *name, const class RateProvider &rateProvider, unsigned long now);
     ~TempSensor();
 
     bool sensorSample(Str *value);

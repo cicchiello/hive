@@ -24,12 +24,13 @@
 #endif
 
 #include <StepperActuator.h>
+#include <RateProvider.h>
 
 #include <str.h>
 
 
 StepperMonitor::StepperMonitor(const StepperActuator &actuator,
-			       const class SensorRateActuator &rateProvider,
+			       const class RateProvider &rateProvider,
 			       unsigned long now)
 : Sensor(actuator.getName(), rateProvider, now), mActuator(actuator), mPrev(new Str("NAN"))
 {

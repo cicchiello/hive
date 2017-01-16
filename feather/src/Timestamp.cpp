@@ -51,13 +51,32 @@ static TxQueue<Timestamp::QueueEntry> *getQueue()
 }
 
 
+Timestamp::Timestamp(const char *resetCause)
+  : mRequestedTimestamp(false), mHaveTimestamp(false), mRCause(new Str(resetCause))
+{
+}
+
+
+Timestamp::~Timestamp()
+{
+    delete mRCause;
+}
+
+
+const char *Timestamp::getResetCause() const
+{
+    return mRCause->c_str();
+}
+
+
 void Timestamp::QueueEntry::post(const char *sensorName, Adafruit_BluefruitLE_SPI &ble)
 {
     DL("Timestamp::QueueEntry::post");
     ble.print("AT+BLEUARTTX=");
     ble.print("cmd|");
     ble.print(sensorName);
-    ble.print("|GETTIME");
+    ble.print("|GETTIME|");
+    ble.print(getTimestamp()->getResetCause());
     ble.println("\\n");
 
     // check response status
@@ -76,7 +95,7 @@ void Timestamp::enqueueRequest()
     Timestamp::QueueEntry *e = getFreelist()->pop();
     if (e == 0) {
         //DL("nothing popped off freelist; creating a new Timestamp::QueueEntry");
-      e = new Timestamp::QueueEntry();
+      e = new Timestamp::QueueEntry(this);
     } else {
         //DL("using record from freelist");
     }

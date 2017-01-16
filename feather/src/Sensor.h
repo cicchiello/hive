@@ -8,7 +8,7 @@ class Str;
 
 class Sensor {
  public:
-    Sensor(const char *sensorName, const class SensorRateActuator &rateProvider, unsigned long now);
+    Sensor(const char *sensorName, const class RateProvider &rateProvider, unsigned long now);
     ~Sensor();
 
     virtual bool isItTimeYet(unsigned long now);
@@ -31,7 +31,7 @@ class Sensor {
 
  private:
     Str *mName;
-    const class SensorRateActuator &mRateProvider;
+    const class RateProvider &mRateProvider;
 };
 
 

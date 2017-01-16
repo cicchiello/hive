@@ -9,7 +9,7 @@ class Str;
 
 class StepperMonitor : public Sensor {
  public:
-    StepperMonitor(const class StepperActuator &actuator, const class SensorRateActuator &rateProvider,
+    StepperMonitor(const class StepperActuator &actuator, const class RateProvider &rateProvider,
 		   unsigned long now);
     ~StepperMonitor();
 

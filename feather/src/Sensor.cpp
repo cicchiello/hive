@@ -24,7 +24,7 @@
 #define DL(args)
 #endif
 
-#include <SensorRateActuator.h>
+#include <RateProvider.h>
 #include <str.h>
 #include <Parse.h>
 
@@ -76,7 +76,7 @@ static TxQueue<QueueEntry> *getQueue()
 
 
 
-Sensor::Sensor(const char *sensorName, const SensorRateActuator &rateProvider, unsigned long now)
+Sensor::Sensor(const char *sensorName, const RateProvider &rateProvider, unsigned long now)
   : mRateProvider(rateProvider)
 {
     mName = new Str(sensorName);
