@@ -2,7 +2,7 @@ package com.jfc.misc.prop;
 
 import java.util.List;
 
-import com.example.hive.R;
+import com.jfc.apps.hive.R;
 import com.jfc.util.misc.DialogUtils;
 
 import android.app.Activity;
@@ -41,7 +41,7 @@ public class HiveFactoryResetProperty implements IPropertyMgr {
 					public void run() {alert=null;}
 		    	};
 		    	alert = DialogUtils.createAndShowAlertDialog(activity, resetQuestionResid, 
-  										    	 R.string.yes, scrubAction, R.string.cancel, cancelAction);
+  										    	 android.R.string.yes, scrubAction, android.R.string.cancel, cancelAction);
 			}
 		});
 	}

@@ -5,7 +5,10 @@ import com.adobe.xmp.impl.Base64;
 import android.content.Context;
 import android.util.Log;
 
+import com.jfc.apps.hive.HiveEnv;
 import com.jfc.apps.hive.MotorProperty;
+import com.jfc.apps.hive.SensorSampleRateProperty;
+import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.DbCredentialsProperty;
 
 /**
@@ -33,6 +36,17 @@ public class CmdProcess {
             	long ms = System.currentTimeMillis();
             	long s = (long) ((ms+500l)/1000l);
                 onCompletion.complete("rply|"+deviceName+"|GETTIME|"+((long)((System.currentTimeMillis()+500)/1000)));
+    		} else if (tokens[2].equals("GETSAMPLERATE")) {
+    			if (ActiveHiveProperty.isActiveHivePropertyDefined(ctxt)) {
+        			String activeHive = ActiveHiveProperty.getActiveHiveProperty(ctxt);
+	    			String hiveId = HiveEnv.getHiveAddress(ctxt, activeHive);
+	    			String rateStr = Integer.toString(SensorSampleRateProperty.getRate(ctxt));
+    				String sensor = "sample-rate";
+    				String rply = "action|"+sensor+"|"+rateStr;
+    				onCompletion.complete(rply);
+    			} else {
+    				Log.e(TAG, "couldn't determine hiveid; can't send sample rate");
+    			}
     		} else {
         		Log.e(TAG, "Unrecognized command: "+msg);
     		}

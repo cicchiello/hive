@@ -4,7 +4,7 @@ import java.util.List;
 
 import org.acra.ACRA;
 
-import com.example.hive.R;
+import com.jfc.apps.hive.R;
 import com.jfc.util.misc.DialogUtils;
 
 import android.app.Activity;
@@ -34,7 +34,7 @@ public class AcraTestProperty implements IPropertyMgr {
 					public void run() {alert=null;}
 		    	};
 		    	alert = DialogUtils.createAndShowAlertDialog(activity, R.string.acra_test_question, 
-		    										    	 R.string.yes, submitBugAction, R.string.cancel, cancelAction);
+		    										    	 android.R.string.yes, submitBugAction, android.R.string.cancel, cancelAction);
 			}
 		});
 	}

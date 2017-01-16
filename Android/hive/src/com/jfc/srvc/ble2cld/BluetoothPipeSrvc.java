@@ -12,8 +12,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.acra.ACRA;
 
-import com.example.hive.R;
 import com.jfc.apps.hive.MainActivity;
+import com.jfc.apps.hive.R;
 import com.jfc.misc.prop.EnableBridgeProperty;
 import com.jfc.misc.prop.NumHivesProperty;
 import com.jfc.misc.prop.PairedHiveProperty;

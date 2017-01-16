@@ -1,6 +1,6 @@
 package com.jfc.util.misc;
 
-import com.example.hive.R;
+import com.jfc.apps.hive.R;
 
 import android.app.AlertDialog;
 import android.content.Context;

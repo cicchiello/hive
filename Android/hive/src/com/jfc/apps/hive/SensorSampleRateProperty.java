@@ -10,7 +10,6 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
-import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.EditText;
@@ -18,10 +17,10 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 
 import com.adobe.xmp.impl.Base64;
-import com.example.hive.R;
 import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.DbCredentialsProperty;
 import com.jfc.misc.prop.IPropertyMgr;
+import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
 import com.jfc.srvc.ble2cld.PostActuatorBackground;
 import com.jfc.util.misc.DbAlertHandler;
 import com.jfc.util.misc.DialogUtils;
@@ -39,6 +38,7 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 	private Activity mActivity;
 	private Context mCtxt;
 	private DbAlertHandler mDbAlert;
+	private String mHiveId;
 
 	// transient variables -- no need to save on pause
 	private AlertDialog mAlert;
@@ -60,11 +60,21 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 		setRate(ctxt, DEFAULT_SAMPLE_RATE);
 	}
 	
+	public static void informHiveOfNewRate(Context ctxt, String hiveId, String rateStr) {
+		String sensor = "sample-rate";
+		String msg = "tx|"+hiveId.replace('-', ':')+"|action|"+sensor+"|"+rateStr;
+		
+		Intent ble2cld = new Intent(ctxt, BluetoothPipeSrvc.class);
+		ble2cld.putExtra("cmd", msg);
+		ctxt.startService(ble2cld);
+	}
+	
 	public SensorSampleRateProperty(final Activity activity, final TextView tv, ImageButton button, DbAlertHandler _dbAlert) {
 		this.mCtxt = activity.getApplicationContext();
 		this.mActivity = activity;
 		this.mSampleRateTv = tv;
 		this.mDbAlert = _dbAlert;
+		this.mHiveId = HiveEnv.getHiveAddress(activity, ActiveHiveProperty.getActiveHiveProperty(activity));
 		
 		if (isRateDefined(activity)) {
 			setRate(getRate(activity));
@@ -97,6 +107,8 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 						        		SplashyText.highlightModifiedField(mActivity, mSampleRateTv);
 									}
 								});
+								
+								informHiveOfNewRate(activity, mHiveId, rateValueStr);
 							}
 							@Override
 							public void error(final String msg) {

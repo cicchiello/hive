@@ -13,8 +13,8 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
-import com.example.hive.R;
 import com.jfc.apps.hive.HiveEnv;
+import com.jfc.apps.hive.R;
 import com.jfc.util.misc.SplashyText;
 
 
