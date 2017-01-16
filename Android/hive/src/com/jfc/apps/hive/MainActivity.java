@@ -7,18 +7,23 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.DbCredentialsProperty;
+import com.jfc.misc.prop.UptimeProperty;
 import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
 import com.jfc.srvc.ble2cld.PollSensorBackground;
 import com.jfc.util.misc.DbAlertHandler;
 import com.jfc.util.misc.SplashyText;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.format.DateFormat;
+import android.text.format.DateUtils;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
@@ -26,6 +31,8 @@ public class MainActivity extends Activity {
 	private static final String TAG = MainActivity.class.getSimpleName();
 	
     private static final int POLL_RATE = 600;
+    
+    private static final boolean DEBUG = HiveEnv.DEBUG && !HiveEnv.RELEASE_TEST;
 
     // db polling -- necessary until/unless we have an active notification upon db change
     // the following vars are managed by the startPolling() and cancelPolling() functions
@@ -34,13 +41,15 @@ public class MainActivity extends Activity {
 	private Thread mPollerThread = null;
 	private Runnable mPoller = null;
 	private MotorProperty m0, m1, m2;
+	private AlertDialog mAlert;
 	
 	private DbAlertHandler mDbAlert = null;
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.hive_main);
+		
+		setContentView(DEBUG ? R.layout.hive_main_debug : R.layout.hive_main);
 	
 		// set initial value(s)
 		setInitialValues();
@@ -65,8 +74,10 @@ public class MainActivity extends Activity {
 	}
 
 	private void setInitialValues() {
-		((TextView) findViewById(R.id.cpuTempText)).setText("?");
-		((TextView) findViewById(R.id.cpuTempTimestampText)).setText("?");
+		if (DEBUG) {
+			((TextView) findViewById(R.id.cpuTempText)).setText("?");
+			((TextView) findViewById(R.id.cpuTempTimestampText)).setText("?");
+		}
 		
 		((TextView) findViewById(R.id.tempText)).setText("?");
 		((TextView) findViewById(R.id.tempTimestampText)).setText("?");
@@ -90,10 +101,12 @@ public class MainActivity extends Activity {
 							   (TextView) findViewById(R.id.motor2TimestampText));
 
 		try {
-			setValue(R.id.cpuTempText, R.id.cpuTempTimestampText,
-					 MCUTempProperty.getMCUTempValue(this), 
-					 MCUTempProperty.isMCUTempPropertyDefined(this), 
-					 MCUTempProperty.getMCUTempDate(this));
+			if (DEBUG) {
+				setValue(R.id.cpuTempText, R.id.cpuTempTimestampText,
+						 MCUTempProperty.getMCUTempValue(this), 
+						 MCUTempProperty.isMCUTempPropertyDefined(this), 
+						 MCUTempProperty.getMCUTempDate(this));
+			}
 			
 			setValue(R.id.tempText, R.id.tempTimestampText,
 					 TempProperty.getTempValue(this), 
@@ -120,6 +133,47 @@ public class MainActivity extends Activity {
 					 MotorProperty.isMotorPropertyDefined(this, 2), 
 					 MotorProperty.getMotorDate(this, 2));
 						
+			setValue(R.id.beecntText, R.id.beecntTimestampText,
+					 BeeCntProperty.getBeeCntValue(this), 
+					 BeeCntProperty.isBeeCntPropertyDefined(this), 
+					 BeeCntProperty.getBeeCntDate(this));
+						
+			setValue(R.id.hiveUptimeText, R.id.hiveUptimeTimestampText,
+					 "foo", 
+					 UptimeProperty.isUptimePropertyDefined(this), 
+					 UptimeProperty.getUptimeProperty(this));
+			
+			ImageButton uptimeButton = (ImageButton) findViewById(R.id.selectHiveUptimeButton);
+			View.OnClickListener ocl = new View.OnClickListener() {
+				@Override
+				public void onClick(View v) {
+					AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+					
+					builder.setIcon(R.drawable.ic_hive);
+					builder.setView(R.layout.uptime_dialog);
+					builder.setTitle(R.string.uptime_dialog_title);
+			        builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+			            @Override
+			            public void onClick(DialogInterface dialog, int which) {mAlert.dismiss(); mAlert = null;}
+			        });
+			        mAlert = builder.show();
+
+			        String upsinceValueStr = "unknown";
+			        if (UptimeProperty.isUptimePropertyDefined(MainActivity.this)) {
+						Calendar cal = Calendar.getInstance(Locale.ENGLISH);
+						cal.setTimeInMillis(1000*UptimeProperty.getUptimeProperty(MainActivity.this));
+						upsinceValueStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
+			        }
+			        
+			        TextView upsinceTv = (TextView) mAlert.findViewById(R.id.upsince_text);
+			        TextView statusTv = (TextView) mAlert.findViewById(R.id.current_status_text);
+			        upsinceTv.setText(upsinceValueStr);
+			        boolean isConnected = BluetoothPipeSrvc.isConnected(MainActivity.this);
+			        statusTv.setText(isConnected ? "Connected" : "Unknown");
+				}
+			};
+			uptimeButton.setOnClickListener(ocl);
+			
 		} catch (Exception ex) {
 			Log.e(TAG, ex.getLocalizedMessage());
 		}
@@ -229,15 +283,17 @@ public class MainActivity extends Activity {
 									String cloudantUser = DbCredentialsProperty.getCloudantUser(MainActivity.this);
 									String dbName = DbCredentialsProperty.getDbName(MainActivity.this);
 									String dbUrl = DbCredentialsProperty.CouchDbUrl(cloudantUser, dbName);
-									
-									onCompletion = getSensorOnCompletion(R.id.cpuTempText, R.id.cpuTempTimestampText, new OnSaveValue() {
-														@Override
-														public void save(Activity activity, String value, long timestamp) {
-															MCUTempProperty.setMCUTempProperty(MainActivity.this, value, timestamp);
-														}
-													});
-						            new PollSensorBackground(dbUrl, createQuery(HiveId.replace(':', '-'), "cputemp"), onCompletion).execute();
 
+									if (DEBUG) {
+										onCompletion = getSensorOnCompletion(R.id.cpuTempText, R.id.cpuTempTimestampText, new OnSaveValue() {
+															@Override
+															public void save(Activity activity, String value, long timestamp) {
+																MCUTempProperty.setMCUTempProperty(MainActivity.this, value, timestamp);
+															}
+														});
+							            new PollSensorBackground(dbUrl, createQuery(HiveId.replace(':', '-'), "cputemp"), onCompletion).execute();
+									}
+									
 									onCompletion = 
 											getSensorOnCompletion(R.id.tempText, R.id.tempTimestampText, new OnSaveValue() {
 												@Override
@@ -256,6 +312,14 @@ public class MainActivity extends Activity {
 											});
 						            new PollSensorBackground(dbUrl, createQuery(HiveId.replace(':', '-'), "humid"), onCompletion).execute();
 						            
+									onCompletion = getSensorOnCompletion(R.id.beecntText, R.id.beecntTimestampText, new OnSaveValue() {
+										@Override
+										public void save(Activity activity, String value, long timestamp) {
+											BeeCntProperty.setBeeCntProperty(MainActivity.this, value, timestamp);
+										}
+									});
+									new PollSensorBackground(dbUrl, createQuery(HiveId.replace(':', '-'), "beecnt"), onCompletion).execute();
+
 									onCompletion = 
 											getMotorOnCompletion(R.id.motor0Text, R.id.motor0TimestampText, new OnSaveValue() {
 												@Override
@@ -282,6 +346,30 @@ public class MainActivity extends Activity {
 												}
 											});
 						            new PollSensorBackground(dbUrl, createQuery(HiveId.replace(':', '-'), "motor2"), onCompletion).execute();
+						            
+						    		if (UptimeProperty.isUptimePropertyDefined(MainActivity.this)) {
+										final long uptimeMillis = UptimeProperty.getUptimeProperty(MainActivity.this)*1000;
+										final CharSequence since = DateUtils.getRelativeTimeSpanString(uptimeMillis,
+												System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE);
+										runOnUiThread(new Runnable() {
+											@Override
+											public void run() {
+									    		TextView uptimeTv = (TextView) findViewById(R.id.hiveUptimeText);
+									    		if (!since.equals(uptimeTv.getText().toString())) {
+									    			uptimeTv.setText(since);
+													SplashyText.highlightModifiedField(MainActivity.this, uptimeTv);
+									    		}
+									    		TextView uptimeTimestampTv = (TextView) findViewById(R.id.hiveUptimeTimestampText);
+												Calendar cal = Calendar.getInstance(Locale.ENGLISH);
+												cal.setTimeInMillis(System.currentTimeMillis());
+												final String timestampStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
+												if (!timestampStr.equals(uptimeTimestampTv.getText().toString())) {
+													uptimeTimestampTv.setText(timestampStr);
+													SplashyText.highlightModifiedField(MainActivity.this, uptimeTimestampTv);
+												}
+											}
+										});
+						    		}
 								}
 							}
 						}

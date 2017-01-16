@@ -10,6 +10,7 @@ import com.jfc.apps.hive.MotorProperty;
 import com.jfc.apps.hive.SensorSampleRateProperty;
 import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.DbCredentialsProperty;
+import com.jfc.misc.prop.UptimeProperty;
 
 /**
  * Created by Joe on 12/12/2016.
@@ -33,9 +34,11 @@ public class CmdProcess {
     			
                 new CouchPostBackground(dbUrl, authToken, deviceName, tokens[4], onCompletion).execute();
     		} else if (tokens[2].equals("GETTIME")) {
+    			String resetCause = tokens.length > 2 ? tokens[3] : "unknown";
             	long ms = System.currentTimeMillis();
             	long s = (long) ((ms+500l)/1000l);
-                onCompletion.complete("rply|"+deviceName+"|GETTIME|"+((long)((System.currentTimeMillis()+500)/1000)));
+            	UptimeProperty.setUptimeProperty(ctxt, s);
+                onCompletion.complete("rply|"+deviceName+"|GETTIME|"+(s));
     		} else if (tokens[2].equals("GETSAMPLERATE")) {
     			if (ActiveHiveProperty.isActiveHivePropertyDefined(ctxt)) {
         			String activeHive = ActiveHiveProperty.getActiveHiveProperty(ctxt);

@@ -47,7 +47,14 @@
 	<string name="cpuTempDesc">on-chip temp</string>
 	<string name="testTemp">134.6</string>
 	
-    <string name="tempLabel">Temperature (&#8451;)</string>
+    <string name="hiveUptimeLabel">Hive Uptime</string>
+	<string name="hiveUptimeDesc">Time since last reset</string>
+	
+	<string name="uptime_dialog_title">Active Hive Uptime</string>
+	<string name="upsince_label">Last Boot:</string>
+	<string name="current_status_label">Current Stat:</string>
+	
+	<string name="tempLabel">Temperature (&#8451;)</string>
 	<string name="tempDesc">Hive temp</string>
 	
     <string name="humidLabel">Humidity (RH%)</string>
@@ -59,6 +66,9 @@
 	<string name="motor2Label">Motor 3 Distance (mm)</string>
 	<string name="motorDesc">Motor distance</string>
 	<string name="testMotor">1234</string>
+	
+	<string name="beecntLabel">Bee Count</string>
+	<string name="beecntDesc">Bees in the hive</string>
 	
 	<string name="warning">Warning:</string>
     <string name="error">Error:</string>
