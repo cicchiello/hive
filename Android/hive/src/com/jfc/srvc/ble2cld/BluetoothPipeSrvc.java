@@ -363,7 +363,6 @@ public class BluetoothPipeSrvc extends Service {
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
 		if (intent == null) {
-//			ACRA.getErrorReporter().handleException(new Exception("intent is null upon entry to BluetoothPipeSrvc::onStartCommand"));
 			return START_STICKY;
 		}
 		if (intent.getExtras() == null) {
@@ -499,4 +498,7 @@ public class BluetoothPipeSrvc extends Service {
 		ctxt.startService(ble2cldIntent);
 	}
 	
+	public static boolean isConnected(Context ctxt) {
+		return true;
+	}
 }
