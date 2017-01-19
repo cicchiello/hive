@@ -49,6 +49,7 @@
 	
     <string name="hiveUptimeLabel">Hive Uptime</string>
 	<string name="hiveUptimeDesc">Time since last reset</string>
+	<string name="embedded_version_label">Firmware Id:</string>
 	
 	<string name="uptime_dialog_title">Active Hive Uptime</string>
 	<string name="upsince_label">Last Boot:</string>
@@ -69,6 +70,9 @@
 	
 	<string name="beecntLabel">Bee Count</string>
 	<string name="beecntDesc">Bees in the hive</string>
+	
+	<string name="latch_label">Latch</string>
+	<string name="latch_desc_hint">access and cooling latch</string>
 	
 	<string name="warning">Warning:</string>
     <string name="error">Error:</string>
@@ -101,6 +105,16 @@
     <string name="sample_rate_desc_hint">Minutes between samples</string>
     <string name="sample_rate_dialog_title">Sensor Sample Rate&#8230;</string>
 	
+    <string name="servo_config_label">Latch Servo</string>
+    <string name="servo_config_dialog_title">Servo Config</string>
+    <string name="servo_config_desc_hint">configure the servo</string>
+    <string name="trip_temp_label">Trip temperature (&#8451;)</string>
+    <string name="dir_label">Direction when exceeded</string>
+    <string name="tick_lower_label">Servo min ticks</string>
+    <string name="tick_upper_label">Servo max ticks</string>
+    
+    <string name="celcius">&#8451;</string>
+    
     <string name="cloudant_user_label">Cloudant User:</string>
     <string name="db_key_label">Writable key:</string>
     <string name="db_pswd_label">Key\'s Password:</string>

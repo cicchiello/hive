@@ -1,0 +1,18 @@
+#!/bin/bash
+
+#couchHost="http://joes-mac-mini:5984"
+couchHost="https://jfcenterprises.cloudant.com"
+db="hive-sensor-log"
+designDoc="_design/SensorLog"
+view="by-hive-sensor"
+
+endkey='endkey=["F0-17-66-FC-5E-A1","temp","0"]'
+#startkey='startkey=["F0-17-66-FC-5E-A1","a","00000000"]'
+startkey='startkey=["F0-17-66-FC-5E-A1","temp","9999999999"]'
+#endkey='endkey=["F0-17-66-FC-5E-A1","zzzzzzzz","99999999"]'
+order="descending=true"
+
+tf=$(mktemp)
+echo curl -G --data-urlencode "${startkey}" --data-urlencode "${endkey}" --data-urlencode "${order}" --data-urlencode "limit=1" ${couchHost}/${db}/${designDoc}/_view/${view}
+#curl -G --data-urlencode "${startkey}" --data-urlencode "${endkey}" --data-urlencode "descending=true" --data-urlencode "limit=1" ${couchHost}/${db}/${designDoc}/_view/${view} 2> /dev/null 
+curl -G --data-urlencode "${startkey}" --data-urlencode "${endkey}" --data-urlencode "${order}" ${couchHost}/${db}/${designDoc}/_view/${view} 2> /dev/null 

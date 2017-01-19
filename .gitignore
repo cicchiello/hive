@@ -2,5 +2,6 @@ couchdb/
 *~
 .svn
 *.img
+*#
 tmp
 .DS_Store

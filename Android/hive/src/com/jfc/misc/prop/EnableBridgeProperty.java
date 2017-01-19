@@ -8,12 +8,11 @@ import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.widget.ImageButton;
-import android.widget.TextView;
+import android.widget.ImageView;
 
 import com.jfc.apps.hive.HiveEnv;
+import com.jfc.apps.hive.R;
 import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
-import com.jfc.util.misc.SplashyText;
 
 
 public class EnableBridgeProperty implements IPropertyMgr {
@@ -22,25 +21,23 @@ public class EnableBridgeProperty implements IPropertyMgr {
 
     static final int grayColor = HiveEnv.ModifiableFieldBackgroundColor;
 
-	private TextView mEnableText;
+	private ImageView mEnableButton;
 	private AlertDialog mAlert;
 	private Activity mActivity;
 
-	public EnableBridgeProperty(final Activity activity, final TextView enableText, ImageButton button) {
+	public EnableBridgeProperty(final Activity activity, final ImageView enableButton) {
 		mActivity = activity;
-		mEnableText = enableText;
-		mEnableText.setBackgroundColor(0xffff0000); // RED
+		mEnableButton = enableButton;
 		
-		displayEnableBridge(enableText, getEnableBridgeProperty(activity));
+		displayEnableBridge(mEnableButton, getEnableBridgeProperty(activity));
 
-    	button.setOnClickListener(new OnClickListener() {
+    	mEnableButton.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
 				boolean newValue = !getEnableBridgeProperty(mActivity);
 				setEnableBridgeProperty(mActivity, newValue);
-				displayEnableBridge(mEnableText, newValue);
-        		SplashyText.highlightModifiedField(mActivity, mEnableText);
-        		
+				displayEnableBridge(mEnableButton, newValue);
+				
     			Intent ble2cldIntent= new Intent(mActivity, BluetoothPipeSrvc.class);
     			ble2cldIntent.putExtra("cmd", "setup");
     			mActivity.startService(ble2cldIntent);
@@ -70,9 +67,9 @@ public class EnableBridgeProperty implements IPropertyMgr {
 	public AlertDialog getAlertDialog() {return mAlert;}
 	public boolean onActivityResult(Activity activity, int requestCode, int resultCode, Intent intent) {return false;}
 
-	private void displayEnableBridge(TextView enableText, boolean v) {
-		mEnableText.setText(v ? "On" : "Off");
-		mEnableText.setBackgroundColor(grayColor);
+	private void displayEnableBridge(ImageView enableText, boolean v) {
+		int drawable = v ? R.drawable.toggle_on : R.drawable.toggle_off;
+		mEnableButton.setImageDrawable(mActivity.getDrawable(drawable));
 	}
 
 	@Override

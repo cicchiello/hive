@@ -1,0 +1,29 @@
+#!/bin/bash
+
+while getopts i: option
+do
+	case "${option}"
+	in
+		i) ID=${OPTARG};
+	esac
+done
+
+if [ -n "$ID" ]; then
+    echo "Attempting to delete $ID"
+else
+    echo "Error: an id must be supplied"
+    echo "usage: -i <id>"
+    exit
+fi
+
+couchHost="http://jfcenterprises.cloudant.com"
+authCouchHost="http://afteptsecumbehisomorther:e4f286be1eef534f1cddd6240ed0133b968b1c9a@jfcenterprises.cloudant.com"
+db="hive-sensor-log"
+
+id=${ID%$'\r'}
+rev=$(curl ${couchHost}/${db}/${id} 2> /dev/null | jq -r ._rev)
+rev=${rev%$'\r'}
+echo $rev
+echo "Will delete doc with id=${id} rev=${rev}"
+s=$(curl -X DELETE ${authCouchHost}/${db}/${id}?rev=${rev} 2> /dev/null)
+echo $s

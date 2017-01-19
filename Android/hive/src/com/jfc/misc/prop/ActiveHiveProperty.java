@@ -36,6 +36,7 @@ public class ActiveHiveProperty implements IPropertyMgr {
 	
     // created on constructions -- no need to save on pause
 	private TextView mActiveHiveTv;
+	private Activity mActivity;
 	private Context mCtxt;
 
 	// transient variables -- no need to save on pause
@@ -47,6 +48,17 @@ public class ActiveHiveProperty implements IPropertyMgr {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt.getApplicationContext());
 		return SP.contains(ACTIVE_HIVE_PROPERTY) && 
 			!SP.getString(ACTIVE_HIVE_PROPERTY, DEFAULT_ACTIVE_HIVE).equals(DEFAULT_ACTIVE_HIVE);
+	}
+	
+	public static int getActiveHiveIndex(Context ctxt) {
+		ctxt = ctxt.getApplicationContext();
+		String hiveId = getActiveHiveProperty(ctxt);
+		for (int j = 0; j < NumHivesProperty.getNumHivesProperty(ctxt); j++) {
+			if (PairedHiveProperty.getPairedHiveId(ctxt, j).equals(hiveId)) {
+				return j;
+			}
+		}
+		return -1;
 	}
 	
 	public static String getActiveHiveProperty(Context ctxt) {
@@ -87,9 +99,10 @@ public class ActiveHiveProperty implements IPropertyMgr {
     	}
 	}
 
-	public ActiveHiveProperty(final Activity activity, final TextView idTv, ImageButton button) {
-		this.mCtxt = activity.getApplicationContext();
-		this.mActiveHiveTv = idTv;
+	public ActiveHiveProperty(Activity _activity, TextView _idTv, ImageButton button) {
+		this.mCtxt = _activity.getApplicationContext();
+		this.mActivity = _activity;
+		this.mActiveHiveTv = _idTv;
 		
 		loadExistingPairs(mCtxt);
 		
@@ -124,7 +137,7 @@ public class ActiveHiveProperty implements IPropertyMgr {
 		    	
 				loadExistingPairs(mCtxt);
 				
-		        final ArrayAdapter<Pair<String,String>> arrayAdapter = new PairAdapter(mCtxt, mExistingPairs);
+		        final ArrayAdapter<Pair<String,String>> arrayAdapter = new PairAdapter(mActivity, mExistingPairs);
 		        
 		        arrayAdapter.sort(new Comparator<Pair<String,String>>() {
 					@Override
@@ -133,7 +146,7 @@ public class ActiveHiveProperty implements IPropertyMgr {
 					}
 				});
 		        
-		    	AlertDialog.Builder builder = new AlertDialog.Builder(mCtxt);
+		    	AlertDialog.Builder builder = new AlertDialog.Builder(mActivity);
 		        builder.setIcon(R.drawable.ic_hive);
 		        builder.setTitle(R.string.active_hive_choice);
 		        builder.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
@@ -152,7 +165,7 @@ public class ActiveHiveProperty implements IPropertyMgr {
 	            		
 	            		setActiveHive(selection);
 	            		setActiveHiveProperty(mCtxt, selection);
-                		SplashyText.highlightModifiedField(activity, mActiveHiveTv);
+                		SplashyText.highlightModifiedField(mActivity, mActiveHiveTv);
 	                }
 	            });
 		        mAlert = builder.show();

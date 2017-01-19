@@ -10,6 +10,7 @@ import com.jfc.apps.hive.MotorProperty;
 import com.jfc.apps.hive.SensorSampleRateProperty;
 import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.DbCredentialsProperty;
+import com.jfc.misc.prop.ServoConfigProperty;
 import com.jfc.misc.prop.UptimeProperty;
 
 /**
@@ -34,10 +35,13 @@ public class CmdProcess {
     			
                 new CouchPostBackground(dbUrl, authToken, deviceName, tokens[4], onCompletion).execute();
     		} else if (tokens[2].equals("GETTIME")) {
+    			final int hiveIndex = ActiveHiveProperty.getActiveHiveIndex(ctxt);
     			String resetCause = tokens.length > 2 ? tokens[3] : "unknown";
+    			String versionId = tokens.length > 3 ? tokens[4] : "0.0";
             	long ms = System.currentTimeMillis();
             	long s = (long) ((ms+500l)/1000l);
-            	UptimeProperty.setUptimeProperty(ctxt, s);
+            	UptimeProperty.setUptimeProperty(ctxt, hiveIndex, s);
+            	UptimeProperty.setEmbeddedVersion(ctxt, hiveIndex, versionId);
                 onCompletion.complete("rply|"+deviceName+"|GETTIME|"+(s));
     		} else if (tokens[2].equals("GETSAMPLERATE")) {
     			if (ActiveHiveProperty.isActiveHivePropertyDefined(ctxt)) {
@@ -46,6 +50,14 @@ public class CmdProcess {
 	    			String rateStr = Integer.toString(SensorSampleRateProperty.getRate(ctxt));
     				String sensor = "sample-rate";
     				String rply = "action|"+sensor+"|"+rateStr;
+    				onCompletion.complete(rply);
+    			} else {
+    				Log.e(TAG, "couldn't determine hiveid; can't send sample rate");
+    			}
+    		} else if (tokens[2].equals("GETSERVOCONFIG")) {
+    			if (ActiveHiveProperty.isActiveHivePropertyDefined(ctxt)) {
+	    			String hiveId = HiveEnv.getHiveAddress(ctxt, ActiveHiveProperty.getActiveHiveProperty(ctxt));
+        			String rply = ServoConfigProperty.getHiveUpdateCommand(ctxt, hiveId);
     				onCompletion.complete(rply);
     			} else {
     				Log.e(TAG, "couldn't determine hiveid; can't send sample rate");

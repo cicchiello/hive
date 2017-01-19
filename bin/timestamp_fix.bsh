@@ -15,19 +15,22 @@ do
     #echo curl -X GET ${couchHost}/${db}/${id} 
     #curl -X GET ${couchHost}/${db}/${id}
     d=$(curl -X GET ${couchHost}/${db}/${id} 2> /dev/null)
-    s=$(echo ${d} | jq -r .sensor)
-    s=${s%$'\r'}
-    m=$(echo ${s} | grep -c "target")
-    if [ "$m" -eq "1" ]
+    
+    t=$(echo ${d} | jq -r .timestamp)
+    t=${t%$'\r'}
+    #echo "Considering timestamp: "${t}
+    if [ "$t" -le "1463417000" ]
     then
-	t=$(echo ${d} | jq -r .timestamp)
-	t=${t%$'\r'}
-	if [ "$t" -ge "14834170000" ]
-	then
-	    nt=$(( ${t} / 1000 ))
-	    nd=$(echo ${d} | sed "s/${t}/${nt}/g")
-	    echo "found a case; that should be changed to: "${nd}
-	    curl -X PUT ${authCouchHost}/${db}/${id} -d ${nd}
-	fi
+	echo "found a case; that should be deleted: "${id}" "${t}
+#	curl -X PUT ${authCouchHost}/${db}/${id} -d ${nd}
     fi
+    if [ "$t" -ge "1584754122" ]
+    then
+	# Update these since the timestamp can be corrected
+	nt=$(( ${t} / 1000 ))
+	nd=$(echo ${d} | sed "s/${t}/${nt}/g")
+	echo "found a case; that should be changed to: "${nd}
+	curl -X PUT ${authCouchHost}/${db}/${id} -d ${nd} 2> /dev/null
+    fi
+	
 done

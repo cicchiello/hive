@@ -69,4 +69,33 @@
 
     </LinearLayout>
     
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" 
+		android:layout_marginStart="5dp"
+		android:layout_marginEnd="5dp"
+		android:layout_marginTop="5dp"
+        android:orientation="horizontal" >
+        
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:text="@string/embedded_version_label"
+            android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		<View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />                
+        
+        <TextView
+            android:id="@+id/embedded_version_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:background="#C9EAEA"
+            android:textAppearance="?android:attr/textAppearanceSmall" />
+
+    </LinearLayout>
+    
 </LinearLayout>

@@ -181,7 +181,7 @@ public class MotorProperty {
 			try {
 				doc.put("hiveid", HiveId);
 				doc.put("sensor", sensor);
-				doc.put("timestamp", Long.toString(System.currentTimeMillis()));
+				doc.put("timestamp", Long.toString(System.currentTimeMillis()/1000));
 				doc.put("value", valueStr);
 			} catch (JSONException e) {
 				// TODO Auto-generated catch block

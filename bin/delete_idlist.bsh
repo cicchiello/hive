@@ -1,0 +1,26 @@
+#!/bin/bash
+
+while getopts f: option
+do
+	case "${option}"
+	in
+		f) FILE=${OPTARG};
+	esac
+done
+
+if [ -n "$FILE" ]; then
+    echo "Attempting to delete ids listed in $FILE"
+else
+    echo "Error: a filename must be supplied"
+    echo "usage: -f <file>"
+    exit
+fi
+
+dir=$(dirname $0)
+util="${dir}/hive_delete_one.bsh"
+
+for id in `cat $FILE`
+do
+    id=${id%$'\r'}
+    echo $(${util} -i ${id})
+done

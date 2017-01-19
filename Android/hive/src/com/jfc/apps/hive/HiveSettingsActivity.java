@@ -4,6 +4,7 @@ import com.jfc.misc.prop.AcraTestProperty;
 import com.jfc.misc.prop.DbCredentialsProperty;
 import com.jfc.misc.prop.HiveFactoryResetProperty;
 import com.jfc.misc.prop.IPropertyMgr;
+import com.jfc.misc.prop.ServoConfigProperty;
 import com.jfc.util.misc.DbAlertHandler;
 import com.jfc.util.misc.LocalStorageHandler;
 
@@ -73,9 +74,10 @@ public class HiveSettingsActivity extends Activity {
         } catch (NoSuchMethodException nsme) {
         	// consume exception -- can't support normal action bar stuff
         }
-
+        
         mMgrs.add(new DbCredentialsProperty(this, (TextView) findViewById(R.id.db_text), (ImageButton) findViewById(R.id.db_button)));
         mMgrs.add(new SensorSampleRateProperty(this, (TextView) findViewById(R.id.sample_rate_text), (ImageButton) findViewById(R.id.sample_rate_button), mDbAlert));
+        mMgrs.add(new ServoConfigProperty(this, (TextView) findViewById(R.id.servo_trip_temp_text), (ImageButton) findViewById(R.id.servo_config_button)));
         if (DEBUG) 
         	mMgrs.add(new AcraTestProperty(this, (ImageButton) findViewById(R.id.acraTestButton)));
 

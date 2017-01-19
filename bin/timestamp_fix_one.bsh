@@ -1,0 +1,35 @@
+#!/bin/bash
+
+while getopts i: option
+do
+	case "${option}"
+	in
+		i) ID=${OPTARG};
+	esac
+done
+
+if [ -n "$ID" ]; then
+    echo "Considering the timestamp for doc $ID"
+else
+    echo "Error: an id must be supplied"
+    echo "usage: -i <id>"
+    exit
+fi
+
+couchHost="http://jfcenterprises.cloudant.com"
+authCouchHost="http://afteptsecumbehisomorther:e4f286be1eef534f1cddd6240ed0133b968b1c9a@jfcenterprises.cloudant.com"
+db="hive-sensor-log"
+
+id=${ID%$'\r'}
+d=$(curl -X GET ${couchHost}/${db}/${id} 2> /dev/null)
+t=$(echo ${d} | jq -r .timestamp)
+t=${t%$'\r'}
+
+if [ "$t" -ge "1584754122" ]
+then
+    # Update these since the timestamp can be corrected
+    nt=$(( ${t} / 1000 ))
+    nd=$(echo ${d} | sed "s/${t}/${nt}/g")
+    echo "found a case; that should be changed to: "${nd}
+    curl -X PUT ${authCouchHost}/${db}/${id} -d ${nd} 2> /dev/null
+fi

@@ -50,7 +50,7 @@ public class BluetoothPipeSrvc extends Service {
     private List<ConnectionMgr> mMgrs = new ArrayList<ConnectionMgr>();
 
     public class ConnectionMgr implements BleExecutorListener {
-    	private String mAddress;
+		private String mAddress;
     	private BluetoothAdapter mAdapter = null;	
     	private BluetoothDevice mDevice = null;
     	private AtomicBoolean mShutdown = new AtomicBoolean(false), mIsConnected = new AtomicBoolean(false);
@@ -122,7 +122,7 @@ public class BluetoothPipeSrvc extends Service {
 			Log.e(TAG, "onCharacteristicRead");
 		}
 
-		public void tx(String msg) {
+		private void synchronizedEnqueue(String msg) {
     		boolean waitingForIdle = true;
     		while (waitingForIdle) {
         		synchronized (mQueueIsIdle) {
@@ -132,14 +132,15 @@ public class BluetoothPipeSrvc extends Service {
                         queue.offer(msg);
         				waitingForIdle = false;
         				mQueueIsIdle.set(true);
-        			} else {
-            			try {
-							Thread.sleep(10);
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-        			}
+        			} 
+        		}
+        		if (waitingForIdle) {
+        			try {
+						Thread.sleep(10);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 				}
     		}
 		}
@@ -162,37 +163,20 @@ public class BluetoothPipeSrvc extends Service {
 	            		else 
 	            			Log.i(TAG, "buffer now contains: '"+rxLine.toString()+"'");
 	            		
+                        if (!queueConsumerStarted) {
+                            queueConsumer.start();
+                            queueConsumerStarted = true;
+                        }
+                        
 	                    CmdOnCompletion onCompletion = new CmdOnCompletion() {
 	                        @Override
 	                        public void complete(String reply) {
-	                            if (!queueConsumerStarted) {
-	                                queueConsumer.start();
-	                                queueConsumerStarted = true;
-	                            }
-	                            Log.i(TAG, "queuing: "+reply);
-	                            queue.offer(reply);
-	    	            		mQueueIsIdle.getAndSet(true);
+	                            synchronizedEnqueue(reply);
 	                        }
 	                    };
 	            		
-	            		boolean waitingForIdle = true;
-	            		while (waitingForIdle) {
-		            		synchronized (mQueueIsIdle) {
-		            			if (mQueueIsIdle.get()) {
-		            				mQueueIsIdle.set(false);
-		    	            		String results[] = new String[2];
-		            				CmdProcess.process(BluetoothPipeSrvc.this, cmd, results, onCompletion);
-		            				waitingForIdle = false;
-		            			} else {
-			            			try {
-										Thread.sleep(10);
-									} catch (InterruptedException e) {
-										// TODO Auto-generated catch block
-										e.printStackTrace();
-									}
-		            			}
-							}
-	            		}
+	            		String results[] = new String[2];
+        				CmdProcess.process(BluetoothPipeSrvc.this, cmd, results, onCompletion);
 	            	}
 	            } else Log.e(TAG, "onCharacteristicChangedCalled (1)");
 	        } else Log.e(TAG, "onCharacteristicChangedCalled (2)");
@@ -269,7 +253,7 @@ public class BluetoothPipeSrvc extends Service {
 			        	Log.e(TAG, "BLE device unknown: "+address);
 			        	return;
 			        }
-			        
+
 			        mIsConnected.set(false);
 			        mExecutor = BleGattExecutor.createExecutor(ConnectionMgr.this);
 			        
@@ -404,7 +388,7 @@ public class BluetoothPipeSrvc extends Service {
 			boolean delivered = false;
 			for (ConnectionMgr mgr : mMgrs) {
 				if (mgr.getAddress().equals(hiveId)) {
-					mgr.tx(msg);
+					mgr.synchronizedEnqueue(msg);
 					delivered = true;
 					Log.i(TAG, "msg delivered to hive: "+msg);
 				}

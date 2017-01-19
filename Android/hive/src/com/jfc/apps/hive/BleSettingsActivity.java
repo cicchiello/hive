@@ -22,6 +22,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.MenuItem;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 public class BleSettingsActivity extends Activity {
@@ -80,7 +81,7 @@ public class BleSettingsActivity extends Activity {
         };
         mMgrs.add(activeHive);
         mMgrs.add(pairing);
-        mMgrs.add(new EnableBridgeProperty(this, (TextView) findViewById(R.id.enable_bridge_text), (ImageButton) findViewById(R.id.enable_bridge_button)));
+        mMgrs.add(new EnableBridgeProperty(this, (ImageView) findViewById(R.id.enable_ble_button)));
 
         List<HiveFactoryResetProperty.Resetter> resetters = new ArrayList<HiveFactoryResetProperty.Resetter>();
     	resetters.add(new HiveFactoryResetProperty.Resetter() {
