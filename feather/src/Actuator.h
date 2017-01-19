@@ -13,8 +13,8 @@ class Actuator {
 
     virtual void act(class Adafruit_BluefruitLE_SPI &ble) = 0;
     
-    virtual bool isMyCommand(const char *response) const = 0;
-    virtual const char * processCommand(const char *response);
+    virtual bool isMyCommand(const Str &response) const = 0;
+    virtual void processCommand(Str *response) = 0;
 
     virtual const char *getName() const;
     

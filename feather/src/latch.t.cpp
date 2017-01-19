@@ -1,7 +1,6 @@
-
 #include <Arduino.h>
 
-#define HEADLESS
+//#define HEADLESS
 #define NDEBUG
 
 
@@ -30,8 +29,10 @@
 
 
 #include <hive_platform.h>
+#include <TempSensor.h>
 #include <RateProvider.h>
-#include <beecnt.h>
+#include <ServoConfig.h>
+#include <latch.h>
 #include <str.h>
 
 
@@ -55,9 +56,11 @@ void setup(void)
     PL("digitalRead(19) returned LOW");
     P("RCAUSE: "); PL(rcause);
 
+    pinMode(5, OUTPUT);         // for debugging: used to indicate ISR invocations for pulse generator
+    
     delay(500);
 
-    PL("Bee Counter debug console");
+    PL("Latch debug console");
     PL("-------------------------");
 
     PL();
@@ -75,7 +78,15 @@ public:
   int secondsBetweenSamples() const {return 10;}
 };
 
-
+class MyServoConfig : public ServoConfig {
+public: 
+    virtual double getTripTemperatureC() const {return 21.5;}
+    virtual bool isClockwise() const {return false;}
+    virtual int getLowerLimitTicks() const {return 40;}
+    virtual int getUpperLimitTicks() const {return 43;}
+};
+  
+#define LATCH_SERVO_PIN        12
 
 #define INIT 0
 #define SENSOR_SAMPLE           (INIT+1)
@@ -83,12 +94,10 @@ public:
 
 static int s_mainState = INIT;
 static RateProvider *s_rateProvider = NULL;
-static BeeCounter *s_beeCounter = NULL;
+static Latch *s_latch = NULL;
+static TempSensor *s_temp = NULL;
+static ServoConfig *s_config = NULL;
 
-
-#define BEECNT_PLOAD_PIN        10
-#define BEECNT_CLOCK_PIN         9
-#define BEECNT_DATA_PIN         11
 
 void loop(void)
 {
@@ -96,10 +105,11 @@ void loop(void)
     switch (s_mainState) {
     case INIT: {
         s_rateProvider = new MyRateProvider();
-	s_beeCounter = new BeeCounter("bee", *s_rateProvider, now,
-				      BEECNT_PLOAD_PIN, BEECNT_CLOCK_PIN, BEECNT_DATA_PIN);
+	s_temp = new TempSensor("temp", *s_rateProvider, now);
+	s_config = new MyServoConfig();
+	s_latch = new Latch("latch", *s_rateProvider, now, LATCH_SERVO_PIN, *s_temp, *s_config);
 
-	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_10K(s_beeCounter->getPulseGenConsumer());
+	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_20K(s_latch->getPulseGenConsumer());
 	HivePlatform::nonConstSingleton()->pulseGen_20K_init();
 	PL("PulseGenerators initialized;");
 	
@@ -112,14 +122,14 @@ void loop(void)
 	HivePlatform::nonConstSingleton()->clearWDT();
 	
 	// see if it's time to sample
-	if (s_beeCounter->isItTimeYet(now)) {
+	if (s_latch->isItTimeYet(now)) {
 	    HivePlatform::singleton()->trace("starting sampling sensor");
 	    DL("Starting sampling sensor");
-	    s_beeCounter->scheduleNextSample(now);
+	    s_latch->scheduleNextSample(now);
 
 	    Str sensorValueStr;
-	    if (s_beeCounter->sensorSample(&sensorValueStr)) {
-	        P("Sampled bee counter: ");
+	    if (s_latch->sensorSample(&sensorValueStr)) {
+	        P("Sampled Latch: ");
 		PL(sensorValueStr.c_str());
 	    }
 	}

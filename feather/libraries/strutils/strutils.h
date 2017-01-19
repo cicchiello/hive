@@ -73,9 +73,18 @@ public:
   static const char *getToken(const char *ptr, Str *buf);
   static const char *unquote(const char *ptr, Str *ident);
 
+  static bool isAtEOL(const Str &line);
+  static bool hasEOL(const Str &line);
+  
+  static void consumeEOL(Str *line);
+  static void consumeToEOL(Str *line);
+  static void consumeNumber(Str *line);
+  
   static void itoahex(char buf[2], char i);
 
   static void urlEncodePrint(Stream &stream, const char *msg);
+
+  static Str TAG(const char *func, const char *msg);
 };
 
 #endif

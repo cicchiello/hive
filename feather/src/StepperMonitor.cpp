@@ -50,7 +50,7 @@ StepperMonitor::~StepperMonitor()
 bool StepperMonitor::sensorSample(Str *value)
 {
     unsigned long now = millis();
-    PL("StepperMonitor::sensorSample called");
+    DL("StepperMonitor::sensorSample called");
 
     int loc = mActuator.getLocation();
 	

@@ -105,3 +105,75 @@ void StringUtils::itoahex(char buf[2], char i)
 }
 
 
+/* STATIC */
+void StringUtils::consumeEOL(Str *line)
+{
+    const char *c = line->c_str();
+    if (*c == 0x0d || *c == 0x0a) {
+        c++;
+    } else if ((*c == '\\') && (*(c+1) == 'n')) {
+        c += 2;
+    }
+
+    *line = c;
+}
+
+
+inline static bool isEOL(const char *c)
+{
+    return c && ((*c == 0x0d) || (*c == 0x0a) || ((*c == '\\') && (*(c+1) == 'n')));
+}
+
+
+/* STATIC */
+void StringUtils::consumeToEOL(Str *rsp)
+{
+    const char *c = rsp->c_str();
+    while (!isEOL(c))
+        c++;
+
+    *rsp = c;
+    consumeEOL(rsp);
+}
+
+
+/* STATIC */
+bool StringUtils::hasEOL(const Str &line)
+{
+  const char *cline = line.c_str();
+    while (cline && *cline) {
+        if (isEOL(cline++)) {
+	    return true;
+	}
+    }
+    return false;
+}
+
+
+/* STATIC */
+bool StringUtils::isAtEOL(const Str &line)
+{
+    return isEOL(line.c_str());
+}
+
+
+/* STATIC */
+void StringUtils::consumeNumber(Str *rsp)
+{
+    const char *c = rsp->c_str();
+    while (*c && (((*c >= '0') && (*c <= '9')) || (*c == '-')))
+        c++;
+
+    *rsp = c;
+}
+
+
+/* STATIC */
+Str StringUtils::TAG(const char *func, const char *msg) 
+{
+    Str tag = func;
+    tag.append("; ");
+    tag.append(msg);
+    return tag;
+}
+

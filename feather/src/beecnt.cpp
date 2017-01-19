@@ -30,32 +30,33 @@
 
 
 #ifndef NDEBUG
-#define assert(c,msg) if (!(c)) {PL("ASSERT"); WDT_TRACE(msg); while(1);}
+
+   static const char *sFunc = "<undefinedFunc>";
+   class TraceScope {
+     const char *prev;
+   public:
+     TraceScope(const char *func) : prev(sFunc) {sFunc = func;}
+     ~TraceScope() {sFunc = prev;}
+   };
+
+#   define TF(f) TraceScope tscope(f);
+#   define TRACE(msg) {D("TRACE: "); D(sFunc); D(" ;"); DL(msg);}
+
 #else
-#define assert(c,msg) do {} while(0);
+
+#   define TF(f) do {} while (0);
+#   define TRACE(msg) do {} while (0);
+
 #endif
 
-static const char *sFunc = "<undefinedFunc>";
-class TraceScope {
-  const char *prev;
-public:
-  TraceScope(const char *func) : prev(sFunc) {sFunc = func;}
-  ~TraceScope() {sFunc = prev;}
-};
 
-//#define TF(f) TraceScope tscope(f);
-//#define TRACE(msg) {P("TRACE: "); P(sFunc); P(" ;"); PL(msg);}
-#define TF(f) do {} while (0);
-#define TRACE(msg) do {} while (0);
-
-
-#define PULSE_WIDTH_USEC   5
 
 BeeCounter::BeeCounter(const char *name, const class RateProvider &rateProvider, unsigned long now,
 		       int _ploadPin, int _clockPin, int _dataPin)
   : Sensor(name, rateProvider, now),
     mFirstRead(true), mNumBees(0),
-    ploadPin(_ploadPin), clockPin(_clockPin), dataPin(_dataPin)
+    ploadPin(_ploadPin), clockPin(_clockPin), dataPin(_dataPin),
+    mLastSampleTime(now)
 {
     //initialize digital pins
     pinMode(ploadPin, OUTPUT);
@@ -75,202 +76,78 @@ BeeCounter::BeeCounter(const char *name, const class RateProvider &rateProvider,
 }
 
 
+inline static void clkDelay()
+{
+  for (int i = 0; i < 40; i++)
+    ;
+}
+
+inline static void halfClkDelay()
+{
+  for (int i = 0; i < 20; i++)
+    ;
+}
+
 BeeCounter::~BeeCounter()
 {
 }
 
+PulseGenConsumer *BeeCounter::getPulseGenConsumer()
+{
+    return this;
+}
+
 void BeeCounter::readReg() 
 {
-  TF("BeeCounter::readReg()");
-  TRACE("0");
-    // Trigger a parallel load to latch the state of the data lines
-    digitalWrite(ploadPin, LOW);
-    delayMicroseconds(PULSE_WIDTH_USEC);
-    digitalWrite(ploadPin, HIGH);
+    // Trigger a parallel load to latch the state of the data lines, using direct reg manipulation
+    // instead of the more portable but slower: 
+    //    digitalWrite(ploadPin, LOW);
+    //    digitalWrite(ploadPin, HIGH);
+    const PinDescription &pload = g_APinDescription[ploadPin];    // cache descriptor
+    PORT->Group[pload.ulPort].OUTCLR.reg = (1ul << pload.ulPin) ; // pull low
+    clkDelay();
+    PORT->Group[pload.ulPort].OUTSET.reg = (1ul << pload.ulPin) ; // pull high
+    
 
-  TRACE("1");
+    const PinDescription &clk = g_APinDescription[clockPin];  // cache descriptor
+    PORT->Group[clk.ulPort].OUTCLR.reg = (1ul << clk.ulPin) ; // start low
+    
+    const PinDescription &data = g_APinDescription[dataPin]; // cache descriptor; prepare to read
+    
     // Loop to read each bit value from the serial out line of the SN74HC165N
+    unsigned char byteVal = 0, bit = 1, i = 0;
+    bool bitVal = false;
     for (int b = 0; b < NUM_BYTES; b++) {
-        unsigned char byteVal = 0;
-	for (int i = 0; i < 8; i++) {
-	    long bitVal = digitalRead(dataPin);
-
-	    // set the corresponding bit in byteVal
-	    byteVal |= (bitVal << ((8-1) - i));
+        i = byteVal = 0;
+	bit = 0x80;
+	for (; i < 8; i++) {
+	    bitVal = PORT->Group[data.ulPort].IN.reg & (1ul << data.ulPin); // read data pin
 
 	    // pulse the clock (rising edge shifts the next bit)
-	    digitalWrite(clockPin, HIGH);
-	    delayMicroseconds(PULSE_WIDTH_USEC);
-	    digitalWrite(clockPin, LOW);
+	    PORT->Group[clk.ulPort].OUTTGL.reg = (1ul << clk.ulPin) ; // set clk HIGH
+
+	    // spend a bit of time processing...
+	    
+	    // set the corresponding bit in byteVal
+	    if (bitVal)
+	        byteVal |= bit;
+	    bit >>= 1;
+
+	    halfClkDelay(); // delay half as much as normal since just spent some time processing
+	    
+	    PORT->Group[clk.ulPort].OUTTGL.reg = (1ul << clk.ulPin) ; // set clk LOW
 	}
 	mBytes[b] = byteVal;
     }
-  TRACE("2");
-  
 }
 
 
-bool BeeCounter::isItTimeYet(unsigned long now)
-{
-    return true;
-}
 
-
-void BeeCounter::display_pin_values() const
-{
-    P("Pin states: ");
-    bool allZeroes = true;
-    for (int i = 0; i < NUM_BYTES; i++) {
-        P("0b"); Serial.print(mBytes[i], BIN); P(" ");
-	if (mBytes[i]) allZeroes = false;
-    }
-    PL();
-    if (allZeroes)
-        PL();
-}
-
-
-#define debeebounce 50
+#define debeebounce 40
 #define stucktime 700
 
 bool BeeCounter::sensorSample(Str *value)
 {
-  TF("BeeCounter::sensorSample(Str*)");
-  TRACE("0");
-    readReg();
-  
-  TRACE("1");
-    unsigned long now = millis();
-    bool foundDiff = false;
-    if (mFirstRead) {
-        foundDiff = true;  // treat the first sample as a change
-	mFirstRead = false;
-    } else {
-  TRACE("2");
-        for (int i = 0; !foundDiff && (i < NUM_BYTES); i++) 
-	    foundDiff = mBytes[i] != mOldBytes[i];
-  TRACE("3");
-	if (foundDiff) {
-  TRACE("4");
-	    for (int i = 0; i < NUM_GATES; i++) {
-  TRACE("5");
-	        int b = i/4;
-		int s = i % 4;
-		int nstate = (mBytes[b]>>(2*s))&0x03;
-		int ostate = (mOldBytes[b]>>(2*s))&0x03;
-		
-		unsigned char outState = nstate & 1 ? 1 : 0;
-		unsigned char inState = nstate & 2 ? 1 : 0;
-		
-		if (inState != mPrevIn[i]) {
-		    if (inState == 0) {
-		        D("bee just left IN sensor ");
-			DL(i);
-		    } else {
-		        D("bee just arrived under IN sensor ");
-			DL(i);
-		    }
-		    if (now - mInTime[i] > debeebounce) {
-		        if (inState == 0) {
-			    mPrevInTime[i] = now;
-			    mInDuration[i] = now - mInTime[i];
-			    D("bee was under IN sensor ");
-			    D(i);
-			    D(" for ");
-			    D(mInDuration[i]);
-			    DL("ms");
-			    D("now - mPrevOutTime[i]: ");
-			    DL(now-mPrevOutTime[i]);
-			}
-			if (inState == 0 && outState == 0) {
-			    // a bee just left the sensor
-			    DL("outState is still 0");
-			    D("now - mPrevOutTime[i]: ");
-			    DL(now-mPrevOutTime[i]);
-			    if (now - mPrevOutTime[i] < 150) {
-			        // indicates the leading edge of the outside sensore was just triggered ...
-			        // indicating the bee movement is in the out direction
-			        D("mInDuration[i]: ");
-				D(mInDuration[i]);
-				DL("ms");
-				D("mOutDuration[i]: ");
-				D(mOutDuration[i]);
-				DL("ms");
-				if (mInDuration[i] < stucktime || mOutDuration[i] < stucktime) {
-				    // we got here, a bee has left
-				    P("A bee left on gate ");
-				    PL(i);
-				    PL();
-				    mNumBees--;
-				}
-			    }
-			}
-		    } else {
-		        D("ignored due to debeebounce rule: t == ");
-			DL(now - mInTime[i]);
-		    }
-		    mInTime[i] = now;
-		    mPrevIn[i] = inState;
-		}
-		if (outState != mPrevOut[i]) {
-		    if (outState == 0) {
-		        D("bee just left OUT sensor ");
-			DL(i);
-		    } else {
-		        D("bee just arrived under OUT sensor ");
-			DL(i);
-		    }
-		    if (now - mOutTime[i] > debeebounce) {
-		        if (outState == 0) {
-			    mPrevOutTime[i] = now;
-			    mOutDuration[i] = now - mOutTime[i];
-			    D("bee was under OUT sensor ");
-			    D(i);
-			    D(" for ");
-			    D(mOutDuration[i]);
-			    DL("ms");
-			    D("now - mPrevInTime[i]: ");
-			    DL(now-mPrevInTime[i]);
-			}
-			if (outState == 0 && inState == 0) {
-			    // a bee just left the sensor
-			    DL("inState is still 0");
-			    D("now - mPrevInTime[i]: ");
-			    DL(now-mPrevInTime[i]);
-			    if (now - mPrevInTime[i] < 150) {
-			        // indicates the leading edge of the outside sensore was just triggered ...
-			        // indicating the bee movement is in the in direction
-			        D("mInDuration[i]: ");
-				D(mInDuration[i]);
-				DL("ms");
-				D("mOutDuration[i]: ");
-				D(mOutDuration[i]);
-				DL("ms");
-				if (mInDuration[i] < stucktime || mOutDuration[i] < stucktime) {
-				    // we got here, a bee has arrived
-				    P("A bee arrived on gate ");
-				    PL(i);
-				    PL();
-				    mNumBees++;
-				}
-			    }
-			}
-		    } else {
-		        D("ignored due to debeebounce rule: t == ");
-			DL(now - mOutTime[i]);
-		    }
-		    mOutTime[i] = now;
-		    mPrevOut[i] = outState;
-		}
-	    }
-	}
-    }
-
-    if (foundDiff) {
-        for (int i = 0; i < NUM_BYTES; i++)
-	    mOldBytes[i] = mBytes[i];
-    }
-  
     char buf[10];
     *value = itoa(mNumBees, buf, 10);
 
@@ -278,3 +155,139 @@ bool BeeCounter::sensorSample(Str *value)
 }
 
 
+void BeeCounter::pulse(unsigned long now)
+{
+    if (now <= mLastSampleTime)
+        return;
+
+    if (now > mLastSampleTime+1) {
+        DL("BeeCounter::pulse called too infrequently!");
+	D("Last call was: "); D(now-mLastSampleTime); DL("ms ago");
+    }
+    mLastSampleTime = now;
+
+    readReg();
+  
+    if (mFirstRead) {
+	mFirstRead = false;
+	
+	for (int i = 0; i < NUM_BYTES; i++)
+	    mOldBytes[i] = mBytes[i];
+  
+    } else {
+        for (int b = 0; b < NUM_BYTES; b++) {
+	    if (mBytes[b] != mOldBytes[b]) {
+	        D("found change on byte "); D(b); D(" byte="); DL(mBytes[b]);
+	        for (unsigned char s = 0; s < 4; s++) {
+		    unsigned char g = (b<<2) + s;
+		    unsigned char nstate = (mBytes[b]>>(2*s))&0x03;
+		
+		    unsigned char outState = nstate & 1 ? 1 : 0;
+		    unsigned char inState = nstate & 2 ? 1 : 0;
+		
+		    if (inState != mPrevIn[g]) {
+		        if (inState == 0) {
+		            D("bee just moved out from under IN sensor ");
+			    DL(g);
+			} else {
+		            D("bee just arrived under IN sensor ");
+			    DL(g);
+			}
+			if (now - mInTime[g] > debeebounce) {
+		            if (inState == 0) {
+			        mPrevInTime[g] = now;
+				mInDuration[g] = now - mInTime[g];
+				D("bee was under IN sensor ");
+				D(g);
+				D(" for ");
+				D(mInDuration[g]);
+				DL("ms");
+				D("now - mPrevOutTime[g]: ");
+				DL(now-mPrevOutTime[g]);
+			    }
+			    if (inState == 0 && outState == 0) {
+			        // a bee just left the sensor
+			        DL("outState is still 0");
+				D("now - mPrevOutTime[g]: ");
+				DL(now-mPrevOutTime[g]);
+				if (now - mPrevOutTime[g] < 150) {
+				    // indicates the leading edge of the outside sensore was just triggered ...
+			            // indicating the bee movement is in the out direction
+			            D("mInDuration[g]: ");
+				    D(mInDuration[g]);
+				    DL("ms");
+				    D("mOutDuration[g]: ");
+				    D(mOutDuration[g]);
+				    DL("ms");
+				    if (mInDuration[g] < stucktime || mOutDuration[g] < stucktime) {
+				        // we got here, a bee has left the hive
+				        D("A bee left the hive on gate ");
+					DL(g);
+					DL();
+					mNumBees--;
+				    }
+				}
+			    }
+			} else {
+		            D("ignored due to debeebounce rule: t == ");
+			    DL(now - mInTime[g]);
+			}
+			mInTime[g] = now;
+			mPrevIn[g] = inState;
+		    }
+		    if (outState != mPrevOut[g]) {
+		        if (outState == 0) {
+		            D("bee just moved out from under OUT sensor ");
+			    DL(g);
+			} else {
+		            D("bee just arrived under OUT sensor ");
+			    DL(g);
+			}
+			if (now - mOutTime[g] > debeebounce) {
+		            if (outState == 0) {
+			        mPrevOutTime[g] = now;
+				mOutDuration[g] = now - mOutTime[g];
+				D("bee was under OUT sensor ");
+				D(g);
+				D(" for ");
+				D(mOutDuration[g]);
+				DL("ms");
+				D("now - mPrevInTime[g]: ");
+				DL(now-mPrevInTime[g]);
+			    }
+			    if (outState == 0 && inState == 0) {
+			        // a bee just left the sensor
+			        DL("inState is still 0");
+				D("now - mPrevInTime[g]: ");
+				DL(now-mPrevInTime[g]);
+				if (now - mPrevInTime[g] < 150) {
+				    // indicates the leading edge of the outside sensore was just triggered ...
+			            // indicating the bee movement is in the in direction
+			            D("mInDuration[g]: ");
+				    D(mInDuration[g]);
+				    DL("ms");
+				    D("mOutDuration[g]: ");
+				    D(mOutDuration[g]);
+				    DL("ms");
+				    if (mInDuration[g] < stucktime || mOutDuration[g] < stucktime) {
+				        // we got here, a bee has arrived
+				        D("A bee arrived in the hive on gate ");
+					DL(g);
+					DL();
+					mNumBees++;
+				    }
+				}
+			    }
+			} else {
+		            D("ignored due to debeebounce rule: t == ");
+			    DL(now - mOutTime[g]);
+			}
+			mOutTime[g] = now;
+			mPrevOut[g] = outState;
+		    }
+		}
+	    }
+	    mOldBytes[b] = mBytes[b];
+	}
+    }
+}

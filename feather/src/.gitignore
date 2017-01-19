@@ -16,4 +16,7 @@
 *.elf
 *.hex
 *.map
-screenlog.0
+*.t.bin
+*.t.bin
+*#
+screenlog.*

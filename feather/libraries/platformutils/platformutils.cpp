@@ -209,32 +209,60 @@ void TC5_Handler (void)
 
 void TC4_Handler (void)
 {
+    WDT_TRACE("INFO: TC4_Handler; entry");
     s_pulseCb[1]();
     TC4->COUNT16.INTFLAG.bit.MC0 = 1;
     while (TC4->COUNT16.STATUS.reg & TC_STATUS_SYNCBUSY)
       ;
+    WDT_TRACE("INFO: TC4_Handler; exit");
 }
 
 
-//This function enables TC5 and waits for it to be ready
+//This function enables TC4 or TC5 and waits for it to be ready
 void PlatformUtils::startPulseGenerator(int whichGenerator, PlatformUtils::PulseCallbackFunc cb)
 {
+    WDT_TRACE("INFO: in startPulseGenerator");
+  
     switch (whichGenerator) {
-    case 0:
+    case 0: {
         if (cb == NULL) s_pulseCb[0] = noopPulseHandler;
-	else s_pulseCb[0] = cb;
+	else {
+	    if (s_pulseCb[0] != noopPulseHandler) {
+	        WDT_TRACE("FATAL: s_pulseDb[0] already allocated");
+		while (1) {};
+	    }
+	    s_pulseCb[0] = cb;
+	    WDT_TRACE("INFO: s_pulseCb[0] registered");
+	}
         TC5->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE; //set the CTRLA register
 	while (TC5->COUNT16.STATUS.reg & TC_STATUS_SYNCBUSY)
 	    ;
-	break;
-    case 1:
+	WDT_TRACE("INFO: TC5 enabled");
+    }
+      break;
+    case 1: {
         if (cb == NULL) s_pulseCb[1] = noopPulseHandler;
-	else s_pulseCb[1] = cb;
+	else {
+	  WDT_TRACE("INFO: testing s_pulseCb[1]");
+	    if (s_pulseCb[1] != noopPulseHandler) {
+	        WDT_TRACE("FATAL: s_pulseCb[1] already allocated");
+		while (1) ;
+	    }
+	    WDT_TRACE("INFO: s_pulseCb[1] registered");
+	}
         TC4->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE; //set the CTRLA register
 	while (TC4->COUNT16.STATUS.reg & TC_STATUS_SYNCBUSY)
 	    ;
-	break;
+	WDT_TRACE("INFO: TC4 enabled");
     }
+      break;
+    default: {
+        WDT_TRACE("FATAL: invalid generator");
+	while (1) {};
+    }
+    }
+    
+    WDT_TRACE("INFO: at end of startPulseGenerator");
 }
 
 
@@ -363,3 +391,16 @@ const char *PlatformUtils::resetCause()
 	return s_holder.c_str();
     }
 }
+
+
+void HardFault_Handler(void)
+{
+    if (s_WDT_EarlyWarning_Func != 0) {
+        PL("HardFault_Handler called; invoking WDT shutdown");
+        s_WDT_EarlyWarning_Func();
+    } else {
+        PL("HardFault_Handler called; no WDT handler is installed to invoke");
+	PlatformUtils::nonConstSingleton().resetToBootloader();
+    }
+}
+

@@ -26,6 +26,9 @@
 
 
 #include <str.h>
+#include <strutils.h>
+
+#include <hive_platform.h>
 
 
 Actuator::Actuator(const char *name, unsigned long now)
@@ -58,26 +61,28 @@ void Actuator::scheduleNextAction(unsigned long now)
 }
 
 
-const char *Actuator::processCommand(const char *msg)
+void Actuator::processCommand(Str *msg)
 {
-    PL("Actuator::processCommand (not overridden by derived class)");
+    HivePlatform::singleton()->error("Actuator::processCommand; "
+				     " not overridden by derived class");
+    
     const char *prefix = "action|";
-    Str command(msg + strlen(prefix));
+    const char *cmsg = msg->c_str();
+
+    *msg = cmsg + strlen(prefix);
+    
     D("Received action cmd: ");
-    DL(command.c_str());
-    return msg;
+    DL(msg->c_str());
 }
 
 Str Actuator::TAG(const char *memberfunc, const char *msg) const
 {
-    Str tag = className();
-    tag.append("(");
-    tag.append(*mName);
-    tag.append(")::");
-    tag.append(memberfunc);
-    tag.append("; ");
-    tag.append(msg);
-    return tag;
+    Str func = className();
+    func.append("(");
+    func.append(*mName);
+    func.append(")::");
+    func.append(memberfunc);
+    return StringUtils::TAG(func.c_str(), msg);
 }
 
 

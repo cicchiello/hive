@@ -20,6 +20,8 @@ class StepperMonitor : public Sensor {
     void scheduleNextSample(unsigned long now);
     
  private:
+    const char *className() const {return "StepperMonitor";}
+
     const class StepperActuator &mActuator;
     Str *mPrev;
     int mTarget;

@@ -1,0 +1,8 @@
+#!/bin/bash
+
+major=$(cat version_id.h | sed "s/#define VERSION \"\([0-9]*\)\.[0-9]*\.[0-9]*\"/\1/g")
+minor=$(cat version_id.h | sed "s/#define VERSION \"[0-9]*\.\([0-9]*\)\.[0-9]*\"/\1/g")
+build=$(cat version_id.h | sed "s/#define VERSION \"[0-9]*\.[0-9]*\.\([0-9]*\)\"/\1/g")
+nbuild=$((build + 1))
+
+echo "#define VERSION \""${major}"."${minor}"."${nbuild}"\""

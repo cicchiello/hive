@@ -35,7 +35,7 @@ static DHT dht(DHTPIN, DHTTYPE);
 static unsigned long lastSampleTime = 0;
 
 TempSensor::TempSensor(const char *name, const class RateProvider &rateProvider, unsigned long now)
-  : Sensor(name, rateProvider, now), mPrev(new Str("NAN"))
+  : Sensor(name, rateProvider, now), mPrev(new Str("NAN")), mT(25.0), mHasTemp(false)
 {
     dht.begin();
     lastSampleTime = millis();
@@ -62,10 +62,12 @@ bool TempSensor::sensorSample(Str *value)
         double t = dht.readTemperature();
 	if (isnan(t)) {
 	    *value = *mPrev;
-	    P("Providing stale temp: ");
-	    PL(value->c_str());
+	    D("Providing stale temp: ");
+	    DL(value->c_str());
 	} else {
+	    mT = t;
 	    lastSampleTime = now;
+	    mHasTemp = true;
 
 	    int degrees = (int) t;
 	    int hundredths = (int) (100*(t - ((double) degrees)));
@@ -81,12 +83,12 @@ bool TempSensor::sensorSample(Str *value)
 	    
 	    *value = output;
     
-	    P("Measured ambient temp: ");
-	    PL(output);
+	    D("Measured ambient temp: ");
+	    DL(output);
 	}
     } else {
         *value = *mPrev;
-	P("Providing stale temp: ");
-	PL(value->c_str());
+	D("Providing stale temp: ");
+	DL(value->c_str());
     }
 }

@@ -75,7 +75,9 @@ class TxQueue {
           if (!ble.isConnected())
 	      queueIsBusy = false;
 	  else if (millis() > timeoutExpiry) {
-	      PL("TxQueue::attemptPost; timeout expired, will re-post");
+	      P("TxQueue::attemptPost(");
+	      P(queue[0]->getName());
+	      PL("); timeout expired, will re-post");
 	      queueIsBusy = false;
 	  }
       } else {

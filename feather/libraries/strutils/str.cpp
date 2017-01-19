@@ -41,8 +41,8 @@ void Str::add(char c)
 
 void Str::append(const char *str)
 {
-    expand(len()+strlen(str)+1);
-    strcpy(&buf[len()], str);
+    Str temp(str); // done this way just in case "str" is a point to within *this
+    append(temp);
 }
 
 void Str::append(const Str &str)
@@ -94,8 +94,11 @@ Str &Str::operator=(const Str &o)
   
 Str &Str::operator=(const char *o)
 {
-    expand(strlen(o));
-    strcpy(buf, o);
+    if (buf == o) // trivial case
+        return *this;
+  
+    Str temp(o); // done this way just in case "o" is a point within this->buf
+    *this = temp;
 
     return *this;
 }

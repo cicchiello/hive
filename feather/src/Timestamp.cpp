@@ -24,7 +24,7 @@
 #endif
 
 #include <str.h>
-#include <Parse.h>
+#include <strutils.h>
 
 #include <txqueue.h>
 #include <freelist.h>
@@ -51,8 +51,8 @@ static TxQueue<Timestamp::QueueEntry> *getQueue()
 }
 
 
-Timestamp::Timestamp(const char *resetCause)
-  : mRequestedTimestamp(false), mHaveTimestamp(false), mRCause(new Str(resetCause))
+Timestamp::Timestamp(const char *resetCause, const char *versionId)
+  : mRequestedTimestamp(false), mHaveTimestamp(false), mRCause(new Str(resetCause)), mVersionId(new Str(versionId))
 {
 }
 
@@ -60,12 +60,19 @@ Timestamp::Timestamp(const char *resetCause)
 Timestamp::~Timestamp()
 {
     delete mRCause;
+    delete mVersionId;
 }
 
 
 const char *Timestamp::getResetCause() const
 {
     return mRCause->c_str();
+}
+
+
+const char *Timestamp::getVersionId() const
+{
+    return mVersionId->c_str();
 }
 
 
@@ -77,6 +84,8 @@ void Timestamp::QueueEntry::post(const char *sensorName, Adafruit_BluefruitLE_SP
     ble.print(sensorName);
     ble.print("|GETTIME|");
     ble.print(getTimestamp()->getResetCause());
+    ble.print("|");
+    ble.print(getTimestamp()->getVersionId());
     ble.println("\\n");
 
     // check response status
@@ -112,39 +121,44 @@ void Timestamp::attemptPost(Adafruit_BluefruitLE_SPI &ble)
 }
 
 
-bool Timestamp::isTimestampResponse(const char *rsp) const
+bool Timestamp::isTimestampResponse(const Str &rsp) const
 {
     DL("Timestamp::isTimestampResponse");
     const char *token = "rply|";
-    if (strncmp(rsp, token, strlen(token)) == 0) {
-        rsp += strlen(token);
-	if (strncmp(rsp, getName(), strlen(getName())) == 0) {
-	    rsp += strlen(getName());
+    const char *crsp = rsp.c_str();
+    if (strncmp(crsp, token, strlen(token)) == 0) {
+        crsp += strlen(token);
+	if (strncmp(crsp, getName(), strlen(getName())) == 0) {
+	    crsp += strlen(getName());
 	    token = "|GETTIME|";
-	    return (strncmp(rsp, token, strlen(token)) == 0);
+	    return (strncmp(crsp, token, strlen(token)) == 0);
 	}
     } 
     return false;
 }
 
 
-const char *Timestamp::processTimestampResponse(const char *rsp)
+void Timestamp::processTimestampResponse(Str *rsp)
 {
     DL("Timestamp::processTimestampResponse");
     const char *token0 = "rply|";
     const char *token1 = getName();
     const char *token2 = "|GETTIME|";
-    Str response(rsp + strlen(token0) + strlen(token1) + strlen(token2));
+    const char *stripped = rsp->c_str() + strlen(token0) + strlen(token1) + strlen(token2);
 
     char *endPtr;
-    mTimestamp = strtol(response.c_str(), &endPtr, 10);
+    mTimestamp = strtol(stripped, &endPtr, 10);
     D("Received reply to GETTIME: ");
     DL(mTimestamp);
-    bool stat = endPtr > response.c_str();
     mHaveTimestamp = true;
+    
     mSecondsAtMark = (millis()+500)/1000;
+    
     getQueue()->receivedSuccessConfirmation(getFreelist());
-    return Parse::consumeToEOL(endPtr);
+
+    Str remainder(endPtr);
+    StringUtils::consumeToEOL(&remainder);
+    *rsp = remainder;
 }
 
 

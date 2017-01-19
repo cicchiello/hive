@@ -30,20 +30,14 @@
 #endif
 
 
-#ifndef NDEBUG
-#define assert(c,msg) if (!(c)) {PL("ASSERT"); WDT_TRACE(msg); while(1);}
-#else
-#define assert(c,msg) do {} while(0);
-#endif
-
-
 #include <hive_platform.h>
-#define TRACE(msg) HivePlatform::trace(msg)
-#define ERR(msg) HivePlatform::error(msg)
+#define TRACE(msg) HivePlatform::singleton()->trace(msg)
+#define ERR(msg) HivePlatform::singleton()->error(msg)
+
+#include <version_id.h>
 
 
 #include <strutils.h>
-#include <Parse.h>
 #include <cloudpipe.h>
 #include <str.h>
 #include <txqueue.h>
@@ -55,7 +49,9 @@
 #include <HumidSensor.h>
 #include <StepperMonitor.h>
 #include <StepperActuator.h>
+#include <ServoConfigActuator.h>
 #include <beecnt.h>
+#include <latch.h>
 
 
 /*=========================================================================
@@ -145,7 +141,8 @@ static void handleBLEInput(Adafruit_BluefruitLE_SPI &ble);
 /**************************************************************************/
 void setup(void)
 {
-    ResetCause = HivePlatform::getResetCause(); // capture the reason for previous reset so I can inform the app
+    // capture the reason for previous reset so I can inform the app
+    ResetCause = HivePlatform::singleton()->getResetCause(); 
     
     delay(500);
 
@@ -217,14 +214,14 @@ void setup(void)
 
     setIsBLEConnected(false);
   
+    HivePlatform::nonConstSingleton()->startWDT();
+  
     /* Wait for connection */
     while (! ble.isConnected()) {
-        HivePlatform::clearWDT();
+        HivePlatform::nonConstSingleton()->clearWDT();
 	delay(500);
     }
 
-    HivePlatform::startWDT();
-  
     setIsBLEConnected(true);
     TRACE("Connected");
     PL("Connected");
@@ -245,6 +242,8 @@ void setup(void)
 #define BEECNT_CLOCK_PIN         9
 #define BEECNT_DATA_PIN         11
 
+#define LATCH_SERVO_PIN         12
+
 /**************************************************************************/
 /*!
     @brief  Constantly poll for new command or response data
@@ -259,7 +258,7 @@ void loop(void)
         TRACE("Initializing sensors and actuators");
 	s_mainState = LOOP;
 	CloudPipe::nonConstSingleton().initMacAddress(ble);
-	s_timestamp = new Timestamp(ResetCause);
+	s_timestamp = new Timestamp(ResetCause, VERSION);
 
 	for (int i = 0; i < MAX_SENSORS; i++) {
 	    s_sensors[i] = NULL;
@@ -276,7 +275,8 @@ void loop(void)
 	// register sensors
 	SensorRateActuator *rate = new SensorRateActuator("sample-rate", now);
 	s_sensors[0] = new CpuTempSensor("cputemp", *rate, now, ble);
-	s_sensors[1] = new TempSensor("temp", *rate, now);
+	TempSensor *tempSensor = new TempSensor("temp", *rate, now);
+	s_sensors[1] = tempSensor;
 	s_sensors[2] = new HumidSensor("humid", *rate, now);
 	StepperActuator *motor0 = new StepperActuator("motor0", 0x60, 1, now);
 	s_sensors[3] = new StepperMonitor(*motor0, *rate, now);
@@ -288,12 +288,25 @@ void loop(void)
 	s_sensors[5] = new StepperMonitor(*motor2, *rate, now);
 	s_actuators[2] = motor2;
 	s_actuators[3] = rate;
-	s_sensors[6] = new BeeCounter("beecnt", *rate, now,
-				      BEECNT_PLOAD_PIN, BEECNT_CLOCK_PIN, BEECNT_DATA_PIN);
+	BeeCounter *beecnt = new BeeCounter("beecnt", *rate, now,
+					    BEECNT_PLOAD_PIN, BEECNT_CLOCK_PIN, BEECNT_DATA_PIN);
+	s_sensors[6] = beecnt;
+	ServoConfigActuator *servoConfig = new ServoConfigActuator("latch-config", now);
+	s_actuators[4] = servoConfig;
+	Latch *latch = new Latch("latch", *rate, now, LATCH_SERVO_PIN, *tempSensor, *servoConfig);
+	s_sensors[7] = latch;
 	
 	PL("Sensors initialized;");
 	TRACE("Sensors initialized;");
-  
+
+	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_10K(beecnt->getPulseGenConsumer());
+	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_10K(motor0->getPulseGenConsumer());
+	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_10K(motor1->getPulseGenConsumer());
+	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_10K(motor2->getPulseGenConsumer());
+	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_20K(latch->getPulseGenConsumer());
+	HivePlatform::nonConstSingleton()->pulseGen_20K_init();
+	PL("PulseGenerators initialized;");
+	
 	// wait a bit for comms to settle
 	delay(500);
     }
@@ -301,7 +314,7 @@ void loop(void)
       
     case CHECK_BLE_RX: {
         TRACE("checking for BLE rx");
-	HivePlatform::clearWDT();
+	HivePlatform::nonConstSingleton()->clearWDT();
 	
         // Check for incoming transmission from Bluefruit
         handleBLEInput(ble);
@@ -318,7 +331,7 @@ void loop(void)
 
     case QUEUE_TIMESTAMP_REQUEST: {
         if (now > 10000) {
-	    DL("timestamp enqueueRequest");
+	    //DL("timestamp enqueueRequest");
 	    s_timestamp->enqueueRequest();
 	}
 	s_mainState = LOOP;
@@ -406,7 +419,7 @@ void loop(void)
 	        // see if reconnection has happened
 	        if (ble.isConnected()) {
 		    PL("Reconnected!");
-		    HivePlatform::clearWDT();
+		    HivePlatform::nonConstSingleton()->clearWDT();
 		    delay(500);
 		    setIsBLEConnected(true);
 		} else {
@@ -429,12 +442,12 @@ void loop(void)
 		    setIsBLEConnected(false);
 		
 		    // see if reconnection has happened immediately
-		    HivePlatform::clearWDT();
+		    HivePlatform::nonConstSingleton()->clearWDT();
 		    delay(500);
 		    if (ble.isConnected()) {
 		        s_nextDisconnectTime = millis() + 70*1000;
 			PL("Reconnected!");
-			HivePlatform::clearWDT();
+			HivePlatform::nonConstSingleton()->clearWDT();
 			delay(500);
 			setIsBLEConnected(true);
 		    } else {
@@ -452,7 +465,7 @@ void loop(void)
 	        if (ble.isConnected()) {
 		    s_nextDisconnectTime = millis() + 70*1000;
 		    PL("Reconnected!");
-		    HivePlatform::clearWDT();
+		    HivePlatform::nonConstSingleton()->clearWDT();
 		    delay(500);
 		    setIsBLEConnected(true);
 		} else {
@@ -469,67 +482,78 @@ void loop(void)
 }
 
 
-
+#define MY_BLE_BUFSIZE 512
 void handleBLEInput(Adafruit_BluefruitLE_SPI &ble)
 {
+    static char buf[MY_BLE_BUFSIZE];
     if (s_rxLine == NULL) s_rxLine = new Str();
 
     TRACE("handleBLEInput; entry");
     ble.println("AT+BLEUARTRX");
-    ble.readline();
-    if (strcmp(ble.buffer, "OK") != 0) {
+    int len = ble.readline(buf, MY_BLE_BUFSIZE);
+    if (len == MY_BLE_BUFSIZE) {
+        // OOOOHHHH NOOOOO!  probable overflow
+        P("handleBLEInput; just read ");
+	P(len);
+	PL(" chars into buffer");
+    }
+    if (strcmp(buf, "OK") != 0) {
         TRACE("handleBLEInput; received something");
-        s_rxLine->append(ble.buffer);
+        s_rxLine->append(buf);
 
 	// see if we have a full line
-	const char *rx = s_rxLine->c_str();
-	if (Parse::hasEOL(rx)) {
+	if (StringUtils::hasEOL(*s_rxLine)) {
+	    Str lineCache(*s_rxLine);
 	    TRACE("handleBLEInput; have a line to process");
 	    
             // A full line was collected -- figure out what it's for...
 	    //D("Received: ");
 	    //DL(s_rxLine->c_str());
 
-	    while (Parse::hasEOL(rx) && (rx != NULL) && *rx) {
+	    while (s_rxLine->len() && StringUtils::hasEOL(*s_rxLine)) {
 	        TRACE("handleBLEInput; processing line");
-	        D("Considering: "); DL(rx);
-		if (s_timestamp->isTimestampResponse(rx)) {
+	        //D("Considering: "); DL(s_rxLine->c_str());
+		if (s_timestamp->isTimestampResponse(*s_rxLine)) {
 		    TRACE("handleBLEInput; is timestamp response");
-		    rx = s_timestamp->processTimestampResponse(rx);
+		    s_timestamp->processTimestampResponse(s_rxLine);
 		    TRACE("handleBLEInput; done processing timestamp");
 		} else {
 		    TRACE("handleBLEInput; considering if response is for sensors or actuators");
 		    int i = 0;
 		    bool found = false;
 		    while (!found && (s_sensors[i] != NULL)) {
-		        if (s_sensors[i]->isMyResponse(rx)) {
+		        if (s_sensors[i]->isMyResponse(*s_rxLine)) {
 			    //D("Sensor "); D(i); DL(" has claimed the response");
 			    found = true;
-			    rx = s_sensors[i]->processResponse(rx);
+			    s_sensors[i]->processResponse(s_rxLine);
 			}
 			i++;
 		    }
 		    i = 0;
 		    while (!found && (s_actuators[i] != NULL)) {
-		        if (s_actuators[i]->isMyCommand(rx)) {
+		        if (s_actuators[i]->isMyCommand(*s_rxLine)) {
 			    //D("Actuator "); D(i); DL(" has claimed the command");
 			    found = true;
-			    rx = s_actuators[i]->processCommand(rx);
+			    s_actuators[i]->processCommand(s_rxLine);
 			}
 			i++;
 		    }
 		    
-		    if (!found && (rx && *rx)) {
+		    if (!found && s_rxLine->len()) {
 		        TRACE("handleBLEInput; determined line is not for sensors or actuators");
 			
 		        // assume it's randomly entered text -- report it, then try advancing to next line
-			if (Parse::hasEOL(rx)) {
-			    P("[Ignoring to EOL] "); PL(rx);
-			    rx = Parse::consumeToEOL(rx);
-			    if (*rx) 
-			        P("[Continue with] "); PL(rx);
+			if (StringUtils::hasEOL(*s_rxLine)) {
+			    if (!StringUtils::isAtEOL(*s_rxLine)) {
+			        P("[Ignoring to EOL; here's original line] "); PL(lineCache.c_str());
+				P("[Ignoring to EOL; and here's what's left] "); PL(s_rxLine->c_str());
+			    }
+			    
+			    StringUtils::consumeToEOL(s_rxLine);
+			    if (s_rxLine->len())
+			        P("[Continue with] "); PL(s_rxLine->c_str());
 			} else {
-			    P("[Unprocessed] "); PL(rx);
+			    P("[Unprocessed] "); PL(s_rxLine->c_str());
 			}
 		    } else {
 		        TRACE("handleBLEInput; done handling sensor or actuator line");
@@ -537,19 +561,15 @@ void handleBLEInput(Adafruit_BluefruitLE_SPI &ble)
 		}
 	    }
 
-	    if ((rx == NULL) || (*rx == 0)) {
-	        // reset s_rxLine
-	        TRACE("handleBLEInput; reset s_rxLine");
-		s_rxLine->clear();
+	    if (s_rxLine->len()) {
+	        TRACE("handleBLEInput; left with a partial line");
+		//D("Left with a partial line: "); DL(s_rxLine->c_str());
 	    } else {
-	        TRACE("handleBLEInput; truncating s_rxLine to just the unprocessed part");
-		Str holder(rx);
-		*s_rxLine = holder;
-		D("Left with a partial line: "); DL(s_rxLine->c_str());
+	        TRACE("handleBLEInput; entire line consumed");
 	    }
 	} else {
 	    TRACE("handleBLEInput; received partial line");
-	    D("Received partial line: "); DL(rx);
+	    //D("Received partial line: "); DL(s_rxLine->c_str());
 	}
 
 	ble.waitForOK();
@@ -565,3 +585,5 @@ bool setIsBLEConnected(bool v)
     digitalWrite(CONNECTED_LED, v ? HIGH : LOW);
     return r;
 }
+
+

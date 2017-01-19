@@ -19,14 +19,19 @@ class Sensor {
     virtual void enqueueRequest(const char *value, const char *timestamp);
 
     void attemptPost(Adafruit_BluefruitLE_SPI &ble);
-    bool isMyResponse(const char *response) const;
-    const char *processResponse(const char *response);
+    
+    bool isMyResponse(const Str &response) const;
+    void processResponse(Str *response);
 
-    const char *getName() const;
+    virtual const char *getName() const;
     
  protected:
     void enqueueFullRequest(const char *sensorName, const char *value, const char *timestamp);
 
+    virtual const char *className() const = 0;
+    
+    Str TAG(const char *memberfunc, const char *msg) const;
+    
     unsigned long mNextSampleTime;
 
  private:
