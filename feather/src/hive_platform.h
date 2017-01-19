@@ -15,9 +15,10 @@ class HivePlatform {
     void trace(const char *msg) const;
     void error(const char *msg) const;
 
-    static const int SAMPLES_PER_SECOND_10K = 10000;
+    static const int SAMPLES_PER_SECOND_20K = 20000;
     void registerPulseGenConsumer_10K(class PulseGenConsumer *consumer);
-    void pulseGen_10K_init();
+    void registerPulseGenConsumer_20K(class PulseGenConsumer *consumer);
+    void pulseGen_20K_init();
 
  private:
     HivePlatform();

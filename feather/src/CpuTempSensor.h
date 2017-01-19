@@ -17,6 +17,8 @@ class CpuTempSensor : public Sensor {
     bool sensorSample(Str *value);
     
  private:
+    const char *className() const {return "CpuTempSensor";}
+    
     Adafruit_BluefruitLE_SPI &mBle;
     Str *result;
     int mState;

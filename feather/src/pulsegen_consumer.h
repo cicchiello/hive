@@ -3,7 +3,7 @@
 
 class PulseGenConsumer {
  public:
-  virtual void pulse() = 0;
+  virtual void pulse(unsigned long now) = 0;
 };
     
 

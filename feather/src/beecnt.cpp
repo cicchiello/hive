@@ -31,8 +31,6 @@
 
 #ifndef NDEBUG
 
-#   define assert(c,msg) if (!(c)) {PL("ASSERT"); WDT_TRACE(msg); while(1);}
-
    static const char *sFunc = "<undefinedFunc>";
    class TraceScope {
      const char *prev;
@@ -45,8 +43,6 @@
 #   define TRACE(msg) {D("TRACE: "); D(sFunc); D(" ;"); DL(msg);}
 
 #else
-
-#   define assert(c,msg) do {} while(0);
 
 #   define TF(f) do {} while (0);
 #   define TRACE(msg) do {} while (0);
@@ -159,15 +155,14 @@ bool BeeCounter::sensorSample(Str *value)
 }
 
 
-void BeeCounter::pulse()
+void BeeCounter::pulse(unsigned long now)
 {
-    unsigned long now = millis(); // should only sample the hardware once per millisecond
     if (now <= mLastSampleTime)
         return;
 
     if (now > mLastSampleTime+1) {
-        PL("BeeCounter::pulse called too infrequently!");
-	P("Last call was: "); P(now-mLastSampleTime); PL("ms ago");
+        DL("BeeCounter::pulse called too infrequently!");
+	D("Last call was: "); D(now-mLastSampleTime); DL("ms ago");
     }
     mLastSampleTime = now;
 
@@ -226,9 +221,9 @@ void BeeCounter::pulse()
 				    DL("ms");
 				    if (mInDuration[g] < stucktime || mOutDuration[g] < stucktime) {
 				        // we got here, a bee has left the hive
-				        P("A bee left the hive on gate ");
-					PL(g);
-					PL();
+				        D("A bee left the hive on gate ");
+					DL(g);
+					DL();
 					mNumBees--;
 				    }
 				}
@@ -276,9 +271,9 @@ void BeeCounter::pulse()
 				    DL("ms");
 				    if (mInDuration[g] < stucktime || mOutDuration[g] < stucktime) {
 				        // we got here, a bee has arrived
-				        P("A bee arrived in the hive on gate ");
-					PL(g);
-					PL();
+				        D("A bee arrived in the hive on gate ");
+					DL(g);
+					DL();
 					mNumBees++;
 				    }
 				}

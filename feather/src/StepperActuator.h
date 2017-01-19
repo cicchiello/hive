@@ -24,8 +24,8 @@ class StepperActuator : public Actuator {
     bool isItTimeYet(unsigned long now);
     void scheduleNextAction(unsigned long now);
     
-    bool isMyCommand(const char *response) const;
-    const char *processCommand(const char *response);
+    bool isMyCommand(const Str &response) const;
+    void processCommand(Str *response);
 
     PulseGenConsumer *getPulseGenConsumer();
     
@@ -42,8 +42,6 @@ class StepperActuator : public Actuator {
     static StepperActuator **s_steppers;
     static bool s_pulseInitialized;
     static void PulseCallback();
-    
-    Str TAG(const char *memberfunc, const char *msg) const;
     
     Str *mPrev, *mName;
     int mLoc, mTarget, mMsPerStep;

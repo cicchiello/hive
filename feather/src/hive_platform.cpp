@@ -14,8 +14,8 @@
 #include <pulsegen_consumer.h>
 
 
-//#define HEADLESS
-//#define NDEBUG
+#define HEADLESS
+#define NDEBUG
 
 
 #ifndef HEADLESS
@@ -32,13 +32,6 @@
 #else
 #define D(args)
 #define DL(args)
-#endif
-
-
-#ifndef NDEBUG
-#define assert(c,msg) if (!(c)) {PL("ASSERT"); WDT_TRACE(msg); while(1);}
-#else
-#define assert(c,msg) do {} while(0);
 #endif
 
 
@@ -126,46 +119,78 @@ void HivePlatform::trace(const char *msg) const
  
 void HivePlatform::error(const char *err) const
 {
-    PL(err);
     WDT_TRACE(err);
+    PL(err);
     while (1);
 }
 
 
 
-static PulseGenConsumer **sConsumers = 0;
+static PulseGenConsumer **sConsumers10K = 0;
+static PulseGenConsumer **sConsumers20K = 0;
 
 void HivePlatform::registerPulseGenConsumer_10K(class PulseGenConsumer *consumer)
 {
-    if (sConsumers == 0) {
-        sConsumers = new PulseGenConsumer*[10];
+    if (sConsumers10K == 0) {
+        sConsumers10K = new PulseGenConsumer*[10];
+        sConsumers20K = new PulseGenConsumer*[10];
 	for (int i = 0; i < 10; i++)
-	  sConsumers[i] = 0;
+	  sConsumers10K[i] = sConsumers20K[i] = 0;
     }
 
     int i = 0;
-    while ((sConsumers[i] != 0) && (sConsumers[i] != consumer)) {
+    while ((sConsumers10K[i] != 0) && (sConsumers10K[i] != consumer)) {
         i++;
     }
-    if (sConsumers[i] == 0) {
-        D("Registered pulseGenConsumer "); DL(i);
-        sConsumers[i] = consumer;
+    if (sConsumers10K[i] == 0) {
+        D("Registered pulseGenConsumer 10K consumer "); DL(i);
+        sConsumers10K[i] = consumer;
+    }
+}
+
+
+void HivePlatform::registerPulseGenConsumer_20K(class PulseGenConsumer *consumer)
+{
+    if (sConsumers20K == 0) {
+        sConsumers10K = new PulseGenConsumer*[10];
+        sConsumers20K = new PulseGenConsumer*[10];
+	for (int i = 0; i < 10; i++)
+	  sConsumers10K[i] = sConsumers20K[i] = 0;
+    }
+
+    int i = 0;
+    while ((sConsumers20K[i] != 0) && (sConsumers20K[i] != consumer)) {
+        i++;
+    }
+    if (sConsumers20K[i] == 0) {
+        D("Registered pulseGenConsumer 20K consumer "); DL(i);
+        sConsumers20K[i] = consumer;
     }
 }
 
 
 static void notifyConsumers()
 {
-    int i = 0;
-    while (sConsumers[i] != 0) {
-        PulseGenConsumer *consumer = sConsumers[i++];
-        consumer->pulse();
+    static bool sIsOdd = false;
+
+    unsigned long now = millis();
+    int i;
+    
+    if (sIsOdd) {
+        i = 0;
+	while (sConsumers10K[i] != 0) 
+	    sConsumers10K[i++]->pulse(now);
     }
+    sIsOdd = !sIsOdd;
+
+    i = 0;
+    while (sConsumers20K[i] != 0) 
+        sConsumers20K[i++]->pulse(now);
 }
 
-void HivePlatform::pulseGen_10K_init()
+void HivePlatform::pulseGen_20K_init()
 {
-    WDT_TRACE("HivePlatform::pulseGen_10K_init(); initializing pulse generator");
-    PlatformUtils::nonConstSingleton().initPulseGenerator(0, SAMPLES_PER_SECOND_10K);
+    WDT_TRACE("HivePlatform::pulseGen_20K_init(); initializing pulse generator");
+    PlatformUtils::nonConstSingleton().initPulseGenerator(0, SAMPLES_PER_SECOND_20K);
     PlatformUtils::nonConstSingleton().startPulseGenerator(0, notifyConsumers);
 }

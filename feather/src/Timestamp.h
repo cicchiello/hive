@@ -22,13 +22,15 @@ class Timestamp {
 	void post(const char *sensorName, Adafruit_BluefruitLE_SPI &ble);
     };
   
-    Timestamp(const char *resetCause);
+    Timestamp(const char *resetCause, const char *versionId);
     ~Timestamp();
 
     const char *getName() const {return "timestamp";}
     // since there can be only one
 
     const char *getResetCause() const;
+
+    const char *getVersionId() const;
     
     void toString(unsigned long now, Str *str);
     
@@ -36,9 +38,9 @@ class Timestamp {
 
     void attemptPost(Adafruit_BluefruitLE_SPI &ble);
     
-    const char *processTimestampResponse(const char *response);
+    void processTimestampResponse(Str *response);
 
-    bool isTimestampResponse(const char *response) const;
+    bool isTimestampResponse(const Str &response) const;
     
     bool haveRequestedTimestamp() const;
     bool haveTimestamp() const;
@@ -48,7 +50,7 @@ class Timestamp {
  private:
     bool mRequestedTimestamp, mHaveTimestamp;
     unsigned long mTimestamp, mSecondsAtMark;
-    Str *mRCause;
+    Str *mRCause, *mVersionId;
 };
 
 

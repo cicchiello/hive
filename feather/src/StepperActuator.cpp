@@ -23,17 +23,22 @@
 #define DL(args)
 #endif
 
+
 #include <Wire.h>
 #include <Adafruit_MotorShield.h>
 #include <utility/Adafruit_MS_PWMServoDriver.h>
 
-#include <platformutils.h>
+#include <hive_platform.h>
 
-#include <Parse.h>
 #include <str.h>
+#include <strutils.h>
 
 #define REVSTEPS 200
 #define RPM 60
+
+
+#define ERROR(msg)     HivePlatform::singleton()->error(msg)
+#define TRACE(msg)     HivePlatform::singleton()->trace(msg)
 
 
 class StepperActuatorPulseGenConsumer : public PulseGenConsumer {
@@ -48,7 +53,7 @@ public:
   void addStepper(StepperActuator *stepper);
   void removeStepper(StepperActuator *stepper);
   
-  void pulse();
+  void pulse(unsigned long now);
 };
 
 
@@ -62,10 +67,13 @@ void StepperActuatorPulseGenConsumer::addStepper(StepperActuator *stepper)
         found = mSteppers[i++] == stepper;
     }
     if (!found) {
-        D("adding stepper to ISR list at entry "); D(i); DL("");
+        D(StringUtils::TAG("StepperActuatorPulseGenConsumer::addStepper",
+			   "adding stepper to list at entry ").c_str());
+	DL(i);
 	mSteppers[i] = stepper;
     } else {
-        PL("stepper already on the list!?!?");
+        ERROR("StepperActuatorPulseGenConsumer::addStepper; "
+	      "Stepper already on the list!?!?");
     }
 }
 
@@ -77,21 +85,21 @@ void StepperActuatorPulseGenConsumer::removeStepper(StepperActuator *stepper)
     while ((mSteppers[i] != stepper) && mSteppers[i]) 
         i++;
     if (mSteppers[i]) {
-        PL("Removing stepper from ISR handler list");
+        DL(StringUtils::TAG("StepperActuatorPulseGenConsumer::removeStepper",
+			    "Removing stepper from ISR handler list").c_str());
 	int j = 0;
 	while (mSteppers[j])
 	    j++;
 	j--; // went one too far
 	if (i == j) {
-	    P("Removing item "); P(i); PL(" from ISR handler list (i==j)");
 	    mSteppers[i] = NULL;
 	} else {
-	    P("Moving item "); P(j); P(" down to "); P(i); PL(" on ISR handler list");
 	    mSteppers[i] = mSteppers[j];
 	    mSteppers[j] = NULL;
 	}
     } else {
-        PL("Stepper wasn't found on the ISR handler list!?!?");
+        ERROR("StepperActuatorPulseGenConsumer::removeStepper; "
+	      "Stepper wasn't found on the ISR handler list!?!?");
     }
 }
 
@@ -111,15 +119,14 @@ StepperActuatorPulseGenConsumer *StepperActuatorPulseGenConsumer::nonConstSingle
 }
 
 
-void StepperActuatorPulseGenConsumer::pulse()
+void StepperActuatorPulseGenConsumer::pulse(unsigned long now)
 {
-    //PL("StepperPulseCallback; ");
+    //DL("StepperPulseCallback; ");
 
     //to see the pulse on the scope, enable "5" as an output and uncomment:
     //const PinDescription &p = g_APinDescription[5];
     //PORT->Group[p.ulPort].OUTTGL.reg = (1ul << p.ulPin) ;
     
-    unsigned long now = millis();
     bool didSomething = true;
     while (didSomething) {
         didSomething = false;
@@ -154,7 +161,7 @@ StepperActuator::StepperActuator(const char *name, int address, int port, unsign
   : Actuator(name, now), mName(new Str(name)), mLoc(0), mTarget(0),
     mRunning(false), mIsBackwards(isBackwards)
 {
-    WDT_TRACE("StepperActuator CTOR; entry");
+    TRACE("StepperActuator CTOR; entry");
     AFMS = new Adafruit_MotorShield(address);
     AFMS->begin();
     mLastSampleTime = now;
@@ -162,15 +169,12 @@ StepperActuator::StepperActuator(const char *name, int address, int port, unsign
     m->setSpeed(RPM);
 
     int usPerStep = 60000000 / ((uint32_t)REVSTEPS * (uint32_t)RPM);
-    D("Scheduling steps at the rate of once per ");
+    D(TAG("StepperActuator", "scheduling steps at the rate of once per ").c_str());
     D(usPerStep);
     DL(" us");
     mMsPerStep = usPerStep/1000;
-    D("Scheduling steps at the rate of once per ");
-    D(mMsPerStep);
-    DL(" ms");
     
-    WDT_TRACE("StepperActuator CTOR; exit");
+    TRACE("StepperActuator CTOR; exit");
 }
 
 
@@ -195,7 +199,11 @@ void StepperActuator::act(class Adafruit_BluefruitLE_SPI &ble)
 
 void StepperActuator::step()
 {
-    //DL("StepperActuator::act called");
+static bool sCalledAtLeastOnce = false;
+if (!sCalledAtLeastOnce) {
+  DL(TAG("step", "called at least once").c_str());
+  sCalledAtLeastOnce = true;
+}
 
     if (mLoc != mTarget) {
         int dir = mLoc < mTarget ?
@@ -211,14 +219,14 @@ void StepperActuator::step()
 	//PORT->Group[p.ulPort].OUTTGL.reg = (1ul << p.ulPin) ;
 	
 	if (mLoc == mTarget) {
-	    D("StepperActuator::processCommand; "); D(getName()); DL(";Stopped.");
+	    DL(TAG("processCommand", "Stopped.").c_str());
 	    m->release();
 	    mRunning = false;
 
 	    // remove this StepperActuator from the ISR handler list
 	    StepperActuatorPulseGenConsumer::nonConstSingleton()->removeStepper(this);
-	    
-	    PL("Released the stepper motor");
+
+	    DL(TAG("processCommand", "Released the stepper motor").c_str());
 	}
     }
 }
@@ -233,10 +241,10 @@ bool StepperActuator::isItTimeYet(unsigned long now)
 bool StepperActuator::isItTimeYetForSelfDrive(unsigned long now)
 {
     if ((now > mNextActionTime) && (mLoc != mTarget)) {
-        P("StepperActuator::isItTimeYet; missed an appointed visit by ");
-	P(now - mNextActionTime);
-	P(" ms; now == ");
-	PL(now);
+        D("StepperActuator::isItTimeYet; missed an appointed visit by ");
+	D(now - mNextActionTime);
+	D(" ms; now == ");
+	DL(now);
     }
     
     return now >= mNextActionTime;
@@ -255,38 +263,47 @@ void StepperActuator::setNextActionTime(unsigned long now)
 }
 
 
-bool StepperActuator::isMyCommand(const char *msg) const
+bool StepperActuator::isMyCommand(const Str &msg) const
 {
-    DL("StepperActuator::isMyResponse");
+    //DL("StepperActuator::isMyResponse");
     const char *token = "action|";
-    if (strncmp(msg, token, strlen(token)) == 0) {
-        msg += strlen(token);
+    const char *cmsg = msg.c_str();
+    
+    if (strncmp(cmsg, token, strlen(token)) == 0) {
+        cmsg += strlen(token);
 	const char *name = getName();
-	if (strncmp(msg, name, strlen(name)) == 0) {
-	    msg += strlen(name);
+	if (strncmp(cmsg, name, strlen(name)) == 0) {
+	    cmsg += strlen(name);
 	    token = "-target|";
-	    return (strncmp(msg, token, strlen(token)) == 0);
+	    bool r = (strncmp(cmsg, token, strlen(token)) == 0);
+	    if (r) {
+	        DL(TAG("isMyCommand", "claiming a response").c_str());
+	    }
+	    return r;
 	}
     } 
     return false;
 }
 
 
-const char *StepperActuator::processCommand(const char *msg)
+void StepperActuator::processCommand(Str *msg)
 {
     const char *token0 = "action|";
     const char *token1 = getName();
     const char *token2 = "-target|";
-    Str command(msg + strlen(token0) + strlen(token1) + strlen(token2));
+    const char *cmsg = msg->c_str() + strlen(token0) + strlen(token1) + strlen(token2);
 
-    D(TAG("processCommand", "parsing: ").c_str()); DL(command.c_str());
-    int newTarget = atoi(command.c_str());
+    D(TAG("processCommand", "parsing: ").c_str());
+    DL(cmsg);
+    int newTarget = atoi(cmsg);
     if (newTarget != mTarget) {
-        D(TAG("processCommand", "mTarget was ").c_str()); DL(mTarget);
-	D(TAG("processCommand", "new target is ").c_str()); DL(newTarget);
+        D(TAG("processCommand", "mTarget was ").c_str());
+        DL(mTarget);
+        D(TAG("processCommand", "new target is ").c_str());
+	DL(newTarget);
         mTarget = newTarget;
         if (mTarget != mLoc) {
-	  D("StepperActuator::processCommand; "); D(getName()); DL("; Running...");
+	    DL(TAG("processCommand", "Running...").c_str());
 
 	    // put this StepperActuator on the ISR handler list
 	    // (consider that it might already be there)
@@ -298,8 +315,6 @@ const char *StepperActuator::processCommand(const char *msg)
 	}
     }
 
-    const char *p = Parse::consumeToEOL(command.c_str());
-    return p;
+    *msg = cmsg;
+    StringUtils::consumeToEOL(msg);
 }
-
-

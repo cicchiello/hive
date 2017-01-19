@@ -25,10 +25,8 @@
 
 #include <platformutils.h>
 
-#include <Parse.h>
 #include <str.h>
-
-
+#include <strutils.h>
 
 
 #include <txqueue.h>
@@ -61,6 +59,8 @@ static TxQueue<SensorRateActuator::QueueEntry> *getQueue()
 SensorRateActuator::SensorRateActuator(const char *name, unsigned long now)
   : Actuator(name, now+10*1000), mSeconds(5*60)
 {
+    // schedule first sample time
+//    mNextActionTime = now + 7*1000; // base class will set to 5s; use 7s to have this running off sync of others
 }
 
 SensorRateActuator::~SensorRateActuator()
@@ -90,44 +90,58 @@ void SensorRateActuator::scheduleNextAction(unsigned long now)
 }
 
 
-bool SensorRateActuator::isMyCommand(const char *msg) const
+bool SensorRateActuator::isMyCommand(const Str &msg) const
 {
-    DL("SensorRateActuator::isMyResponse");
+    //DL("SensorRateActuator::isMyResponse");
     const char *token = "action|";
-    if (strncmp(msg, token, strlen(token)) == 0) {
-        msg += strlen(token);
+    const char *cmsg = msg.c_str();
+    
+    if (strncmp(cmsg, token, strlen(token)) == 0) {
+        cmsg += strlen(token);
 	const char *name = getName();
-	if (strncmp(msg, name, strlen(name)) == 0) {
-	    msg += strlen(name);
+	if (strncmp(cmsg, name, strlen(name)) == 0) {
+	    cmsg += strlen(name);
+	    
 	    token = "|";
-	    return (strncmp(msg, token, strlen(token)) == 0);
+	    bool r = (strncmp(cmsg, token, strlen(token)) == 0);
+	    if (r) {
+	        D("SensorRateActuator::isMyResponse(");
+		D(getName());
+		DL("); claiming a response");
+	    }
+	    return r;
 	}
     } 
     return false;
 }
 
 
-const char *SensorRateActuator::processCommand(const char *msg)
+void SensorRateActuator::processCommand(Str *msg)
 {
     const char *token0 = "action|";
     const char *token1 = getName();
     const char *token2 = "|";
-    Str command(msg + strlen(token0) + strlen(token1) + strlen(token2));
+    const char *cmsg = msg->c_str() + strlen(token0) + strlen(token1) + strlen(token2);
 
-    D(TAG("processCommand", "parsing: ").c_str()); DL(command.c_str());
-    int newRate = atoi(command.c_str());
+    D(TAG("processCommand", "parsing: ").c_str()); DL(cmsg);
+    int newRate = atoi(cmsg);
     newRate *= 60;
     if (newRate != mSeconds) {
         D(TAG("processCommand", "mSeconds was ").c_str()); DL(mSeconds);
 	D(TAG("processCommand", "new rate is ").c_str()); DL(newRate);
         mSeconds = newRate;
+    } else {
+        DL(TAG("processCommand", "mSeconds left unchanged").c_str());
     }
 
-    const char *p = Parse::consumeToEOL(command.c_str());
+    *msg = cmsg;
+    StringUtils::consumeToEOL(msg);
+
+    if (msg->len()) {
+        D(TAG("processCommand", "Here's what's left of the line: ").c_str()); DL(msg->c_str());
+    }
 
     getQueue()->receivedSuccessConfirmation(getFreelist());
-    
-    return p;
 }
 
 

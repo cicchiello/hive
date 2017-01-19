@@ -16,6 +16,8 @@ class HumidSensor : public Sensor {
     bool sensorSample(Str *value);
     
  private:
+    const char *className() const {return "HumidSensor";}
+    
     Str *mPrev;
 };
 

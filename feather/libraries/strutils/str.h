@@ -13,6 +13,7 @@ class Str {
 
   void append(const char *str);
   void append(const Str &str);
+  void append(char c) {add(c);}
   
   void add(char c);
   void set(char c, int i);

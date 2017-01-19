@@ -2,11 +2,11 @@ ROOT=/home/pi/hive/feather/src
 SKETCH=hive
 DFAMILY=samd21
 
-LOCALOBJS=CpuTempSensor.o Parse.o Timestamp.o Sensor.o Actuator.o \
+LOCALOBJS=CpuTempSensor.o Timestamp.o Sensor.o Actuator.o \
 	HumidSensor.o TempSensor.o \
 	StepperMonitor.o StepperActuator.o \
 	SensorRateActuator.o hive_platform.o \
-	beecnt.o
+	beecnt.o latch.o ServoConfigActuator.o
 MYPACKAGES=strutils couchutils tests platformutils cloudpipe DHT
 OTHERPACKAGES=SPI arduino arduino_zero USB Wire
 PACKAGES=$(MYPACKAGES) $(OTHERPACKAGES)
@@ -94,10 +94,16 @@ all: $(SKETCH).bin
 beecnt: beecnt.t.bin
 	@echo done beecnt
 
+latch: latch.t.bin
+	@echo done latch
+
 $(SKETCH).bin: $(SKETCH).elf
 	$(OBJCPY) -O binary $(SKETCH).elf $@
 
 beecnt.t.bin: beecnt.t.elf
+	$(OBJCPY) -O binary $< $@
+
+latch.t.bin: latch.t.elf
 	$(OBJCPY) -O binary $< $@
 
 $(SKETCH).elf: objs
@@ -108,15 +114,24 @@ beecnt.t.elf: objs
 	@echo $(PACKAGE_LIBS)
 	$(CC) -Os -Wl,--gc-sections -save-temps  -T$(LD_SCRIPT) "-Wl,-Map,beecnt.t.map" --specs=nano.specs --specs=nosys.specs -mcpu=cortex-m0plus -mthumb -Wl,--cref -Wl,--check-sections -Wl,--gc-sections -Wl,--unresolved-symbols=report-all -Wl,--warn-common -Wl,--warn-section-align -o $@ beecnt.t.o -Wl,--start-group -lm $(ROOT)/app.a -Wl,--end-group
 
+latch.t.elf: objs
+	@echo $(PACKAGE_LIBS)
+	$(CC) -Os -Wl,--gc-sections -save-temps  -T$(LD_SCRIPT) "-Wl,-Map,latch.t.map" --specs=nano.specs --specs=nosys.specs -mcpu=cortex-m0plus -mthumb -Wl,--cref -Wl,--check-sections -Wl,--gc-sections -Wl,--unresolved-symbols=report-all -Wl,--warn-common -Wl,--warn-section-align -o $@ latch.t.o -Wl,--start-group -lm $(ROOT)/app.a -Wl,--end-group
 
-objs: $(SKETCH).o $(LOCALOBJS) $(PACKAGE_LIBS) beecnt.t.o
+
+objs: $(SKETCH).o $(LOCALOBJS) $(PACKAGE_LIBS) beecnt.t.o latch.t.o
 	@echo PACKAGE_LIBS == $(PACKAGE_LIBS)
 	@echo OBJS done
 
 $(SKETCH).o : $(SKETCH).cpp
+	$(ROOT)/setbuild.bsh > /tmp/version_id.h
+	cp /tmp/version_id.h $(ROOT)/version_id.h
 	$(CPP) $(CPP_FLAGS) $(CPP_DEFS) $(CPP_INCS) $< -o $@
 
 beecnt.t.o : beecnt.t.cpp
+	$(CPP) $(CPP_FLAGS) $(CPP_DEFS) $(CPP_INCS) $< -o $@
+
+latch.t.o : latch.t.cpp
 	$(CPP) $(CPP_FLAGS) $(CPP_DEFS) $(CPP_INCS) $< -o $@
 
 %.a : $(patsubst %.cpp,%.o,$(wildcard *.cpp)) $(patsubst %.c,%.o,$(wildcard *.c))

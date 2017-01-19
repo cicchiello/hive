@@ -29,8 +29,8 @@ class SensorRateActuator : public Actuator, public RateProvider {
     bool isItTimeYet(unsigned long now);
     void scheduleNextAction(unsigned long now);
     
-    virtual bool isMyCommand(const char *response) const;
-    virtual const char * processCommand(const char *response);
+    virtual bool isMyCommand(const Str &response) const;
+    virtual void processCommand(Str *response);
 
     int secondsBetweenSamples() const {return mSeconds;}
 

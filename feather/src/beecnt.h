@@ -19,7 +19,9 @@ class BeeCounter : public Sensor, private PulseGenConsumer {
     PulseGenConsumer *getPulseGenConsumer();
     
  private:
-    void pulse();
+    const char *className() const {return "BeeCounter";}
+    
+    void pulse(unsigned long now);
     
     void readReg();
 
