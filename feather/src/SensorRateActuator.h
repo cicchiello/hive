@@ -26,7 +26,7 @@ class SensorRateActuator : public Actuator, public RateProvider {
     void enqueueRequest();
     void attemptPost(class Adafruit_BluefruitLE_SPI &ble);
 
-    bool isItTimeYet(unsigned long now);
+    bool isItTimeYet(unsigned long now) const;
     void scheduleNextAction(unsigned long now);
     
     virtual bool isMyCommand(const Str &response) const;

@@ -232,7 +232,7 @@ if (!sCalledAtLeastOnce) {
 }
 
 
-bool StepperActuator::isItTimeYet(unsigned long now)
+bool StepperActuator::isItTimeYet(unsigned long now) const
 {
     return true;
 }

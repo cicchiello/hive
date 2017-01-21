@@ -77,7 +77,7 @@ void SensorRateActuator::act(class Adafruit_BluefruitLE_SPI &ble)
 }
 
 
-bool SensorRateActuator::isItTimeYet(unsigned long now)
+bool SensorRateActuator::isItTimeYet(unsigned long now) const
 {
     return now >= mNextActionTime;
 }
