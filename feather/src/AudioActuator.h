@@ -22,22 +22,23 @@ class AudioActuator : public Actuator, private PulseGenConsumer {
     bool isMyCommand(const Str &response) const;
     void processCommand(Str *response);
 
+    void postToApp(const char *msg, Adafruit_BluefruitLE_SPI &ble);
+
     PulseGenConsumer *getPulseGenConsumer() {return this;}
     
  protected:
     void pulse(unsigned long now);
 
-    void streamStart(Adafruit_BluefruitLE_SPI *ble, int bytesToFollow);
-    void streamStop(Adafruit_BluefruitLE_SPI *ble);
+    void prepareAppMsg(Str *msg, int bytesToFollow);
     
     virtual const char *className() const {return "AudioActuator";}
 
     enum State {
-        Idle=0, RecordingRequested, ReadyToRecord, Recording, RecordingDone, LastState
+        Idle=0, RecordingRequested, InitRecording, Recording, RecordingDone, LastState
     };
     static const char *sStateStrings[];
     
-    bool mInputEnabled;
+    bool mBleInputEnabled, mAcceptInput;
     unsigned int mSampleCnt;
     unsigned long mDuration, mStopTime;
     State mState;

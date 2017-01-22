@@ -17,14 +17,13 @@
 
 
 /* STATIC */
-const char *AudioActuator::sStateStrings[] = {"Idle", "RecordingRequested", "Recording", "RecordingDone"};
+const char *AudioActuator::sStateStrings[] = {"Idle", "RecordingRequested", "InitRecording", "Recording", "RecordingDone"};
 
 #define BUFSZ 128
 
 AudioActuator::AudioActuator(const char *name, unsigned long now, BleStream *bleStream)
-  : Actuator(name, now), mDuration(0), mStopTime(0), mBle(bleStream),
-    mInputEnabled(true), 
-    mState(Idle), mSine(new Sine(800, 20000, 368, 368+64))
+  : Actuator(name, now), mDuration(0), mStopTime(0), mBle(bleStream), mAcceptInput(false),
+    mBleInputEnabled(true), mState(Idle), mSine(new Sine(800, 20000, 368, 368+64))
 {
     mBufs[0] = new unsigned short[BUFSZ];
     mBufs[1] = new unsigned short[BUFSZ];
@@ -42,6 +41,9 @@ AudioActuator::~AudioActuator()
 bool AudioActuator::isItTimeYet(unsigned long now) const
 {
     TF("AudioActuator::isItTimeYet");
+
+    AudioActuator *nonConstThis = (AudioActuator*) this;
+    nonConstThis->mAcceptInput = true;
     
     switch (mState) {
     case Idle:
@@ -52,8 +54,7 @@ bool AudioActuator::isItTimeYet(unsigned long now) const
     case Recording:
         return (now >= mStopTime);
     default: {
-        TRACE("Unexpected state");
-	TRACE(sStateStrings[mState]);
+        TRACE2("Unexpected state: ", sStateStrings[mState]);
 	return false;
     }
     }
@@ -62,12 +63,13 @@ bool AudioActuator::isItTimeYet(unsigned long now) const
 void AudioActuator::scheduleNextAction(unsigned long now)
 {
     TF("AudioActuator::scheduleNextAction");
+    TRACE2("mState: ",sStateStrings[mState]);
     
     switch (mState) {
     case RecordingRequested:
         mStopTime = now + mDuration;
-        TRACE("transitioning to Recording");
-        mState = Recording;
+        TRACE("transitioning to InitRecording");
+        mState = InitRecording;
 	mSampleCnt = 0;
 	break;
     case Recording:
@@ -79,8 +81,7 @@ void AudioActuator::scheduleNextAction(unsigned long now)
         TRACE("transitioning to Idle");
 	break;
     default: {
-        TRACE("Unexpected state");
-	TRACE(sStateStrings[mState]);
+        TRACE2("Unexpected state: ", sStateStrings[mState]);
     }
     }
 }
@@ -89,22 +90,46 @@ void AudioActuator::scheduleNextAction(unsigned long now)
 void AudioActuator::act(Adafruit_BluefruitLE_SPI &ble)
 {
     TF("AudioActuator::act");
+    TRACE2("mState: ",sStateStrings[mState]);
     
     switch (mState) {
-    case ReadyToRecord:
-        mInputEnabled = mBle->setEnableInput(false);
-	streamStart(mBle->getBleImplementation(), mDuration);
+    case InitRecording: {
+        mBleInputEnabled = mBle->setEnableInput(false);
+	Str msg;
+	prepareAppMsg(&msg, mDuration);
+	postToApp(msg.c_str(), *mBle->getBleImplementation());
 	mState = Recording;
+        TRACE("transitioning to Recording");
+    }
 	break;
-    case RecordingDone:
-	streamStop(mBle->getBleImplementation());
-        mBle->setEnableInput(mInputEnabled);
+    case RecordingDone: {
 	mState = Idle;
+        Str msg;
+	prepareAppMsg(&msg, 0);
+	postToApp(msg.c_str(), *mBle->getBleImplementation());
+	TRACE2("calling mBle->setEnableInput with: ",(mBleInputEnabled ? "true" : "false"));
+        mBle->setEnableInput(mBleInputEnabled);
+        TRACE("transitioning to Idle");
+    }
 	break;
     default: {
-        TRACE("Unexpected state");
-	TRACE(sStateStrings[mState]);
+        TRACE2("Unexpected state: ",sStateStrings[mState]);
     }
+    }
+}
+
+
+void AudioActuator::postToApp(const char *msg, Adafruit_BluefruitLE_SPI &ble)
+{
+    TF("AudioActuator::postToApp");
+    TRACE("informing the app");
+    ble.println(msg);
+
+    // check response status
+    if ( ble.waitForOK() ) {
+        TRACE("got ok");
+    } else {
+        PL("didn't get ok");
     }
 }
 
@@ -113,6 +138,9 @@ bool AudioActuator::isMyCommand(const Str &rsp) const
 {
     TF("AudioActuator::isMyCommand");
     TRACE("entry");
+    if (!mAcceptInput)
+        return false;
+    
     const char *token = "action|";
     const char *crsp = rsp.c_str();
     
@@ -180,35 +208,28 @@ void AudioActuator::pulse(unsigned long now)
 	unsigned short s = mSine->sineSample(mSampleCnt++);
 	mCurrBuf[mIndex++] = s;
 	if (mIndex == BUFSZ) {
-	  
+	    mIndex = 0;
 	}
     }
 }
 
 
-void AudioActuator::streamStart(Adafruit_BluefruitLE_SPI *ble, int duration)
+void AudioActuator::prepareAppMsg(Str *msg, int duration)
 {
     TF("AudioActuator::streamStart");
-    TRACE("informing the app");
+    TRACE("preparing msg for the app");
 
-    ble->print("AT+BLEUARTTX=");
-    ble->print("cmd|stream|");
-    ble->print(duration);
-    ble->println("\\n");
+    char buf[10];
+    sprintf(buf, "%d", duration);
     
-    // check response status
-    if ( ble->waitForOK() ) {
-        TRACE("got ok after sending mic start/stop notification");
-    } else {
-        PL("didn't get ok after sending mic start/stop notification");
-    }
-}
+    *msg = "AT+BLEUARTTX=";
+    msg->append("cmd|");
+    msg->append(getName());
+    msg->append("|STREAM|");
+    msg->append(buf);
+    msg->append("\\n");
 
-
-void AudioActuator::streamStop(Adafruit_BluefruitLE_SPI *ble)
-{
-    TF("AudioActuator::streamStop");
-    streamStart(ble, 0);
+    TRACE2("will send: ", msg->c_str());
 }
 
 

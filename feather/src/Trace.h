@@ -49,8 +49,11 @@
 #  define _FL(FILE,LINE) _TAGTOK("file: ",FILE); _TAGTOK("line: ",LINE)
 #  define _L(LINE) _TAGTOK("line: ",LINE)
 #  define _TWHERE_FILE(TAG,FILE,LINE,MSG) _TAG(TAG); _TAG(FILE); _L(LINE); DL(MSG);
+#  define _TWHERE_FILE2(TAG,FILE,LINE,MSG1,MSG2) _TAG(TAG); _TAG(FILE); _L(LINE); D(MSG1); DL(MSG2);
 #  define _TWHERE_FUNC(TAG,FUNC,LINE,MSG) _TAG(TAG); _TAG(FUNC); _L(LINE); DL(MSG);
+#  define _TWHERE_FUNC2(TAG,FUNC,LINE,MSG1,MSG2) _TAG(TAG); _TAG(FUNC); _L(LINE); D(MSG1); DL(MSG2);
 #  define _TWHERE(TAG,FUNC,FILE,LINE,MSG) if(FUNC==0){_TWHERE_FILE(TAG,FILE,LINE,MSG)}else{_TWHERE_FUNC(TAG,FUNC,LINE,MSG)}
+#  define _TWHERE2(TAG,FUNC,FILE,LINE,MSG1,MSG2) if(FUNC==0){_TWHERE_FILE2(TAG,FILE,LINE,MSG1,MSG2)}else{_TWHERE_FUNC2(TAG,FUNC,LINE,MSG1,MSG2)}
 
    static void _TRECURSE(const char *tag, const TraceScope *scope) {
      while (scope) {
@@ -61,7 +64,7 @@
 
 #   define TF(f) TraceScope tscope(f,__FILE__,__LINE__);
 #   define TRACE(msg) _TWHERE("TRACE",tscope.getFunc(),__FILE__,__LINE__,msg);
-#   define TRACESTATIC(msg) _TWHERE("TRACE",0,__FILE__,__LINE__,msg);
+#   define TRACE2(msg1,msg2) _TWHERE2("TRACE",tscope.getFunc(),__FILE__,__LINE__,msg1,msg2);
 #   define TRACEDUMP(msg) _TRECURSE("TRACEDUMP",&tscope)
 #   define ERR(action) TRACEDUMP("CRASH"); action
 

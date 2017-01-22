@@ -12,34 +12,17 @@
 //#define HEADLESS
 #define NDEBUG
 
-
-#ifndef HEADLESS
-#define P(args) Serial.print(args)
-#define PL(args) Serial.println(args)
-#else
-#define P(args) do {} while (0)
-#define PL(args) do {} while (0)
-#endif
-
-#ifndef NDEBUG
-#define D(args) P(args)
-#define DL(args) PL(args)
-#else
-#define D(args)
-#define DL(args)
-#endif
-
+#include <Trace.h>
 
 #include <hive_platform.h>
-#define TRACE(msg) HivePlatform::singleton()->trace(msg)
-#define ERR(msg) HivePlatform::singleton()->error(msg)
-
 
 #include <cloudpipe.h>
+#include <Timestamp.h>
 #include <BleStream.h>
 
 #include <AudioActuator.h>
 
+#include <Actuator.h>
 
 /* ...hardware SPI, using SCK/MOSI/MISO hardware SPI pins and then user selected CS/IRQ/RST */
 Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_RST);
@@ -47,23 +30,25 @@ Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_
 
 #define INIT 0
 #define CHECK_BLE_RX            (INIT+1)
-#define VISIT_ACTUATOR          (CHECK_BLE_RX+1)
 #define LOOP                    CHECK_BLE_RX
+#define QUEUE_TIMESTAMP_REQUEST (CHECK_BLE_RX+1)
+#define VISIT_ACTUATOR          (QUEUE_TIMESTAMP_REQUEST+1)
+#define ATTEMPT_TIMESTAMP_POST  (VISIT_ACTUATOR+1)
+#define TEST_CONNECTION         (ATTEMPT_TIMESTAMP_POST+1)
 
 
 static const char *ResetCause = "unknown";
 static int s_mainState = INIT;
 
-#define MAX_ACTUATORS 20
-//static int s_sensorSampleState = 0;
-//static int s_currSensor = -1;
-//static int s_currActuator = -1;
-//static bool s_connected = false;
-//static unsigned long s_nextConnectCheckTime = 0;
-//static unsigned long s_nextDisconnectTime = 2*60*1000;
+static int s_currActuator = -1;
+static bool s_connected = false;
+static unsigned long s_nextConnectCheckTime = 0;
 static BleStream *s_bleStream = NULL;
-class Timestamp *s_unusedTimestamp = NULL;
-static Actuator *s_actuators[MAX_ACTUATORS];
+static Timestamp *s_timestamp = NULL;
+static class Sensor *s_unusedSensors[10];
+static Actuator *s_actuators[10];
+
+
 
 
 /**************************************************************************/
@@ -74,6 +59,8 @@ static Actuator *s_actuators[MAX_ACTUATORS];
 /**************************************************************************/
 void setup(void)
 {
+    TF("::setup");
+    
     // capture the reason for previous reset so I can inform the app
     ResetCause = HivePlatform::singleton()->getResetCause(); 
     
@@ -89,20 +76,18 @@ void setup(void)
 	PL("within the runnaway prevention loop");
     }
     PL("digitalRead(19) returned LOW");
-    P("RCAUSE: "); PL(ResetCause);
 
-    pinMode(5, OUTPUT); // for debugging: used to indicate ISR invocations for pulse generator
+    //pinMode(5, OUTPUT);         // for debugging: used to indicate ISR invocations for motor drivers
     
     delay(500);
 
     PL("audio.t debug console");
-    PL("-------------------------");
-
+    PL("---------------------------------------");
 
     /* Initialise the module */
     P("Initialising the Bluefruit LE module: ");
 
-    if ( !ble.begin(true) )
+    if ( !ble.begin(VERBOSE_MODE) )
     {
         ERR("Couldn't find Bluefruit, make sure it's in CoMmanD mode & check wiring?");
     }
@@ -131,6 +116,8 @@ void setup(void)
     
     ble.verbose(false);  // debug info is a little annoying after this point!
 
+    s_connected = false;
+    
     HivePlatform::nonConstSingleton()->startWDT();
   
     /* Wait for connection */
@@ -143,7 +130,10 @@ void setup(void)
     PL("Connected");
     PL();
   
-    ble.sendCommandCheckOK("AT+HWModeLED=MODE" );
+    s_connected = true;
+    
+    // Change Mode LED Activity
+    ble.sendCommandCheckOK("AT+HWModeLED=MODE");
 }
 
 
@@ -155,37 +145,39 @@ void setup(void)
 
 void loop(void)
 {
+    TF("::loop");
+    
     unsigned long now = millis();
     switch (s_mainState) {
     case INIT: {
         TRACE("Initializing sensors and actuators");
 	s_mainState = LOOP;
 	CloudPipe::nonConstSingleton().initMacAddress(ble);
+	s_timestamp = new Timestamp(ResetCause, "dev");
+
+	s_actuators[0] = NULL;
 	
-//	s_currSensor = 0;
-//	s_currActuator = 0;
+	s_currActuator = 0;
 
 	DL("Creating sensors and actuators");
-
-	Sensor **s_unusedSensors = NULL;
-	s_bleStream = new BleStream(&ble, s_unusedTimestamp, s_unusedSensors, s_actuators);
 	
-//	AudioActuator *audio = new AudioActuator("mic", now, s_bleStream);
-//	s_actuators[0] = audio;
-	s_actuators[0] = NULL;
+	s_unusedSensors[0] = NULL;
+	s_bleStream = new BleStream(&ble, s_timestamp, s_unusedSensors, s_actuators);
+	
+	AudioActuator *audio = new AudioActuator("mic", now, s_bleStream);
+	s_actuators[0] = audio;
 	s_actuators[1] = NULL;
-
-	PL("Sensors initialized;");
-	TRACE("Sensors initialized;");
+	
+	PL("Sensors and Actuators initialized;");
+	TRACE("Sensors and Actuators initialized;");
 
 //	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_20K(audio->getPulseGenConsumer());
 //	HivePlatform::nonConstSingleton()->pulseGen_20K_init();
-	PL("PulseGenerators initialized;");
+//	PL("PulseGenerators initialized;");
 	
 	// wait a bit for comms to settle
 	delay(500);
-	
-	DL("INIT state done");
+	TRACE("Initializations done;");
     }
       break;
       
@@ -196,29 +188,81 @@ void loop(void)
         // Check for incoming transmission from Bluefruit
 	s_bleStream->processInput();
 
-	s_mainState = VISIT_ACTUATOR;
+	if (s_timestamp->haveTimestamp())
+	    s_mainState = VISIT_ACTUATOR;
+	else if (s_timestamp->haveRequestedTimestamp())
+	    s_mainState = ATTEMPT_TIMESTAMP_POST;
+	else
+	    s_mainState = QUEUE_TIMESTAMP_REQUEST;
     }
     break;
 
-    case VISIT_ACTUATOR: {
-        HivePlatform::singleton()->trace("visiting actuator");
-	HivePlatform::nonConstSingleton()->clearWDT();
-	
-        // see if it's time to sample
-        TRACE("visiting actuator");
-        if (s_actuators[0] && s_actuators[0]->isItTimeYet(now)) {
-	    s_actuators[0]->scheduleNextAction(now);
-
-	    s_actuators[0]->act(ble);
-	    
-	    TRACE("done visiting actuator");
+    case QUEUE_TIMESTAMP_REQUEST: {
+        if (now > 10000) {
+	    TRACE("QUEUE_TIMESTAMP_REQUEST");
+	    PL("QUEUE_TIMESTAMP_REQUEST");
+	    //DL("timestamp enqueueRequest");
+	    s_timestamp->enqueueRequest();
 	}
-
+	s_mainState = LOOP;
+    }
+    break;
+    
+    case ATTEMPT_TIMESTAMP_POST: {
+        PL("Attempting timestamp post");
+        TRACE("Attempting timestamp post");
+        s_timestamp->attemptPost(ble);
 	s_mainState = LOOP;
     }
       break;
 
-    default:
-      HivePlatform::singleton()->error("Unknown s_mainState in loop; quitting");
-    };
+    case VISIT_ACTUATOR: {
+        // see if it's time to sample
+        TRACE("visiting actuator");
+        if (s_actuators[s_currActuator] && s_actuators[s_currActuator]->isItTimeYet(now)) {
+	    PL("an actuator is ready");
+	    s_actuators[s_currActuator]->scheduleNextAction(now);
+
+	    s_actuators[s_currActuator]->act(ble);
+	    
+	    s_currActuator++;
+	    if (s_actuators[s_currActuator] == NULL) {
+	        s_currActuator = 0;
+	    }
+	
+	    TRACE("done visiting actuator");
+	}
+
+	s_mainState = TEST_CONNECTION;
+    }
+      break;
+
+    case TEST_CONNECTION: {
+	if (now > s_nextConnectCheckTime) {
+	    TRACE("testing connection");
+	    if (s_connected) {
+	        if (!ble.isConnected()) {
+		    PL("Discovered disconnect; checking again in 5s");
+		    s_connected = false;
+		}
+	    } else {
+	        // see if reconnection has happened
+	        if (ble.isConnected()) {
+		    PL("Reconnected!");
+		    HivePlatform::nonConstSingleton()->clearWDT();
+		    delay(500);
+		    s_connected = true;
+		} else {
+		    PL("Not connected; Scheduling a connection check in 5s");
+		}
+	    }
+	    s_nextConnectCheckTime = millis() + 5*1000;
+	}
+	s_mainState = LOOP;
+    }
+      break;
+      
+    }
+    
 }
+
