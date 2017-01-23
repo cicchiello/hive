@@ -42,6 +42,7 @@
 #include <str.h>
 #include <txqueue.h>
 #include <Timestamp.h>
+#include <BleStream.h>
 
 #include <SensorRateActuator.h>
 #include <CpuTempSensor.h>
@@ -111,7 +112,6 @@ Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_
 static const char *ResetCause = "unknown";
 static int s_mainState = INIT;
 
-#define BLE_INPUT_POLL_RATE 1000
 #define MAX_SENSORS 20
 #define MAX_ACTUATORS 20
 static int s_sensorSampleState = 0;
@@ -119,15 +119,14 @@ static int s_currSensor = -1;
 static int s_currActuator = -1;
 static bool s_connected = false;
 static unsigned long s_nextConnectCheckTime = 0;
-static Str *s_rxLine = NULL;
 static unsigned long s_nextDisconnectTime = 2*60*1000;
-static Timestamp *s_timestamp = 0;
+static BleStream *s_bleStream = NULL;
+static Timestamp *s_timestamp = NULL;
 static Sensor *s_sensors[MAX_SENSORS];
 static Actuator *s_actuators[MAX_ACTUATORS];
 
 
 static bool setIsBLEConnected(bool v);
-static void handleBLEInput(Adafruit_BluefruitLE_SPI &ble);
 
 
 
@@ -295,6 +294,8 @@ void loop(void)
 	s_actuators[4] = servoConfig;
 	Latch *latch = new Latch("latch", *rate, now, LATCH_SERVO_PIN, *tempSensor, *servoConfig);
 	s_sensors[7] = latch;
+
+	s_bleStream = new BleStream(&ble, s_timestamp, s_sensors, s_actuators);
 	
 	PL("Sensors initialized;");
 	TRACE("Sensors initialized;");
@@ -317,7 +318,7 @@ void loop(void)
 	HivePlatform::nonConstSingleton()->clearWDT();
 	
         // Check for incoming transmission from Bluefruit
-        handleBLEInput(ble);
+	s_bleStream->processInput();
 
 	if (s_timestamp->haveTimestamp())
 	    s_mainState = SENSOR_SAMPLE;
@@ -479,101 +480,6 @@ void loop(void)
       break;
     }
     
-}
-
-
-#define MY_BLE_BUFSIZE 512
-void handleBLEInput(Adafruit_BluefruitLE_SPI &ble)
-{
-    static char buf[MY_BLE_BUFSIZE];
-    if (s_rxLine == NULL) s_rxLine = new Str();
-
-    TRACE("handleBLEInput; entry");
-    ble.println("AT+BLEUARTRX");
-    int len = ble.readline(buf, MY_BLE_BUFSIZE);
-    if (len == MY_BLE_BUFSIZE) {
-        // OOOOHHHH NOOOOO!  probable overflow
-        P("handleBLEInput; just read ");
-	P(len);
-	PL(" chars into buffer");
-    }
-    if (strcmp(buf, "OK") != 0) {
-        TRACE("handleBLEInput; received something");
-        s_rxLine->append(buf);
-
-	// see if we have a full line
-	if (StringUtils::hasEOL(*s_rxLine)) {
-	    Str lineCache(*s_rxLine);
-	    TRACE("handleBLEInput; have a line to process");
-	    
-            // A full line was collected -- figure out what it's for...
-	    //D("Received: ");
-	    //DL(s_rxLine->c_str());
-
-	    while (s_rxLine->len() && StringUtils::hasEOL(*s_rxLine)) {
-	        TRACE("handleBLEInput; processing line");
-	        //D("Considering: "); DL(s_rxLine->c_str());
-		if (s_timestamp->isTimestampResponse(*s_rxLine)) {
-		    TRACE("handleBLEInput; is timestamp response");
-		    s_timestamp->processTimestampResponse(s_rxLine);
-		    TRACE("handleBLEInput; done processing timestamp");
-		} else {
-		    TRACE("handleBLEInput; considering if response is for sensors or actuators");
-		    int i = 0;
-		    bool found = false;
-		    while (!found && (s_sensors[i] != NULL)) {
-		        if (s_sensors[i]->isMyResponse(*s_rxLine)) {
-			    //D("Sensor "); D(i); DL(" has claimed the response");
-			    found = true;
-			    s_sensors[i]->processResponse(s_rxLine);
-			}
-			i++;
-		    }
-		    i = 0;
-		    while (!found && (s_actuators[i] != NULL)) {
-		        if (s_actuators[i]->isMyCommand(*s_rxLine)) {
-			    //D("Actuator "); D(i); DL(" has claimed the command");
-			    found = true;
-			    s_actuators[i]->processCommand(s_rxLine);
-			}
-			i++;
-		    }
-		    
-		    if (!found && s_rxLine->len()) {
-		        TRACE("handleBLEInput; determined line is not for sensors or actuators");
-			
-		        // assume it's randomly entered text -- report it, then try advancing to next line
-			if (StringUtils::hasEOL(*s_rxLine)) {
-			    if (!StringUtils::isAtEOL(*s_rxLine)) {
-			        P("[Ignoring to EOL; here's original line] "); PL(lineCache.c_str());
-				P("[Ignoring to EOL; and here's what's left] "); PL(s_rxLine->c_str());
-			    }
-			    
-			    StringUtils::consumeToEOL(s_rxLine);
-			    if (s_rxLine->len())
-			        P("[Continue with] "); PL(s_rxLine->c_str());
-			} else {
-			    P("[Unprocessed] "); PL(s_rxLine->c_str());
-			}
-		    } else {
-		        TRACE("handleBLEInput; done handling sensor or actuator line");
-		    }
-		}
-	    }
-
-	    if (s_rxLine->len()) {
-	        TRACE("handleBLEInput; left with a partial line");
-		//D("Left with a partial line: "); DL(s_rxLine->c_str());
-	    } else {
-	        TRACE("handleBLEInput; entire line consumed");
-	    }
-	} else {
-	    TRACE("handleBLEInput; received partial line");
-	    //D("Received partial line: "); DL(s_rxLine->c_str());
-	}
-
-	ble.waitForOK();
-    }
 }
 
 

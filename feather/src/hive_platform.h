@@ -12,8 +12,8 @@ class HivePlatform {
     void startWDT();
     void clearWDT();
 
-    void trace(const char *msg) const;
-    void error(const char *msg) const;
+    static void trace(const char *msg);
+    static void error(const char *msg);
 
     static const int SAMPLES_PER_SECOND_20K = 20000;
     void registerPulseGenConsumer_10K(class PulseGenConsumer *consumer);

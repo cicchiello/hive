@@ -6,7 +6,8 @@ LOCALOBJS=CpuTempSensor.o Timestamp.o Sensor.o Actuator.o \
 	HumidSensor.o TempSensor.o \
 	StepperMonitor.o StepperActuator.o \
 	SensorRateActuator.o hive_platform.o \
-	beecnt.o latch.o ServoConfigActuator.o
+	beecnt.o latch.o ServoConfigActuator.o \
+	BleStream.o AudioActuator.o Trace.o sine.o
 MYPACKAGES=strutils couchutils tests platformutils cloudpipe DHT
 OTHERPACKAGES=SPI arduino arduino_zero USB Wire
 PACKAGES=$(MYPACKAGES) $(OTHERPACKAGES)
@@ -97,6 +98,9 @@ beecnt: beecnt.t.bin
 latch: latch.t.bin
 	@echo done latch
 
+audio: audio.t.bin
+	@echo done audio
+
 $(SKETCH).bin: $(SKETCH).elf
 	$(OBJCPY) -O binary $(SKETCH).elf $@
 
@@ -104,6 +108,9 @@ beecnt.t.bin: beecnt.t.elf
 	$(OBJCPY) -O binary $< $@
 
 latch.t.bin: latch.t.elf
+	$(OBJCPY) -O binary $< $@
+
+audio.t.bin: audio.t.elf
 	$(OBJCPY) -O binary $< $@
 
 $(SKETCH).elf: objs
@@ -118,8 +125,12 @@ latch.t.elf: objs
 	@echo $(PACKAGE_LIBS)
 	$(CC) -Os -Wl,--gc-sections -save-temps  -T$(LD_SCRIPT) "-Wl,-Map,latch.t.map" --specs=nano.specs --specs=nosys.specs -mcpu=cortex-m0plus -mthumb -Wl,--cref -Wl,--check-sections -Wl,--gc-sections -Wl,--unresolved-symbols=report-all -Wl,--warn-common -Wl,--warn-section-align -o $@ latch.t.o -Wl,--start-group -lm $(ROOT)/app.a -Wl,--end-group
 
+audio.t.elf: objs
+	@echo $(PACKAGE_LIBS)
+	$(CC) -Os -Wl,--gc-sections -save-temps  -T$(LD_SCRIPT) "-Wl,-Map,audio.t.map" --specs=nano.specs --specs=nosys.specs -mcpu=cortex-m0plus -mthumb -Wl,--cref -Wl,--check-sections -Wl,--gc-sections -Wl,--unresolved-symbols=report-all -Wl,--warn-common -Wl,--warn-section-align -o $@ audio.t.o -Wl,--start-group -lm $(ROOT)/app.a -Wl,--end-group
 
-objs: $(SKETCH).o $(LOCALOBJS) $(PACKAGE_LIBS) beecnt.t.o latch.t.o
+
+objs: $(SKETCH).o $(LOCALOBJS) $(PACKAGE_LIBS) beecnt.t.o latch.t.o audio.t.o
 	@echo PACKAGE_LIBS == $(PACKAGE_LIBS)
 	@echo OBJS done
 
@@ -132,6 +143,9 @@ beecnt.t.o : beecnt.t.cpp
 	$(CPP) $(CPP_FLAGS) $(CPP_DEFS) $(CPP_INCS) $< -o $@
 
 latch.t.o : latch.t.cpp
+	$(CPP) $(CPP_FLAGS) $(CPP_DEFS) $(CPP_INCS) $< -o $@
+
+audio.t.o : audio.t.cpp
 	$(CPP) $(CPP_FLAGS) $(CPP_DEFS) $(CPP_INCS) $< -o $@
 
 %.a : $(patsubst %.cpp,%.o,$(wildcard *.cpp)) $(patsubst %.c,%.o,$(wildcard *.c))

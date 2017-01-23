@@ -49,7 +49,7 @@ const char *Actuator::getName() const
     return mName->c_str();
 }
 
-bool Actuator::isItTimeYet(unsigned long now)
+bool Actuator::isItTimeYet(unsigned long now) const
 {
     return now >= mNextActionTime;
 }

@@ -8,7 +8,7 @@ class Actuator {
     Actuator(const char *name, unsigned long now);
     ~Actuator();
 
-    virtual bool isItTimeYet(unsigned long now);
+    virtual bool isItTimeYet(unsigned long now) const;
     virtual void scheduleNextAction(unsigned long now);
 
     virtual void act(class Adafruit_BluefruitLE_SPI &ble) = 0;

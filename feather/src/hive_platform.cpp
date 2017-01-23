@@ -17,46 +17,47 @@
 #define HEADLESS
 #define NDEBUG
 
-
-#ifndef HEADLESS
-#define P(args) Serial.print(args)
-#define PL(args) Serial.println(args)
-#else
-#define P(args) do {} while (0)
-#define PL(args) do {} while (0)
-#endif
-
-#ifndef NDEBUG
-#define D(args) P(args)
-#define DL(args) PL(args)
-#else
-#define D(args)
-#define DL(args)
-#endif
-
+#include <Trace.h>
 
 #include <platformutils.h>
 
 
 static HivePlatform *sPlatform = 0;
+static PulseGenConsumer **sConsumers10K = 0;
+static PulseGenConsumer **sConsumers20K = 0;
 
 
 /* STATIC */
 const HivePlatform *HivePlatform::singleton()
 {
+    if (sPlatform == 0)
+        sPlatform = new HivePlatform();
+    
     return sPlatform;
 }
 
 /* STATIC */
 HivePlatform *HivePlatform::nonConstSingleton()
 {
+    if (sPlatform == 0)
+        sPlatform = new HivePlatform();
+    
     return sPlatform;
 }
 
 
 HivePlatform::HivePlatform()
 {
+    TF("HivePlatform::HivePlatform");
+    TRACE("entry");
+    
     sPlatform = this;
+
+    sConsumers10K = new PulseGenConsumer*[10];
+    sConsumers20K = new PulseGenConsumer*[10];
+    for (int i = 0; i < 10; i++) {
+        sConsumers10K[i] = sConsumers20K[i] = 0;
+    }
 }
 
 
@@ -112,12 +113,12 @@ void HivePlatform::clearWDT()
 }
 
 
-void HivePlatform::trace(const char *msg) const
+void HivePlatform::trace(const char *msg) 
 {
     WDT_TRACE(msg);
 }
  
-void HivePlatform::error(const char *err) const
+void HivePlatform::error(const char *err) 
 {
     WDT_TRACE(err);
     PL(err);
@@ -126,18 +127,11 @@ void HivePlatform::error(const char *err) const
 
 
 
-static PulseGenConsumer **sConsumers10K = 0;
-static PulseGenConsumer **sConsumers20K = 0;
-
 void HivePlatform::registerPulseGenConsumer_10K(class PulseGenConsumer *consumer)
 {
-    if (sConsumers10K == 0) {
-        sConsumers10K = new PulseGenConsumer*[10];
-        sConsumers20K = new PulseGenConsumer*[10];
-	for (int i = 0; i < 10; i++)
-	  sConsumers10K[i] = sConsumers20K[i] = 0;
-    }
-
+    TF("HivePlatform::registerPulseGenConsumer_10K");
+    TRACE("registering a consumer");
+    
     int i = 0;
     while ((sConsumers10K[i] != 0) && (sConsumers10K[i] != consumer)) {
         i++;
@@ -151,13 +145,9 @@ void HivePlatform::registerPulseGenConsumer_10K(class PulseGenConsumer *consumer
 
 void HivePlatform::registerPulseGenConsumer_20K(class PulseGenConsumer *consumer)
 {
-    if (sConsumers20K == 0) {
-        sConsumers10K = new PulseGenConsumer*[10];
-        sConsumers20K = new PulseGenConsumer*[10];
-	for (int i = 0; i < 10; i++)
-	  sConsumers10K[i] = sConsumers20K[i] = 0;
-    }
-
+    TF("HivePlatform::registerPulseGenConsumer_20K");
+    TRACE("registering a consumer");
+    
     int i = 0;
     while ((sConsumers20K[i] != 0) && (sConsumers20K[i] != consumer)) {
         i++;
@@ -173,24 +163,32 @@ static void notifyConsumers()
 {
     static bool sIsOdd = false;
 
+    HivePlatform::trace("::notifyConsumers; entry");
+    
     unsigned long now = millis();
     int i;
-    
+
     if (sIsOdd) {
         i = 0;
 	while (sConsumers10K[i] != 0) 
 	    sConsumers10K[i++]->pulse(now);
+    HivePlatform::trace("::notifyConsumers; trace 3");
     }
+    HivePlatform::trace("::notifyConsumers; trace 4");
     sIsOdd = !sIsOdd;
 
     i = 0;
     while (sConsumers20K[i] != 0) 
         sConsumers20K[i++]->pulse(now);
+    
+    HivePlatform::trace("::notifyConsumers; exit");
 }
 
 void HivePlatform::pulseGen_20K_init()
 {
+    TF("HivePlatform::pulseGen_20K_init");
     WDT_TRACE("HivePlatform::pulseGen_20K_init(); initializing pulse generator");
     PlatformUtils::nonConstSingleton().initPulseGenerator(0, SAMPLES_PER_SECOND_20K);
     PlatformUtils::nonConstSingleton().startPulseGenerator(0, notifyConsumers);
+    WDT_TRACE("HivePlatform::pulseGen_20K_init(); initialized pulse generator");
 }

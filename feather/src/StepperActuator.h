@@ -21,7 +21,7 @@ class StepperActuator : public Actuator {
     
     virtual void act(class Adafruit_BluefruitLE_SPI &ble);
 
-    bool isItTimeYet(unsigned long now);
+    bool isItTimeYet(unsigned long now) const;
     void scheduleNextAction(unsigned long now);
     
     bool isMyCommand(const Str &response) const;
