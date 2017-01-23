@@ -49,6 +49,12 @@ public class BluetoothPipeSrvc extends Service {
     private List<String> mAddresses = new ArrayList<String>();
     private List<ConnectionMgr> mMgrs = new ArrayList<ConnectionMgr>();
 
+	public interface StreamHandler {
+		public boolean consume(byte bytes[]);
+	};
+	static public StreamHandler mStreamHandler = new StreamHandler() {public boolean consume(byte[] bytes) {return false;}};
+	static public void setStreamHandler(StreamHandler h) {mStreamHandler = h;}
+	
     public class ConnectionMgr implements BleExecutorListener {
 		private String mAddress;
     	private BluetoothAdapter mAdapter = null;	
@@ -60,10 +66,17 @@ public class BluetoothPipeSrvc extends Service {
     	private BluetoothGattService mUartService = null;
     	private BluetoothGatt mGatt = null;
         private boolean queueConsumerStarted = false;
+        private boolean mStreaming = false;
+        private String mStopString;
     	
     	public ConnectionMgr(String address) {
     		mAddress = address;
     		connect(mAddress);
+    	}
+    	
+    	public void setStreamingMode(String stopStreaming) {
+    		mStreaming = true;
+    		mStopString = stopStreaming;
     	}
     	
     	public String getAddress() {return mAddress;}
@@ -150,33 +163,35 @@ public class BluetoothPipeSrvc extends Service {
 	        if (characteristic.getService().getUuid().toString().equalsIgnoreCase(UUID_UART_SERVICE)) {
 	            if (characteristic.getUuid().toString().equalsIgnoreCase(UUID_RX)) {
 	            	final byte[] bytes = characteristic.getValue();
-	            	rxLine.append(new String(bytes));
-	            	int loc = rxLine.indexOf("\r");
-	            	if (loc == -1) loc = rxLine.indexOf("\n");
-	            	if (loc != -1) {
-	            		// then I have a valid line
-	            		String cmd = rxLine.substring(0, loc);
-	            		Log.i(TAG, "Received: "+cmd);
-	            		rxLine.delete(0,loc+1);
-	            		if (rxLine.length() == 0) 
-	            			Log.i(TAG, "buffer is now empty");
-	            		else 
-	            			Log.i(TAG, "buffer now contains: '"+rxLine.toString()+"'");
-	            		
-                        if (!queueConsumerStarted) {
-                            queueConsumer.start();
-                            queueConsumerStarted = true;
-                        }
-                        
-	                    CmdOnCompletion onCompletion = new CmdOnCompletion() {
-	                        @Override
-	                        public void complete(String reply) {
-	                            synchronizedEnqueue(reply);
+	            	if (!mStreamHandler.consume(bytes)) {
+		            	rxLine.append(new String(bytes));
+		            	int loc = rxLine.indexOf("\r");
+		            	if (loc == -1) loc = rxLine.indexOf("\n");
+		            	if (loc != -1) {
+		            		// then I have a valid line
+		            		String cmd = rxLine.substring(0, loc);
+		            		Log.i(TAG, "Received: "+cmd);
+		            		rxLine.delete(0,loc+1);
+		            		if (rxLine.length() == 0) 
+		            			Log.i(TAG, "buffer is now empty");
+		            		else 
+		            			Log.i(TAG, "buffer now contains: '"+rxLine.toString()+"'");
+		            		
+	                        if (!queueConsumerStarted) {
+	                            queueConsumer.start();
+	                            queueConsumerStarted = true;
 	                        }
-	                    };
-	            		
-	            		String results[] = new String[2];
-        				CmdProcess.process(BluetoothPipeSrvc.this, cmd, results, onCompletion);
+	                        
+		                    CmdOnCompletion onCompletion = new CmdOnCompletion() {
+		                        @Override
+		                        public void complete(String reply) {
+		                            synchronizedEnqueue(reply);
+		                        }
+		                    };
+		            		
+		            		String results[] = new String[2];
+	        				CmdProcess.singleton().process(BluetoothPipeSrvc.this, cmd, results, onCompletion);
+		            	}
 	            	}
 	            } else Log.e(TAG, "onCharacteristicChangedCalled (1)");
 	        } else Log.e(TAG, "onCharacteristicChangedCalled (2)");

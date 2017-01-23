@@ -1,24 +1,29 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    tools:context="com.jfc.apps.hive.MainActivity" 
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:baselineAligned="false"
-    tools:context="com.jfc.apps.hive.MainActivity" 
-    android:orientation="vertical" >
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-	    android:layout_marginStart="15dip"
-	    android:layout_marginLeft="15dip"
-        android:orientation="horizontal" >
-		
+    android:fillViewport="true">
+    
+    <LinearLayout 
+	    android:layout_width="match_parent"
+	    android:layout_height="wrap_content"
+	    android:baselineAligned="false"
+	    android:orientation="vertical" >
+	
 	    <LinearLayout
-	        android:layout_width="wrap_content"
-	        android:layout_height="match_parent"
-	        android:layout_weight="0.5"
-	        android:orientation="vertical" >
-	        
+	        android:layout_width="match_parent"
+	        android:layout_height="wrap_content"
+		    android:layout_marginStart="15dip"
+		    android:layout_marginLeft="15dip"
+	        android:orientation="horizontal" >
+			
+		    <LinearLayout
+		        android:layout_width="wrap_content"
+		        android:layout_height="match_parent"
+		        android:layout_weight="0.5"
+		        android:orientation="vertical" >
+		        
 	   		<TextView
 	   		    android:layout_width="wrap_content"
 	   		    android:layout_height="wrap_content"
@@ -27,13 +32,13 @@
 	   		    android:textStyle="bold" />
 	
 	   		<TextView
-		        android:id="@+id/cpuTempTimestampText"
+		            android:id="@+id/cpuTempTimestampText"
 	   		    android:layout_width="wrap_content"
 	   		    android:layout_height="wrap_content"
 	   		    android:layout_marginLeft="15dip"
 	   		    android:layout_marginStart="15dip"
 	   		    android:text="@string/timestamp"
-	            android:background="#C9EAEA"
+			    android:background="#C9EAEA"
 	   		    android:textStyle="italic"
 	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
 
@@ -58,7 +63,7 @@
 		      android:layout_width="wrap_content"
 		      android:layout_height="wrap_content"
 		      android:layout_weight="0.5"
-	          android:background="#C9EAEA"
+	              android:background="#C9EAEA"
 		      android:layout_gravity="right"
 		      android:text="@string/testTemp"
 		      android:textAppearance="?android:attr/textAppearanceMedium" />
@@ -192,7 +197,6 @@
 	    android:layout_height="2dip"
 	    android:background="#888888" />
 
-
     
     <LinearLayout
         android:layout_width="match_parent"
@@ -306,7 +310,7 @@
 	   		    android:text="@string/beecntLabel"
 	   		    android:textAppearance="?android:attr/textAppearanceMedium"
 	   		    android:textStyle="bold" />
-	
+			
 	   		<TextView
 		        android:id="@+id/beecntTimestampText"
 	   		    android:layout_width="wrap_content"
@@ -841,4 +845,88 @@
 	    android:layout_height="2dip"
 	    android:background="#888888" />
 
-</LinearLayout>
+	    <LinearLayout
+	        android:layout_width="match_parent"
+	        android:layout_height="wrap_content"
+		    android:layout_marginStart="15dip"
+		    android:layout_marginLeft="15dip"
+	        android:orientation="horizontal" >
+			
+		    <LinearLayout
+		        android:layout_width="wrap_content"
+		        android:layout_height="match_parent"
+		        android:layout_weight="0.5"
+		        android:orientation="vertical" >
+		        
+		   		<TextView
+		   		    android:layout_width="wrap_content"
+		   		    android:layout_height="wrap_content"
+		   		    android:text="@string/audioSampleLabel"
+		   		    android:textAppearance="?android:attr/textAppearanceMedium"
+		   		    android:textStyle="bold" />
+		
+		   		<TextView
+			        android:id="@+id/audioSampleTimestampText"
+		   		    android:layout_width="wrap_content"
+		   		    android:layout_height="wrap_content"
+		   		    android:layout_marginLeft="15dip"
+		   		    android:layout_marginStart="15dip"
+		   		    android:text="@string/timestamp"
+		            android:background="#C9EAEA"
+		   		    android:textStyle="italic"
+		   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+	
+	   		</LinearLayout>
+	   		
+			<LinearLayout
+		            android:layout_width="wrap_content"
+		            android:layout_height="match_parent"
+		            android:layout_weight="0.5"
+		            android:layout_gravity="right"
+		            android:orientation="vertical" >
+		        
+			  <TextView
+			      android:layout_width="match_parent"
+			      android:layout_height="1dip"
+			      android:layout_weight="0.5"
+			      android:text="@string/empty"
+			      android:textAppearance="?android:attr/textAppearanceSmall" />
+	
+			  <TextView
+			      android:layout_width="match_parent"
+			      android:layout_height="1dip"
+			      android:layout_weight="0.5"
+			      android:text="@string/empty"
+			      android:textAppearance="?android:attr/textAppearanceSmall" />
+				
+			  <TextView
+			      android:layout_width="match_parent"
+			      android:layout_height="1dip"
+			      android:layout_weight="0.5"
+			      android:visibility="invisible"
+			      android:text="@string/empty"
+			      android:textAppearance="?android:attr/textAppearanceSmall" />
+	
+			</LinearLayout>
+			
+			<ImageButton
+			    android:id="@+id/audioSampleButton"
+			    android:layout_width="wrap_content"
+			    android:layout_height="wrap_content"
+			    android:layout_gravity="end"
+			    android:layout_weight="0.1"
+			    android:contentDescription="@string/audioSampleDesc"
+			    android:src="@drawable/ic_rarrow"
+			    android:text="@string/empty" />
+	
+		</LinearLayout>
+	    	
+	    <View
+		    android:layout_width="fill_parent"
+		    android:layout_height="2dip"
+		    android:background="#888888" />
+	
+	</LinearLayout>
+	
+</ScrollView>
+

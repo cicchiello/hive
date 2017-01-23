@@ -5,6 +5,7 @@ import java.util.Locale;
 
 import com.jfc.apps.hive.R;
 import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
+import com.jfc.util.misc.SplashyText;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -14,6 +15,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.text.format.DateFormat;
+import android.text.format.DateUtils;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.TextView;
@@ -116,6 +118,33 @@ public class UptimeProperty implements IPropertyMgr {
 		}
 	}
 
+	static public void display(final Activity activity, final int uptimeResid, final int uptimeTimestampResid) {
+		final int hiveIndex = ActiveHiveProperty.getActiveHiveIndex(activity);
+		if (UptimeProperty.isUptimePropertyDefined(activity, hiveIndex)) {
+			final long uptimeMillis = UptimeProperty.getUptimeProperty(activity, hiveIndex)*1000;
+			final CharSequence since = DateUtils.getRelativeTimeSpanString(uptimeMillis,
+					System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE);
+			activity.runOnUiThread(new Runnable() {
+				@Override
+				public void run() {
+		    		TextView uptimeTv = (TextView) activity.findViewById(uptimeResid);
+		    		if (!since.equals(uptimeTv.getText().toString())) {
+		    			uptimeTv.setText(since);
+						SplashyText.highlightModifiedField(activity, uptimeTv);
+		    		}
+		    		TextView uptimeTimestampTv = (TextView) activity.findViewById(uptimeTimestampResid);
+					Calendar cal = Calendar.getInstance(Locale.ENGLISH);
+					cal.setTimeInMillis(System.currentTimeMillis());
+					final String timestampStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
+					if (!timestampStr.equals(uptimeTimestampTv.getText().toString())) {
+						uptimeTimestampTv.setText(timestampStr);
+						SplashyText.highlightModifiedField(activity, uptimeTimestampTv);
+					}
+				}
+			});
+		}
+	}
+	
 	public AlertDialog getAlertDialog() {return mAlert;}
 	public boolean onActivityResult(Activity activity, int requestCode, int resultCode, Intent intent) {return false;}
 

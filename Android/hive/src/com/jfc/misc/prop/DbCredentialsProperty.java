@@ -13,8 +13,12 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
+import com.adobe.xmp.impl.Base64;
 import com.jfc.apps.hive.HiveEnv;
 import com.jfc.apps.hive.R;
+import com.jfc.srvc.ble2cld.CmdOnCompletion;
+import com.jfc.srvc.ble2cld.CmdProcess;
+import com.jfc.srvc.ble2cld.CouchPostBackground;
 import com.jfc.util.misc.SplashyText;
 
 
@@ -36,7 +40,7 @@ public class DbCredentialsProperty implements IPropertyMgr {
 	private static final String DEFAULT_DB_PSWD = "e4f286be1eef534f1cddd6240ed0133b968b1c9a";
 
     static final int grayColor = HiveEnv.ModifiableFieldBackgroundColor;
-	
+    
     // created on constructions -- no need to save on pause
 	private TextView mCloudantTv;
 	private Activity mActivity;
@@ -87,6 +91,28 @@ public class DbCredentialsProperty implements IPropertyMgr {
 	
 	public static void resetDb(Activity activity) {
 		setDbCredentials(activity, DEFAULT_CLOUDANT_USER, DEFAULT_DB_NAME, DEFAULT_DB_KEY, DEFAULT_DB_PSWD);
+	}
+	
+	private static boolean s_initialized = false;
+	
+	public static void staticInitialization() {
+		if (!s_initialized) {
+			s_initialized = true;
+			CmdProcess.singleton().registerCmd("POST", new CmdProcess.Processor() {
+				@Override
+				public void process(Context ctxt, String[] tokens, CmdOnCompletion onCompletion) {
+	    			String cloudantUser = DbCredentialsProperty.getCloudantUser(ctxt);
+	    			String dbName = DbCredentialsProperty.getDbName(ctxt);
+	    			String dbUrl = DbCredentialsProperty.CouchDbUrl(cloudantUser, dbName);
+	    			
+	    			String dbKey = DbCredentialsProperty.getDbKey(ctxt);
+	    			String dbPswd = DbCredentialsProperty.getDbPswd(ctxt);
+	    			String authToken = Base64.encode(dbKey+":"+dbPswd);
+	    			
+	                new CouchPostBackground(dbUrl, authToken, tokens[1], tokens[4], onCompletion).execute();
+				}
+			});
+		}
 	}
 	
 	public DbCredentialsProperty(final Activity activity, final TextView keyTv, ImageButton button) {

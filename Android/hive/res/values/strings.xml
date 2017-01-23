@@ -21,7 +21,7 @@
     <string name="no_bluetooth">There is no Bluetooth interface available.</string>
     <string name="choose_hive">Choose the Hive to pair with</string>
     
-    <string name="enable_bluetooth">Bluetooth must be turned on to use the ble2cld bridge.  Click Ok to enable.</string>
+    <string name="enable_bluetooth">Bluetooth must be turned on to use the ble2cld bridge.  Click OK to enable.</string>
     <string name="enable_bridge_label">Enable ble2cld bridge</string>
     <string name="enable_bridge_desc_hint">Turn on/off</string>
     
@@ -55,6 +55,13 @@
 	<string name="upsince_label">Last Boot:</string>
 	<string name="current_status_label">Current Stat:</string>
 	
+	<string name="audioSampleLabel">Audio Sample</string>
+	<string name="audio_dialog_title">Audio Sample</string>
+	<string name="audioSampleDesc">10s Audio Sample</string>
+	<string name="record_label">Record</string>
+	<string name="play_label">Play</string>
+	<string name="pause_label">Pause</string>
+			
 	<string name="tempLabel">Temperature (&#8451;)</string>
 	<string name="tempDesc">Hive temp</string>
 	

@@ -1,16 +1,12 @@
 package com.jfc.srvc.ble2cld;
 
-import com.adobe.xmp.impl.Base64;
+import java.util.HashMap;
+import java.util.Map;
 
 import android.content.Context;
 import android.util.Log;
 
-import com.jfc.apps.hive.HiveEnv;
-import com.jfc.apps.hive.MotorProperty;
-import com.jfc.apps.hive.SensorSampleRateProperty;
 import com.jfc.misc.prop.ActiveHiveProperty;
-import com.jfc.misc.prop.DbCredentialsProperty;
-import com.jfc.misc.prop.ServoConfigProperty;
 import com.jfc.misc.prop.UptimeProperty;
 
 /**
@@ -18,23 +14,43 @@ import com.jfc.misc.prop.UptimeProperty;
  */
 
 public class CmdProcess {
-	private static final String TAG = MotorProperty.class.getName();
+	private static final String TAG = CmdProcess.class.getName();
 
-    public static boolean process(Context ctxt, String msg, String results[], CmdOnCompletion onCompletion) {
+	public interface Processor {
+		public void process(Context ctxt, String tokens[], CmdOnCompletion onCompletion);
+	};
+
+	private static CmdProcess s_singleton = new CmdProcess();
+	private Map<String,Processor> cmdRegistry = new HashMap<String,Processor>();
+	
+	public static CmdProcess singleton() {
+		return s_singleton;
+	}
+	
+	public void registerCmd(String name, Processor p) {
+		cmdRegistry.put(name, p);
+	}
+	
+    public boolean process(Context ctxt, String msg, String results[], CmdOnCompletion onCompletion) {
+    	Log.i(TAG, "Received: "+msg);
     	String tokens[] = msg.split("[|]");
     	if (tokens[0].equals("cmd")) {
-    		String deviceName = tokens[1];
-    		if (tokens[2].equals("POST")) {
-    			String cloudantUser = DbCredentialsProperty.getCloudantUser(ctxt);
-    			String dbName = DbCredentialsProperty.getDbName(ctxt);
-    			String dbUrl = DbCredentialsProperty.CouchDbUrl(cloudantUser, dbName);
-    			
-    			String dbKey = DbCredentialsProperty.getDbKey(ctxt);
-    			String dbPswd = DbCredentialsProperty.getDbPswd(ctxt);
-    			String authToken = Base64.encode(dbKey+":"+dbPswd);
-    			
-                new CouchPostBackground(dbUrl, authToken, deviceName, tokens[4], onCompletion).execute();
-    		} else if (tokens[2].equals("GETTIME")) {
+			if (cmdRegistry.containsKey(tokens[2])) {
+				cmdRegistry.get(tokens[2]).process(ctxt, tokens, onCompletion);
+			} else {
+				Log.e(TAG, "Unrecognized command: "+msg);
+			}
+    	} else if (tokens[0].equals("noop")) {
+    		// no-op
+    		Log.i(TAG, "No-op received");
+    	}
+        return false;
+    }
+
+	private CmdProcess() {
+		registerCmd("GETTIME", new Processor() {
+			@Override
+			public void process(Context ctxt, String[] tokens, CmdOnCompletion onCompletion) {
     			final int hiveIndex = ActiveHiveProperty.getActiveHiveIndex(ctxt);
     			String resetCause = tokens.length > 2 ? tokens[3] : "unknown";
     			String versionId = tokens.length > 3 ? tokens[4] : "0.0";
@@ -42,32 +58,9 @@ public class CmdProcess {
             	long s = (long) ((ms+500l)/1000l);
             	UptimeProperty.setUptimeProperty(ctxt, hiveIndex, s);
             	UptimeProperty.setEmbeddedVersion(ctxt, hiveIndex, versionId);
-                onCompletion.complete("rply|"+deviceName+"|GETTIME|"+(s));
-    		} else if (tokens[2].equals("GETSAMPLERATE")) {
-    			if (ActiveHiveProperty.isActiveHivePropertyDefined(ctxt)) {
-        			String activeHive = ActiveHiveProperty.getActiveHiveProperty(ctxt);
-	    			String hiveId = HiveEnv.getHiveAddress(ctxt, activeHive);
-	    			String rateStr = Integer.toString(SensorSampleRateProperty.getRate(ctxt));
-    				String sensor = "sample-rate";
-    				String rply = "action|"+sensor+"|"+rateStr;
-    				onCompletion.complete(rply);
-    			} else {
-    				Log.e(TAG, "couldn't determine hiveid; can't send sample rate");
-    			}
-    		} else if (tokens[2].equals("GETSERVOCONFIG")) {
-    			if (ActiveHiveProperty.isActiveHivePropertyDefined(ctxt)) {
-	    			String hiveId = HiveEnv.getHiveAddress(ctxt, ActiveHiveProperty.getActiveHiveProperty(ctxt));
-        			String rply = ServoConfigProperty.getHiveUpdateCommand(ctxt, hiveId);
-    				onCompletion.complete(rply);
-    			} else {
-    				Log.e(TAG, "couldn't determine hiveid; can't send sample rate");
-    			}
-    		} else {
-        		Log.e(TAG, "Unrecognized command: "+msg);
-    		}
-    	} else {
-    		Log.e(TAG, "Unrecognized command: "+msg);
-    	}
-        return false;
-    }
+                onCompletion.complete("rply|"+tokens[1]+"|GETTIME|"+(s));
+			}
+		});
+	}
+	
 }

@@ -17,8 +17,6 @@ public class HiveEnv {
 	public static final boolean DEBUG = false;
 	public static final boolean RELEASE_TEST = false;
 	
-	public static final boolean IsProd = true;
-	
 	public static final int ModifiableFieldBackgroundColor = 0xffC9EAEA;
 	public static final int ModifiableFieldSplashColor = 0xff00FF21;
 	public static final int ModifiableFieldErrorColor = 0xffFF0000;

@@ -10,6 +10,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
+import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.EditText;
@@ -21,6 +22,8 @@ import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.DbCredentialsProperty;
 import com.jfc.misc.prop.IPropertyMgr;
 import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
+import com.jfc.srvc.ble2cld.CmdOnCompletion;
+import com.jfc.srvc.ble2cld.CmdProcess;
 import com.jfc.srvc.ble2cld.PostActuatorBackground;
 import com.jfc.util.misc.DbAlertHandler;
 import com.jfc.util.misc.DialogUtils;
@@ -67,6 +70,28 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 		Intent ble2cld = new Intent(ctxt, BluetoothPipeSrvc.class);
 		ble2cld.putExtra("cmd", msg);
 		ctxt.startService(ble2cld);
+	}
+
+	private static boolean s_initialized = false;
+	public static void staticInitialization() {
+		if (!s_initialized) {
+			s_initialized = true;
+			CmdProcess.singleton().registerCmd("GETSAMPLERATE", new CmdProcess.Processor() {
+				@Override
+				public void process(Context ctxt, String[] tokens, CmdOnCompletion onCompletion) {
+					if (ActiveHiveProperty.isActiveHivePropertyDefined(ctxt)) {
+						String activeHive = ActiveHiveProperty.getActiveHiveProperty(ctxt);
+						String hiveId = HiveEnv.getHiveAddress(ctxt, activeHive);
+						String rateStr = Integer.toString(SensorSampleRateProperty.getRate(ctxt));
+						String sensor = "sample-rate";
+						String rply = "action|"+sensor+"|"+rateStr;
+						onCompletion.complete(rply);
+					} else {
+						Log.e(TAG, "couldn't determine hiveid; can't send sample rate");
+					}
+				}
+			});
+		}
 	}
 	
 	public SensorSampleRateProperty(final Activity activity, final TextView tv, ImageButton button, DbAlertHandler _dbAlert) {
@@ -214,7 +239,7 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 			try {
 				doc.put("hiveid", HiveId);
 				doc.put("sensor", "sample-rate");
-				doc.put("timestamp", Long.toString(System.currentTimeMillis()));
+				doc.put("timestamp", Long.toString(System.currentTimeMillis()/1000));
 				doc.put("value", valueStr);
 			} catch (JSONException e) {
 				// TODO Auto-generated catch block

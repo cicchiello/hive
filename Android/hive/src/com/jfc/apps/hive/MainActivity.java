@@ -6,8 +6,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import com.jfc.misc.prop.ActiveHiveProperty;
+import com.jfc.misc.prop.AudioSampler;
 import com.jfc.misc.prop.DbCredentialsProperty;
 import com.jfc.misc.prop.LatchProperty;
+import com.jfc.misc.prop.ServoConfigProperty;
 import com.jfc.misc.prop.UptimeProperty;
 import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
 import com.jfc.srvc.ble2cld.PollSensorBackground;
@@ -21,7 +23,6 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.text.format.DateFormat;
-import android.text.format.DateUtils;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.ImageButton;
@@ -45,7 +46,7 @@ public class MainActivity extends Activity {
 	private MotorProperty m0, m1, m2;
 	private LatchProperty latch;
 	private UptimeProperty uptime;
-	private AlertDialog mAlert;
+	private AudioSampler audio;
 	private boolean mInitialValuesSet = false;
 	
 	private DbAlertHandler mDbAlert = null;
@@ -94,7 +95,11 @@ public class MainActivity extends Activity {
     	boolean haveActiveHive = ActiveHiveProperty.isActiveHivePropertyDefined(this);
     	String title = getString(R.string.app_name) + (haveActiveHive ? ": "+ActiveHiveProperty.getActiveHiveProperty(this) : "");
     	setTitle(title);
-	}
+    	
+    	DbCredentialsProperty.staticInitialization();
+    	SensorSampleRateProperty.staticInitialization();
+    	ServoConfigProperty.staticInitialization();
+    }
 
 	private void requestPermission(MainActivity mainActivity) {
 		// TODO Auto-generated method stub
@@ -146,6 +151,8 @@ public class MainActivity extends Activity {
 									(TextView) findViewById(R.id.hiveUptimeTimestampText));
 		
 		if (DEBUG) {
+			audio = new AudioSampler(this, (ImageButton) findViewById(R.id.audioSampleButton));
+			
 			setValue(R.id.cpuTempText, R.id.cpuTempTimestampText,
 					 MCUTempProperty.getMCUTempValue(this), 
 					 MCUTempProperty.isMCUTempPropertyDefined(this), 
@@ -369,30 +376,7 @@ public class MainActivity extends Activity {
 											});
 						            new PollSensorBackground(dbUrl, createQuery(HiveId.replace(':', '-'), "motor2"), onCompletion).execute();
 						            
-					    			final int hiveIndex = ActiveHiveProperty.getActiveHiveIndex(MainActivity.this);
-						    		if (UptimeProperty.isUptimePropertyDefined(MainActivity.this, hiveIndex)) {
-										final long uptimeMillis = UptimeProperty.getUptimeProperty(MainActivity.this, hiveIndex)*1000;
-										final CharSequence since = DateUtils.getRelativeTimeSpanString(uptimeMillis,
-												System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE);
-										runOnUiThread(new Runnable() {
-											@Override
-											public void run() {
-									    		TextView uptimeTv = (TextView) findViewById(R.id.hiveUptimeText);
-									    		if (!since.equals(uptimeTv.getText().toString())) {
-									    			uptimeTv.setText(since);
-													SplashyText.highlightModifiedField(MainActivity.this, uptimeTv);
-									    		}
-									    		TextView uptimeTimestampTv = (TextView) findViewById(R.id.hiveUptimeTimestampText);
-												Calendar cal = Calendar.getInstance(Locale.ENGLISH);
-												cal.setTimeInMillis(System.currentTimeMillis());
-												final String timestampStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
-												if (!timestampStr.equals(uptimeTimestampTv.getText().toString())) {
-													uptimeTimestampTv.setText(timestampStr);
-													SplashyText.highlightModifiedField(MainActivity.this, uptimeTimestampTv);
-												}
-											}
-										});
-						    		}
+						        	UptimeProperty.display(MainActivity.this, R.id.hiveUptimeText, R.id.hiveUptimeTimestampText);
 								}
 							}
 						}
@@ -416,6 +400,9 @@ public class MainActivity extends Activity {
 		cancelPoller();
 		
 		mDbAlert.onPause(this);
+		
+		if (audio != null) 
+			audio.onPause();
 		
 		super.onPause();
 	}
