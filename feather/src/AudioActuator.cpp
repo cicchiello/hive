@@ -12,6 +12,9 @@
 
 #include "Adafruit_BluefruitLE_SPI.h"
 
+#include <hive_platform.h>
+#include <platformutils.h>
+
 #include <str.h>
 #include <strutils.h>
 
@@ -22,12 +25,14 @@ const char *AudioActuator::sStateStrings[] = {"Idle", "RecordingRequested", "Ini
 #define BUFSZ 128
 
 AudioActuator::AudioActuator(const char *name, unsigned long now, BleStream *bleStream)
-  : Actuator(name, now), mDuration(0), mStopTime(0), mBle(bleStream), mAcceptInput(false),
+  : Actuator(name, now), mDuration(0), mStopTime(0), mNextVisitTime(0),
+    mBle(bleStream), mAcceptInput(false),
     mBleInputEnabled(true), mState(Idle), mSine(new Sine(800, 20000, 368, 368+64))
 {
-    mBufs[0] = new unsigned short[BUFSZ];
-    mBufs[1] = new unsigned short[BUFSZ];
+    mBufs[0] = new unsigned char[BUFSZ];
+    mBufs[1] = new unsigned char[BUFSZ];
     mCurrBuf = mBufs[0];
+    mBufToStream = NULL;
     mIndex = 0;
 }
 
@@ -52,7 +57,7 @@ bool AudioActuator::isItTimeYet(unsigned long now) const
         TRACE("recording requested");
         return true;
     case Recording:
-        return (now >= mStopTime);
+        return (now >= mNextVisitTime);
     default: {
         TRACE2("Unexpected state: ", sStateStrings[mState]);
 	return false;
@@ -60,25 +65,33 @@ bool AudioActuator::isItTimeYet(unsigned long now) const
     }
 }
 
+
+static int sPackets = 0;
+
 void AudioActuator::scheduleNextAction(unsigned long now)
 {
     TF("AudioActuator::scheduleNextAction");
-    TRACE2("mState: ",sStateStrings[mState]);
+    //TRACE2("mState: ",sStateStrings[mState]);
     
     switch (mState) {
     case RecordingRequested:
         mStopTime = now + mDuration;
+	mNextVisitTime = now + 1;
         TRACE("transitioning to InitRecording");
         mState = InitRecording;
 	mSampleCnt = 0;
 	break;
     case Recording:
-        mState = RecordingDone;
-	TRACE("transitioning to RecordingDone");
+        if (now > mStopTime) {
+	    mState = RecordingDone;
+	    TRACE("transitioning to RecordingDone");
+	} else {
+	    mNextVisitTime = now+1;
+	}
 	break;
     case RecordingDone:
         mState = Idle;
-        TRACE("transitioning to Idle");
+        TRACE2("transitioning to Idle; packets so far: ", sPackets);
 	break;
     default: {
         TRACE2("Unexpected state: ", sStateStrings[mState]);
@@ -90,7 +103,7 @@ void AudioActuator::scheduleNextAction(unsigned long now)
 void AudioActuator::act(Adafruit_BluefruitLE_SPI &ble)
 {
     TF("AudioActuator::act");
-    TRACE2("mState: ",sStateStrings[mState]);
+    //TRACE2("mState: ",sStateStrings[mState]);
     
     switch (mState) {
     case InitRecording: {
@@ -99,19 +112,53 @@ void AudioActuator::act(Adafruit_BluefruitLE_SPI &ble)
 	prepareAppMsg(&msg, mDuration);
 	postToApp(msg.c_str(), *mBle->getBleImplementation());
 	mState = Recording;
+	Adafruit_BluefruitLE_SPI *ble = mBle->getBleImplementation();
+	ble->setMode(BLUEFRUIT_MODE_DATA);
         TRACE("transitioning to Recording");
     }
 	break;
-    case RecordingDone: {
+	
+    case Recording: {
+        while (millis() < mStopTime) {
+	    if (mBufToStream != NULL) {
+	        unsigned char *buf = mBufToStream;
+		mBufToStream = NULL;
+		sPackets++;
+		Adafruit_BluefruitLE_SPI *ble = mBle->getBleImplementation();
+		ble->write(buf, 16);
+//		ble->write(buf, BUFSZ*sizeof(unsigned char));
+		PlatformUtils::nonConstSingleton().clearWDT();
+	    }
+	}
+	mState = RecordingDone;
+	TRACE("transitioning to RecordingDone");
+	
+	TRACE("transitioning to Idle");
 	mState = Idle;
+	Adafruit_BluefruitLE_SPI *ble = mBle->getBleImplementation();
+	ble->setMode(BLUEFRUIT_MODE_COMMAND);
         Str msg;
 	prepareAppMsg(&msg, 0);
 	postToApp(msg.c_str(), *mBle->getBleImplementation());
 	TRACE2("calling mBle->setEnableInput with: ",(mBleInputEnabled ? "true" : "false"));
         mBle->setEnableInput(mBleInputEnabled);
-        TRACE("transitioning to Idle");
+        TRACE2("transitioning to Idle; packets so far: ", sPackets);
+    }
+        break;
+	
+    case RecordingDone: {
+	mState = Idle;
+	Adafruit_BluefruitLE_SPI *ble = mBle->getBleImplementation();
+	ble->setMode(BLUEFRUIT_MODE_COMMAND);
+        Str msg;
+	prepareAppMsg(&msg, 0);
+	postToApp(msg.c_str(), *mBle->getBleImplementation());
+	TRACE2("calling mBle->setEnableInput with: ",(mBleInputEnabled ? "true" : "false"));
+        mBle->setEnableInput(mBleInputEnabled);
+        TRACE2("transitioning to Idle; packets so far: ", sPackets);
     }
 	break;
+	
     default: {
         TRACE2("Unexpected state: ",sStateStrings[mState]);
     }
@@ -150,7 +197,7 @@ bool AudioActuator::isMyCommand(const Str &rsp) const
 	    crsp += mName->len();
 	    token = "|";
 	    bool isMatch = (strncmp(crsp, token, strlen(token)) == 0);
-	    TRACEDUMP(isMatch? "matches" : "mismatch");
+	    TRACE(isMatch? "matches" : "mismatch");
 	    return isMatch;
 	}
     } else {
@@ -198,16 +245,29 @@ void AudioActuator::processCommand(Str *msg)
 
 void AudioActuator::pulse(unsigned long now)
 {
+    TF("AudioActuator::pulse");
+    
     // expecting to be called once every 50us
-
+    
     if (mState == Recording) {
         //to see the pulse on the scope, enable "5" as an output and uncomment:
         const PinDescription &p = g_APinDescription[5];
 	PORT->Group[p.ulPort].OUTTGL.reg = (1ul << p.ulPin);
 
 	unsigned short s = mSine->sineSample(mSampleCnt++);
-	mCurrBuf[mIndex++] = s;
-	if (mIndex == BUFSZ) {
+	unsigned char bl = s&0xff;
+	unsigned char bh = (s>>8)&0xff;
+	mCurrBuf[mIndex++] = bl;
+	mCurrBuf[mIndex++] = bh;
+	if (mIndex >= BUFSZ) {
+	    if (mBufToStream != NULL) {
+	        TRACE2("buffer overflow; packets so far: ", sPackets);
+	        ERR(HivePlatform::error("buffer overflow"));
+	    }
+	    
+	    mBufToStream = mCurrBuf;
+	    mCurrBuf = (mCurrBuf == mBufs[0] ? mBufs[1] : mBufs[0]);
+	    
 	    mIndex = 0;
 	}
     }

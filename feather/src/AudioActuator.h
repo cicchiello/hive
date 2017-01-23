@@ -40,12 +40,12 @@ class AudioActuator : public Actuator, private PulseGenConsumer {
     
     bool mBleInputEnabled, mAcceptInput;
     unsigned int mSampleCnt;
-    unsigned long mDuration, mStopTime;
+    unsigned long mDuration, mStopTime, mNextVisitTime;
     State mState;
     class Sine *mSine;
 
     unsigned int mIndex;
-    unsigned short *mBufs[2], *mCurrBuf;
+    unsigned char *mBufs[2], *mCurrBuf, *mBufToStream;
     
     BleStream *mBle;
 };

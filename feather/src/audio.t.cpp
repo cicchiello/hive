@@ -44,6 +44,7 @@ static int s_currActuator = -1;
 static bool s_connected = false;
 static unsigned long s_nextConnectCheckTime = 0;
 static BleStream *s_bleStream = NULL;
+static bool s_haveTimestamp = false;
 static Timestamp *s_timestamp = NULL;
 static class Sensor *s_unusedSensors[10];
 static Actuator *s_actuators[10];
@@ -171,9 +172,9 @@ void loop(void)
 	PL("Sensors and Actuators initialized;");
 	TRACE("Sensors and Actuators initialized;");
 
-//	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_20K(audio->getPulseGenConsumer());
-//	HivePlatform::nonConstSingleton()->pulseGen_20K_init();
-//	PL("PulseGenerators initialized;");
+	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_20K(audio->getPulseGenConsumer());
+	HivePlatform::nonConstSingleton()->pulseGen_20K_init();
+	PL("PulseGenerators initialized;");
 	
 	// wait a bit for comms to settle
 	delay(500);
@@ -188,11 +189,15 @@ void loop(void)
         // Check for incoming transmission from Bluefruit
 	s_bleStream->processInput();
 
-	if (s_timestamp->haveTimestamp())
+	if (s_timestamp->haveTimestamp()) {
+	    if (!s_haveTimestamp) {
+	        PL("Have timestamp");
+		s_haveTimestamp = true;
+	    }
 	    s_mainState = VISIT_ACTUATOR;
-	else if (s_timestamp->haveRequestedTimestamp())
+	} else if (s_timestamp->haveRequestedTimestamp()) {
 	    s_mainState = ATTEMPT_TIMESTAMP_POST;
-	else
+	} else
 	    s_mainState = QUEUE_TIMESTAMP_REQUEST;
     }
     break;
@@ -220,7 +225,7 @@ void loop(void)
         // see if it's time to sample
         TRACE("visiting actuator");
         if (s_actuators[s_currActuator] && s_actuators[s_currActuator]->isItTimeYet(now)) {
-	    PL("an actuator is ready");
+	    //PL("an actuator is ready");
 	    s_actuators[s_currActuator]->scheduleNextAction(now);
 
 	    s_actuators[s_currActuator]->act(ble);
@@ -250,6 +255,14 @@ void loop(void)
 	        if (ble.isConnected()) {
 		    PL("Reconnected!");
 		    HivePlatform::nonConstSingleton()->clearWDT();
+		    
+		    ble.println("AT+BLEUARTTX=noop\\n");
+		    if ( ble.waitForOK() ) {
+		        TRACE("got ok");
+		    } else {
+		        PL("didn't get ok");
+		    }
+		    
 		    delay(500);
 		    s_connected = true;
 		} else {
