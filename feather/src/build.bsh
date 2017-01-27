@@ -20,8 +20,8 @@ ln -s ${ADAFRUIT_TOOLS}/libraries/Wire Wire
 
 echo ""
 echo "Configured.  Now, just type \"make\" to compile everything, then"
-echo "./upload.bsh to upload and launch the Serial port."
+echo "./upload_bin.bsh to upload, then reset the module and launch the Serial port."
 echo ""
-echo "Note; ./upload.bsh only works if the device is in bootloader mode and the"
+echo "Note; ./upload_bin.bsh only works if the device is in bootloader mode and the"
 echo "port isn't in use elsewhere"
 echo ""

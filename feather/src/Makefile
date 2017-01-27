@@ -1,4 +1,5 @@
-ROOT=/home/pi/hive/feather/src
+ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+
 SKETCH=hive
 DFAMILY=samd21
 
