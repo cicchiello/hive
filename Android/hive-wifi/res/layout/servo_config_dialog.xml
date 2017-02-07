@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:baselineAligned="false"
+    android:orientation="vertical" >
+
+	<TextView
+	    android:layout_width="match_parent"
+	    android:layout_height="1dip"
+	    android:text="@string/empty"
+	    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" 
+		android:layout_marginStart="5dp"
+		android:layout_marginEnd="5dp"
+		android:layout_marginTop="5dp"
+        android:orientation="horizontal" >
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="start"
+            android:text="@string/trip_temp_label"
+            android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		<View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />                
+        
+        <EditText
+	        android:id="@+id/trip_temp_text"
+	        android:layout_width="wrap_content"
+	        android:layout_height="wrap_content"
+	        android:hint="@string/zero"
+			android:minEms="5"
+			android:gravity="end"
+			android:layout_gravity="center"
+	        android:background="#C9EAEA"
+	        android:inputType="number"
+	        android:textAppearance="?android:attr/textAppearanceMedium" />
+
+    </LinearLayout>
+    
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+		android:layout_marginEnd="5dp"
+		android:layout_marginTop="5dp"
+	    android:background="#888888" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" 
+		android:layout_marginStart="5dp"
+		android:layout_marginEnd="5dp"
+		android:layout_marginTop="5dp"
+        android:orientation="horizontal" >
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="start"
+            android:text="@string/dir_label"
+            android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		<View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />                
+        
+		<ImageView
+		    android:id="@+id/dir_button"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_weight="0.01"
+		    android:contentDescription="@string/dir_label"
+		    android:src="@drawable/toggle_cw" />
+		
+    </LinearLayout>
+    
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+		android:layout_marginEnd="5dp"
+		android:layout_marginTop="5dp"
+	    android:background="#888888" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" 
+		android:layout_marginStart="5dp"
+		android:layout_marginEnd="5dp"
+		android:layout_marginTop="5dp"
+        android:orientation="horizontal" >
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="start"
+            android:text="@string/tick_lower_label"
+            android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		<View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />                
+        
+        <EditText
+	        android:id="@+id/tick_lower_text"
+	        android:layout_width="wrap_content"
+	        android:layout_height="wrap_content"
+	        android:hint="@string/zero"
+			android:minEms="5"
+			android:gravity="end"
+			android:layout_gravity="center"
+	        android:background="#C9EAEA"
+	        android:inputType="number"
+	        android:textAppearance="?android:attr/textAppearanceMedium" />
+
+    </LinearLayout>
+    
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+		android:layout_marginEnd="5dp"
+		android:layout_marginTop="5dp"
+	    android:background="#888888" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" 
+		android:layout_marginStart="5dp"
+		android:layout_marginEnd="5dp"
+		android:layout_marginTop="5dp"
+        android:orientation="horizontal" >
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="start"
+            android:text="@string/tick_upper_label"
+            android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		<View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />                
+        
+        <EditText
+	        android:id="@+id/tick_upper_text"
+	        android:layout_width="wrap_content"
+	        android:layout_height="wrap_content"
+	        android:hint="@string/zero"
+			android:minEms="5"
+			android:gravity="end"
+			android:layout_gravity="center"
+	        android:background="#C9EAEA"
+	        android:inputType="number"
+	        android:textAppearance="?android:attr/textAppearanceMedium" />
+
+    </LinearLayout>
+    
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+		android:layout_marginEnd="5dp"
+		android:layout_marginTop="5dp"
+	    android:background="#888888" />
+
+</LinearLayout>

@@ -1,0 +1,751 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:baselineAligned="false"
+    tools:context="com.jfc.apps.hive.MainActivity" 
+    android:orientation="vertical" >
+
+    
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+	    android:layout_marginStart="15dip"
+	    android:layout_marginLeft="15dip"
+        android:orientation="horizontal" >
+		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:orientation="vertical" >
+	        
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:text="@string/tempLabel"
+	   		    android:textAppearance="?android:attr/textAppearanceMedium"
+	   		    android:textStyle="bold" />
+	
+	   		<TextView
+		        android:id="@+id/tempTimestampText"
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:layout_marginLeft="15dip"
+	   		    android:layout_marginStart="15dip"
+	   		    android:text="@string/timestamp"
+	            android:background="#C9EAEA"
+	   		    android:textStyle="italic"
+	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+   		</LinearLayout>
+   		
+		<LinearLayout
+	            android:layout_width="wrap_content"
+	            android:layout_height="match_parent"
+	            android:layout_weight="0.5"
+	            android:layout_gravity="right"
+	            android:orientation="vertical" >
+	        
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		  <TextView
+		      android:id="@+id/tempText"
+		      android:layout_width="wrap_content"
+		      android:layout_height="wrap_content"
+		      android:layout_weight="0.5"
+	          android:background="#C9EAEA"
+		      android:layout_gravity="right"
+		      android:text="@string/testTemp"
+		      android:textAppearance="?android:attr/textAppearanceMedium" />
+
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+			
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:visibility="invisible"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		</LinearLayout>
+		
+		<ImageButton
+		    android:id="@+id/selectTempButton"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="end"
+		    android:layout_weight="0.1"
+		    android:visibility="invisible"
+		    android:contentDescription="@string/tempDesc"
+		    android:src="@drawable/ic_rarrow"
+		    android:text="@string/empty" />
+
+	</LinearLayout>
+    
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
+
+
+    
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+	    android:layout_marginStart="15dip"
+	    android:layout_marginLeft="15dip"
+        android:orientation="horizontal" >
+		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:orientation="vertical" >
+	        
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:text="@string/humidLabel"
+	   		    android:textAppearance="?android:attr/textAppearanceMedium"
+	   		    android:textStyle="bold" />
+	
+	   		<TextView
+		        android:id="@+id/humidTimestampText"
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:layout_marginLeft="15dip"
+	   		    android:layout_marginStart="15dip"
+	   		    android:text="@string/timestamp"
+	            android:background="#C9EAEA"
+	   		    android:textStyle="italic"
+	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+   		</LinearLayout>
+   		
+		<LinearLayout
+	            android:layout_width="wrap_content"
+	            android:layout_height="match_parent"
+	            android:layout_weight="0.5"
+	            android:layout_gravity="right"
+	            android:orientation="vertical" >
+	        
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		  <TextView
+		      android:id="@+id/humidText"
+		      android:layout_width="wrap_content"
+		      android:layout_height="wrap_content"
+		      android:layout_weight="0.5"
+	          android:background="#C9EAEA"
+		      android:layout_gravity="right"
+		      android:text="@string/testHumid"
+		      android:textAppearance="?android:attr/textAppearanceMedium" />
+
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+			
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:visibility="invisible"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		</LinearLayout>
+		
+		<ImageButton
+		    android:id="@+id/selectHumidButton"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="end"
+		    android:layout_weight="0.1"
+		    android:visibility="invisible"
+		    android:contentDescription="@string/humidDesc"
+		    android:src="@drawable/ic_rarrow"
+		    android:text="@string/empty" />
+
+	</LinearLayout>
+    
+    
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+	    android:layout_marginStart="15dip"
+	    android:layout_marginLeft="15dip"
+        android:orientation="horizontal" >
+		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:orientation="vertical" >
+	        
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:text="@string/beecntLabel"
+	   		    android:textAppearance="?android:attr/textAppearanceMedium"
+	   		    android:textStyle="bold" />
+	
+	   		<TextView
+		        android:id="@+id/beecntTimestampText"
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:layout_marginLeft="15dip"
+	   		    android:layout_marginStart="15dip"
+	   		    android:text="@string/timestamp"
+	            android:background="#C9EAEA"
+	   		    android:textStyle="italic"
+	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+   		</LinearLayout>
+   		
+		<LinearLayout
+	            android:layout_width="wrap_content"
+	            android:layout_height="match_parent"
+	            android:layout_weight="0.5"
+	            android:layout_gravity="right"
+	            android:orientation="vertical" >
+	        
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		  <TextView
+		      android:id="@+id/beecntText"
+		      android:layout_width="wrap_content"
+		      android:layout_height="wrap_content"
+		      android:layout_weight="0.5"
+	          android:background="#C9EAEA"
+		      android:layout_gravity="right"
+		      android:text="@string/testMotor"
+		      android:textAppearance="?android:attr/textAppearanceMedium" />
+
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+			
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:visibility="invisible"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		</LinearLayout>
+		
+		<ImageButton
+		    android:id="@+id/beecntButton"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="end"
+		    android:layout_weight="0.1"
+		    android:visibility="invisible"
+		    android:contentDescription="@string/beecntDesc"
+		    android:src="@drawable/ic_rarrow"
+		    android:text="@string/empty" />
+
+	</LinearLayout>
+    
+    
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+	    android:layout_marginLeft="15dip"
+        android:orientation="horizontal" >
+		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:orientation="vertical" >
+	        
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:text="@string/latch_label"
+	   		    android:textAppearance="?android:attr/textAppearanceMedium"
+	   		    android:textStyle="bold" />
+	
+	   		<TextView
+		        android:id="@+id/latchTimestampText"
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:layout_marginLeft="15dip"
+	   		    android:layout_marginStart="15dip"
+	   		    android:text="@string/timestamp"
+	            android:background="#C9EAEA"
+	   		    android:textStyle="italic"
+	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+	   		
+   		</LinearLayout>
+   		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:layout_gravity="right"
+	        android:orientation="vertical" >
+	        
+			<TextView
+			    android:layout_width="match_parent"
+			    android:layout_height="1dip"
+		        android:layout_weight="0.5"
+			    android:text="@string/empty"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+	    	<TextView
+			    android:id="@+id/latch_text"
+			    android:layout_width="wrap_content"
+			    android:layout_height="wrap_content"
+		        android:layout_weight="0.5"
+	        	android:background="#848989"
+		        android:layout_gravity="right"
+			    android:text="@string/latch_desc_hint" />
+
+			<TextView
+			    android:layout_width="match_parent"
+			    android:layout_height="1dip"
+		        android:layout_weight="0.5"
+			    android:text="@string/empty"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+			
+			<TextView
+			    android:layout_width="match_parent"
+			    android:layout_height="1dip"
+		        android:layout_weight="0.5"
+			    android:text="@string/empty"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+	    </LinearLayout>
+	    
+	    <ImageButton
+		    android:id="@+id/latch_button"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_weight="0.01"
+		    android:visibility="invisible"
+		    android:contentDescription="@string/latch_desc_hint"
+		    android:src="@drawable/ic_rarrow"
+		    android:text="@string/empty" />
+
+	</LinearLayout>
+    
+    
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
+
+
+    
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+	    android:layout_marginStart="15dip"
+	    android:layout_marginLeft="15dip"
+        android:orientation="horizontal" >
+		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:orientation="vertical" >
+	        
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:text="@string/motor0Label"
+	   		    android:textAppearance="?android:attr/textAppearanceMedium"
+	   		    android:textStyle="bold" />
+	
+	   		<TextView
+		        android:id="@+id/motor0TimestampText"
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:layout_marginLeft="15dip"
+	   		    android:layout_marginStart="15dip"
+	   		    android:text="@string/timestamp"
+	            android:background="#C9EAEA"
+	   		    android:textStyle="italic"
+	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+   		</LinearLayout>
+   		
+		<LinearLayout
+	            android:layout_width="wrap_content"
+	            android:layout_height="match_parent"
+	            android:layout_weight="0.5"
+	            android:layout_gravity="right"
+	            android:orientation="vertical" >
+	        
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		  <TextView
+		      android:id="@+id/motor0Text"
+		      android:layout_width="wrap_content"
+		      android:layout_height="wrap_content"
+		      android:layout_weight="0.5"
+	          android:background="#C9EAEA"
+		      android:layout_gravity="right"
+		      android:text="@string/testMotor"
+		      android:textAppearance="?android:attr/textAppearanceMedium" />
+
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+			
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:visibility="invisible"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		</LinearLayout>
+		
+		<ImageButton
+		    android:id="@+id/selectMotor0Button"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="end"
+		    android:layout_weight="0.1"
+		    android:contentDescription="@string/motorDesc"
+		    android:src="@drawable/ic_rarrow"
+		    android:text="@string/empty" />
+
+	</LinearLayout>
+    
+
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
+
+
+    
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+	    android:layout_marginStart="15dip"
+	    android:layout_marginLeft="15dip"
+        android:orientation="horizontal" >
+		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:orientation="vertical" >
+	        
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:text="@string/motor1Label"
+	   		    android:textAppearance="?android:attr/textAppearanceMedium"
+	   		    android:textStyle="bold" />
+	
+	   		<TextView
+		        android:id="@+id/motor1TimestampText"
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:layout_marginLeft="15dip"
+	   		    android:layout_marginStart="15dip"
+	   		    android:text="@string/timestamp"
+	            android:background="#C9EAEA"
+	   		    android:textStyle="italic"
+	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+   		</LinearLayout>
+   		
+		<LinearLayout
+	            android:layout_width="wrap_content"
+	            android:layout_height="match_parent"
+	            android:layout_weight="0.5"
+	            android:layout_gravity="right"
+	            android:orientation="vertical" >
+	        
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		  <TextView
+		      android:id="@+id/motor1Text"
+		      android:layout_width="wrap_content"
+		      android:layout_height="wrap_content"
+		      android:layout_weight="0.5"
+	          android:background="#C9EAEA"
+		      android:layout_gravity="right"
+		      android:text="@string/testMotor"
+		      android:textAppearance="?android:attr/textAppearanceMedium" />
+
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+			
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:visibility="invisible"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		</LinearLayout>
+		
+		<ImageButton
+		    android:id="@+id/selectMotor1Button"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="end"
+		    android:layout_weight="0.1"
+		    android:contentDescription="@string/motorDesc"
+		    android:src="@drawable/ic_rarrow"
+		    android:text="@string/empty" />
+
+	</LinearLayout>
+    
+
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
+
+
+    
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+	    android:layout_marginStart="15dip"
+	    android:layout_marginLeft="15dip"
+        android:orientation="horizontal" >
+		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:orientation="vertical" >
+	        
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:text="@string/motor2Label"
+	   		    android:textAppearance="?android:attr/textAppearanceMedium"
+	   		    android:textStyle="bold" />
+	
+	   		<TextView
+		        android:id="@+id/motor2TimestampText"
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:layout_marginLeft="15dip"
+	   		    android:layout_marginStart="15dip"
+	   		    android:text="@string/timestamp"
+	            android:background="#C9EAEA"
+	   		    android:textStyle="italic"
+	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+   		</LinearLayout>
+   		
+		<LinearLayout
+	            android:layout_width="wrap_content"
+	            android:layout_height="match_parent"
+	            android:layout_weight="0.5"
+	            android:layout_gravity="right"
+	            android:orientation="vertical" >
+	        
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		  <TextView
+		      android:id="@+id/motor2Text"
+		      android:layout_width="wrap_content"
+		      android:layout_height="wrap_content"
+		      android:layout_weight="0.5"
+	          android:background="#C9EAEA"
+		      android:layout_gravity="right"
+		      android:text="@string/testMotor"
+		      android:textAppearance="?android:attr/textAppearanceMedium" />
+
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+			
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:visibility="invisible"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		</LinearLayout>
+		
+		<ImageButton
+		    android:id="@+id/selectMotor2Button"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="end"
+		    android:layout_weight="0.1"
+		    android:contentDescription="@string/motorDesc"
+		    android:src="@drawable/ic_rarrow"
+		    android:text="@string/empty" />
+
+	</LinearLayout>
+
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+	    android:layout_marginStart="15dip"
+	    android:layout_marginLeft="15dip"
+        android:orientation="horizontal" >
+		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:orientation="vertical" >
+	        
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:text="@string/hiveUptimeLabel"
+	   		    android:textAppearance="?android:attr/textAppearanceMedium"
+	   		    android:textStyle="bold" />
+	
+	   		<TextView
+		        android:id="@+id/hiveUptimeTimestampText"
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:layout_marginLeft="15dip"
+	   		    android:layout_marginStart="15dip"
+	   		    android:text="@string/timestamp"
+	            android:background="#C9EAEA"
+	   		    android:textStyle="italic"
+	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+   		</LinearLayout>
+   		
+		<LinearLayout
+	            android:layout_width="wrap_content"
+	            android:layout_height="match_parent"
+	            android:layout_weight="0.5"
+	            android:layout_gravity="right"
+	            android:orientation="vertical" >
+	        
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		  <TextView
+		      android:id="@+id/hiveUptimeText"
+		      android:layout_width="wrap_content"
+		      android:layout_height="wrap_content"
+		      android:layout_weight="0.5"
+	          android:background="#C9EAEA"
+		      android:layout_gravity="right"
+		      android:text="@string/testTemp"
+		      android:textAppearance="?android:attr/textAppearanceMedium" />
+
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+			
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:visibility="invisible"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		</LinearLayout>
+		
+		<ImageButton
+		    android:id="@+id/selectHiveUptimeButton"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="end"
+		    android:layout_weight="0.1"
+		    android:contentDescription="@string/cpuTempDesc"
+		    android:src="@drawable/ic_rarrow"
+		    android:text="@string/empty" />
+
+	</LinearLayout>
+    	
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
+
+</LinearLayout>

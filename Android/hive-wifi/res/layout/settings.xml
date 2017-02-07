@@ -1,0 +1,328 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:baselineAligned="false"
+    android:orientation="vertical" >
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:background="#888888"
+        android:orientation="horizontal" >
+        
+	    <TextView
+	        android:layout_width="wrap_content"
+	        android:layout_height="wrap_content"
+	        android:text="@string/settings"
+	        android:textAppearance="?android:attr/textAppearanceLarge"
+	        android:textStyle="bold" />
+
+		<View
+		    android:layout_width="0dp"
+		    android:layout_height="match_parent"
+		    android:layout_weight="0.5" />
+
+	</LinearLayout>
+
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+	    android:layout_marginLeft="15dip"
+        android:orientation="horizontal" >
+		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:orientation="vertical" >
+	        
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:text="@string/db_credentials_label"
+	   		    android:textAppearance="?android:attr/textAppearanceMedium"
+	   		    android:textStyle="bold" />
+	
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:layout_marginLeft="15dip"
+	   		    android:text="@string/db_credentials_label"
+	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+   		</LinearLayout>
+   		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:layout_gravity="end"
+	        android:orientation="vertical" >
+	        
+			<TextView
+			    android:layout_width="match_parent"
+			    android:layout_height="1dip"
+		        android:layout_weight="0.5"
+			    android:text="@string/empty"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+	    	<TextView
+			    android:id="@+id/db_text"
+			    android:layout_width="wrap_content"
+			    android:layout_height="wrap_content"
+		        android:layout_weight="0.5"
+	        	android:background="#848989"
+		        android:layout_gravity="end"
+			    android:text="@string/db_credentials_desc_hint" />
+
+			<TextView
+			    android:layout_width="match_parent"
+			    android:layout_height="1dip"
+		        android:layout_weight="0.5"
+			    android:text="@string/empty"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+			
+			<TextView
+			    android:layout_width="match_parent"
+			    android:layout_height="1dip"
+		        android:layout_weight="0.5"
+			    android:text="@string/empty"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+	    </LinearLayout>
+	    
+	    <ImageButton
+		    android:id="@+id/db_button"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_weight="0.01"
+		    android:contentDescription="@string/db_credentials_label"
+		    android:src="@drawable/ic_rarrow"
+		    android:text="@string/empty" />
+
+	</LinearLayout>
+
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+	    android:layout_marginLeft="15dip"
+        android:orientation="horizontal" >
+		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:orientation="vertical" >
+	        
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:text="@string/sample_rate_label"
+	   		    android:textAppearance="?android:attr/textAppearanceMedium"
+	   		    android:textStyle="bold" />
+	
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:layout_marginLeft="15dip"
+	   		    android:text="@string/sample_rate_desc_hint"
+	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+   		</LinearLayout>
+   		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:layout_gravity="end"
+	        android:orientation="vertical" >
+	        
+			<TextView
+			    android:layout_width="match_parent"
+			    android:layout_height="1dip"
+		        android:layout_weight="0.5"
+			    android:text="@string/empty"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+	    	<TextView
+			    android:id="@+id/sample_rate_text"
+			    android:layout_width="wrap_content"
+			    android:layout_height="wrap_content"
+		        android:layout_weight="0.5"
+	        	android:background="#848989"
+		        android:layout_gravity="end"
+			    android:text="@string/sample_rate_desc_hint" />
+
+			<TextView
+			    android:layout_width="match_parent"
+			    android:layout_height="1dip"
+		        android:layout_weight="0.5"
+			    android:text="@string/empty"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+			
+			<TextView
+			    android:layout_width="match_parent"
+			    android:layout_height="1dip"
+		        android:layout_weight="0.5"
+			    android:text="@string/empty"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+	    </LinearLayout>
+	    
+	    <ImageButton
+		    android:id="@+id/sample_rate_button"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_weight="0.01"
+		    android:contentDescription="@string/sample_rate_label"
+		    android:src="@drawable/ic_rarrow"
+		    android:text="@string/empty" />
+
+	</LinearLayout>
+
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+	    android:layout_marginLeft="15dip"
+        android:orientation="horizontal" >
+		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:orientation="vertical" >
+	        
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:text="@string/servo_config_label"
+	   		    android:textAppearance="?android:attr/textAppearanceMedium"
+	   		    android:textStyle="bold" />
+	
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:layout_marginLeft="15dip"
+	   		    android:text="@string/servo_config_desc_hint"
+	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+   		</LinearLayout>
+   		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:layout_gravity="end"
+	        android:orientation="vertical" >
+	        
+			<TextView
+			    android:layout_width="match_parent"
+			    android:layout_height="1dip"
+		        android:layout_weight="0.5"
+			    android:text="@string/empty"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+	    	<TextView
+			    android:id="@+id/servo_trip_temp_text"
+			    android:layout_width="wrap_content"
+			    android:layout_height="wrap_content"
+		        android:layout_weight="0.5"
+	        	android:background="#848989"
+		        android:layout_gravity="end"
+			    android:text="@string/servo_config_desc_hint" />
+
+			<TextView
+			    android:layout_width="match_parent"
+			    android:layout_height="1dip"
+		        android:layout_weight="0.5"
+			    android:text="@string/empty"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+			
+			<TextView
+			    android:layout_width="match_parent"
+			    android:layout_height="1dip"
+		        android:layout_weight="0.5"
+			    android:text="@string/empty"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+	    </LinearLayout>
+	    
+	    <ImageButton
+		    android:id="@+id/servo_config_button"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_weight="0.01"
+		    android:contentDescription="@string/sample_rate_label"
+		    android:src="@drawable/ic_rarrow"
+		    android:text="@string/empty" />
+
+	</LinearLayout>
+
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+	    android:layout_marginLeft="15dip"
+        android:orientation="horizontal" >
+		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:orientation="vertical" >
+	        
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:text="@string/factory_reset_label"
+	   		    android:textAppearance="?android:attr/textAppearanceMedium"
+	   		    android:textStyle="bold" />
+	
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:layout_marginLeft="15dip"
+	   		    android:text="@string/factory_reset_desc_hint"
+	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+   		</LinearLayout>
+   		
+		<ImageButton
+		    android:id="@+id/factoryResetButton"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_weight="0.01"
+		    android:contentDescription="@string/factory_reset_desc_hint"
+		    android:src="@drawable/ic_rarrow"
+		    android:text="@string/empty" />
+
+	</LinearLayout>
+	
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
+
+
+</LinearLayout>
