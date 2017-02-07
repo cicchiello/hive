@@ -98,7 +98,8 @@ static void choosePrescale(uint8_t *prescaler, unsigned int *prescale, int pulse
 
 void PlatformUtils::initPulseGenerator(int whichGenerator, int pulsesPerSecond)
 {
-    PF("PlatformUtils::initPulseGenerator; ");
+    WDT_TRACE("PlatformUtils::initPulseGenerator");
+    PF("PlatformUtils::initPulseGenerator");
     if (!m_pulseGeneratorInitialized) {
         // Enable GCLK for TC4 and TC5 (timer counter input clock)
         GCLK->CLKCTRL.reg =
@@ -153,6 +154,7 @@ void PlatformUtils::initPulseGenerator(int whichGenerator, int pulsesPerSecond)
     }
       break;
     case 1: {
+        WDT_TRACE("PlatformUtils::initPulseGenerator");
         TC4->COUNT16.CTRLA.reg = TC_CTRLA_SWRST;
 	while (TC4->COUNT16.STATUS.reg & TC_STATUS_SYNCBUSY)
 	    ;
@@ -383,6 +385,8 @@ const char *PlatformUtils::resetCause()
         return "External Reset";
     } else if (rcause & PM_RCAUSE_SYST) {
         return "System Reset Request:";
+    } else if (rcause & PM_RCAUSE_BOD33) {
+        return "Brown Out 33 Detector Reset";
     } else {
         s_holder = "Unknown reason: 0x";
 	char buf[4];

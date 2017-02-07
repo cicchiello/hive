@@ -2,8 +2,14 @@
 
 #include <Arduino.h>
 
+#include <Trace.h>
+
+int Str::sBytesConsumed = 0;
+
+static int sMaxReported = 0;
+
 Str::Str(const char *s)
-  : buf(0), cap(0)
+  : buf(0), cap(0), deleted(false)
 {
     if (s != NULL) {
         int l = strlen(s);
@@ -13,7 +19,7 @@ Str::Str(const char *s)
 }
 
 Str::Str(const Str &str)
-  : buf(0), cap(0)
+  : buf(0), cap(0), deleted(false)
 {
     int l = str.len();
     expand(l);
@@ -22,16 +28,21 @@ Str::Str(const Str &str)
 
 Str::~Str()
 {
+    sBytesConsumed -= cap;
     delete [] buf;
+    deleted = true;
 }
 
 int Str::len() const
 {
+    assert(!deleted, "!deleted");
     return cap > 0 ? strlen(buf) : 0;
 }
 
 void Str::add(char c)  
 {
+    assert(!deleted, "!deleted");
+    
     // there is an incoming byte available from the host; make sure there's space, then consume it
     int l = len();
     expand(l+2);
@@ -39,20 +50,54 @@ void Str::add(char c)
     buf[l] = 0;
 }
 
-void Str::append(const char *str)
+Str &Str::append(const char *str)
 {
+    assert(!deleted, "!deleted");
+    
     Str temp(str); // done this way just in case "str" is a point to within *this
-    append(temp);
+    return append(temp);
 }
 
-void Str::append(const Str &str)
+Str &Str::append(const Str &str)
 {
+    assert(!deleted, "!deleted");
+    
     expand(len()+str.len()+1);
     strcpy(&buf[len()], str.c_str());
+    return *this;
+}
+
+Str &Str::append(int i)
+{
+    assert(!deleted, "!deleted");
+    
+    char buf[10];
+    sprintf(buf, "%d", i);
+    return append(buf);
+}
+
+Str &Str::append(long l)
+{
+    assert(!deleted, "!deleted");
+    
+    char buf[15];
+    sprintf(buf, "%Ld", l);
+    return append(buf);
+}
+
+Str &Str::append(unsigned long l)
+{
+    assert(!deleted, "!deleted");
+    
+    char buf[15];
+    sprintf(buf, "%Lu", l);
+    return append(buf);
 }
 
 void Str::clear()
 {
+    assert(!deleted, "!deleted");
+    
     if (buf != NULL) 
         buf[0] = 0;
 }
@@ -69,20 +114,28 @@ void Str::expand(int required)
     }
     
     if (required > cap) {
-        char *newBuf = new char[required];
+        char *newBuf = new char[required+1];
+	sBytesConsumed += required+1;
+	if (sBytesConsumed > 2*sMaxReported) {
+	    P("Str malloc report: "); PL(sBytesConsumed);
+	    sMaxReported = sBytesConsumed;
+	}
         if (cap > 0) {
 	    strcpy(newBuf, buf);
 	    delete [] buf;
+	    sBytesConsumed -= cap;
 	} else {
 	    newBuf[0] = 0;
 	}
 	buf = newBuf;
-	cap = required;
+	cap = required+1;
     }
 }
 
 Str &Str::operator=(const Str &o)
 {
+    assert(!deleted, "!deleted");
+    
     if (this == &o)
         return *this;
 
@@ -94,6 +147,8 @@ Str &Str::operator=(const Str &o)
   
 Str &Str::operator=(const char *o)
 {
+    assert(!deleted, "!deleted");
+    
     if (buf == o) // trivial case
         return *this;
   

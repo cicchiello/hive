@@ -14,7 +14,7 @@ void StringUtils::consumeChar(char c, Str *buf)
 /* STATIC */
 const char *StringUtils::eatWhitespace(const char *ptr) 
 {
-    while ((*ptr != 0) && ((*ptr == ' ') || (*ptr == '\t') || (*ptr == '\n')))
+    while ((*ptr != 0) && ((*ptr == ' ') || (*ptr == '\t') || (*ptr == '\n') || (*ptr == 0x0d)))
         ptr++;
     return ptr;
 }

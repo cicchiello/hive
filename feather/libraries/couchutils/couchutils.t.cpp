@@ -1,44 +1,52 @@
 #include <couchutils.t.h>
 
-#define NDEBUG
+//#define NDEBUG
 #include <strutils.h>
 
+#include <Trace.h>
+
 #include <couchutils.h>
+
+#include <str.h>
 
 #include <Arduino.h>
 
 static bool success = true;
-static CouchUtils::Doc *doc = NULL;
+static CouchUtils::Doc *sDoc = NULL;
 
 #define TestAssert(t,msg) if (!t) {PH("ASSERT FAILURE: "); PL(msg); success = false;}
 
+int StrBytesAtStart = 0;
+
 bool CouchUtilsTest::setup() {
-    PF("CouchUtilsTest::setup; ");
+    TF("CouchUtilsTest::setup");
+    
+    StrBytesAtStart = Str::sBytesConsumed;
     
     // Print a welcome message
 
     TestAssert(CouchUtils::Doc::s_instanceCnt == 0, "CouchUtils::Doc::s_instanceCnt == 0");
-    TestAssert(CouchUtils::Doc::NameValuePair::s_instanceCnt == 0, "CouchUtils::Doc::NameValuePair::s_instanceCnt == 0");
+    TestAssert(CouchUtils::NameValuePair::s_instanceCnt == 0, "CouchUtils::NameValuePair::s_instanceCnt == 0");
 
-    doc = new CouchUtils::Doc();
-    doc->addNameValue(new CouchUtils::Doc::NameValuePair("_rev", "4-0352417bf4356dcc4a621084d57aaf46"));
-    doc->addNameValue(new CouchUtils::Doc::NameValuePair("content2", "Hi CouchDB!"));
-    doc->addNameValue(new CouchUtils::Doc::NameValuePair("content", "Hi feather, if you can read this, the test worked!"));
+    sDoc = new CouchUtils::Doc();
+    sDoc->addNameValue(new CouchUtils::NameValuePair("_rev", "4-0352417bf4356dcc4a621084d57aaf46"));
+    sDoc->addNameValue(new CouchUtils::NameValuePair("content2", "Hi CouchDB!"));
+    sDoc->addNameValue(new CouchUtils::NameValuePair("content", "Hi feather, if you can read this, the test worked!"));
 
     TestAssert(CouchUtils::Doc::s_instanceCnt == 1, "CouchUtils::Doc::s_instanceCnt == 1");
     
-    TestAssert(CouchUtils::Doc::NameValuePair::s_instanceCnt == 3, "CouchUtils::Doc::NameValuePair::s_instanceCnt == 3");
+    TestAssert(CouchUtils::NameValuePair::s_instanceCnt == 3, "CouchUtils::NameValuePair::s_instanceCnt == 3");
 
     Str buf;
-    CouchUtils::toString(*doc, &buf);
+    CouchUtils::toString(*sDoc, &buf);
     const char *expected = "{\"_rev\":\"4-0352417bf4356dcc4a621084d57aaf46\",\"content2\":\"Hi CouchDB!\",\"content\":\"Hi feather, if you can read this, the test worked!\"}";
  
     TestAssert(strcmp(buf.c_str(), expected) == 0, "strcmp(buf.c_str(), expected) == 0");
 
-    delete doc;
-
+    delete sDoc;
+    
     TestAssert(CouchUtils::Doc::s_instanceCnt == 0, "CouchUtils::Doc::s_instanceCnt == 0");
-    TestAssert(CouchUtils::Doc::NameValuePair::s_instanceCnt == 0, "CouchUtils::Doc::NameValuePair::s_instanceCnt == 0");
+    TestAssert(CouchUtils::NameValuePair::s_instanceCnt == 0, "CouchUtils::NameValuePair::s_instanceCnt == 0");
 
 
     const char *stringToParse = 
@@ -74,7 +82,71 @@ bool CouchUtilsTest::setup() {
     Str buf4;
     CouchUtils::toString(doc4, &buf4);
     TestAssert(strcmp(expected, buf4.c_str()) == 0, "strcmp(expected, buf4.c_str()) == 0");
+
+    Str tstr("0123456789abcdef0123456789abcdef");
+    TRACE2("tstr: ", tstr.c_str());
+    CouchUtils::Doc tstrdoc;
+    tstrdoc.addNameValue(new CouchUtils::NameValuePair("test", CouchUtils::Item(Str(tstr.c_str()))));
+    CouchUtils::printDoc(tstrdoc);
     
+    CouchUtils::Doc pt;
+    pt.addNameValue(new CouchUtils::NameValuePair("total_rows", CouchUtils::Item(Str("20088"))));
+    pt.addNameValue(new CouchUtils::NameValuePair("offset", CouchUtils::Item(Str("3102"))));
+    CouchUtils::Doc doc;
+    doc.addNameValue(new CouchUtils::NameValuePair("id", CouchUtils::Item(Str("b2616c9c249a6e23b6cb1288477bac2f"))));
+    CouchUtils::Arr k1;
+    k1.append(CouchUtils::Item(Str("F0-17-66-FC-5E-A1")));
+    k1.append(CouchUtils::Item(Str("sample-rate")));
+    k1.append(CouchUtils::Item(Str("1484857822")));
+    doc.addNameValue(new CouchUtils::NameValuePair("key", CouchUtils::Item(k1)));
+    CouchUtils::Arr k2;
+    k2.append(CouchUtils::Item(Str("F0-17-66-FC-5E-A1")));
+    k2.append(CouchUtils::Item(Str("sample-rate")));
+    k2.append(CouchUtils::Item(Str("1484857822")));
+    k2.append(CouchUtils::Item(Str("10")));
+    doc.addNameValue(new CouchUtils::NameValuePair("value", CouchUtils::Item(k2)));
+    CouchUtils::Arr rows;
+    rows.append(CouchUtils::Item(doc));
+    pt.addNameValue(new CouchUtils::NameValuePair("rows", CouchUtils::Item(rows)));
+    CouchUtils::printArr(rows);
+    
+    CouchUtils::Doc k1doc;
+    k1doc.addNameValue(new CouchUtils::NameValuePair("hi", CouchUtils::Item(k1)));
+    CouchUtils::printDoc(k1doc);
+    
+    CouchUtils::printArr(k1);
+    CouchUtils::printDoc(doc);
+    CouchUtils::printDoc(pt);
+    
+		    
+    const char *rawdoc5 = "{\"total_rows\":20088,\"offset\":3102,\"rows\":[\{\"id\":\"b2616c9c249a6e23b6cb1288477bac2f\",\"key\":[\"F0-17-66-FC-5E-A1\",\"sample-rate\",\"1484857822\"],\"value\":[\"F0-17-66-FC-5E-A1\",\"sample-rate\",\"1484857822\",\"10\"]}\]}";
+    Str buf5;
+    CouchUtils::Doc doc5;
+    CouchUtils::parseDoc(rawdoc5, &doc5);
+
+    CouchUtils::printDoc(doc5);
+    
+    bool hasRate = false;
+    int rate = -1;
+    int ir = doc5.lookup("rows");
+    if ((ir>=0) && doc5[ir].getValue().isArr()) {
+        const CouchUtils::Arr &rows = doc5[ir].getValue().getArr();
+	if ((rows.getSz() == 1) && rows[0].isDoc()) {
+	    const CouchUtils::Doc &record = rows[0].getDoc();
+	    int ival = record.lookup("value");
+	    if ((ival >= 0) && record[ival].getValue().isArr()) {
+                const CouchUtils::Arr &val = record[ival].getValue().getArr();
+		if ((val.getSz() == 4) && !val[3].isDoc() && !val[3].isArr()) {
+                    const Str &rateStr = val[3].getStr();
+		    rate = atoi(rateStr.c_str());
+		    hasRate = true;
+		}
+	    }
+	}
+    }
+    assert(hasRate, "hasRate");
+    assert(rate == 10, "rate == 10");
+		    
     m_didIt = true;
 
     return success;
@@ -82,6 +154,11 @@ bool CouchUtilsTest::setup() {
 
 
 bool CouchUtilsTest::loop() {
+    TF("CouchUtilsTest::loop");
+
+    int bytesLeaked = Str::sBytesConsumed - StrBytesAtStart;
+    TRACE2("bytesLeaked of those tracked by class Str: ", bytesLeaked);
+    
     return success;
 }
 

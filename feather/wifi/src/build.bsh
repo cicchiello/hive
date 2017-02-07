@@ -1,0 +1,29 @@
+#!/bin/bash
+
+this=`realpath $0`
+here=`dirname ${this}`
+upone=`dirname ${here}`
+root=`dirname ${upone}`
+
+ARDUINO_PACKAGES=/home/pi/.arduino15/packages
+ADAFRUIT_TOOLS=${ARDUINO_PACKAGES}/adafruit/hardware/samd/1.0.13
+
+for f in ${root}/libraries/*; do
+    echo $f
+    ln -fs $f .
+done
+
+rm -f arduino USB arduino_zero Wire SPI
+ln -s ${ADAFRUIT_TOOLS}/cores/arduino .
+ln -s ${ADAFRUIT_TOOLS}/cores/arduino/USB .
+ln -s ${ADAFRUIT_TOOLS}/variants/arduino_zero arduino_zero
+ln -s ${ADAFRUIT_TOOLS}/libraries/Wire .
+ln -s ${ADAFRUIT_TOOLS}/libraries/SPI .
+
+echo ""
+echo "Configured.  Now, just type \"make\" to compile everything, then"
+echo "./upload_bin.bsh to upload, then reset the module and launch the Serial port."
+echo ""
+echo "Note; ./upload_bin.bsh only works if the device is in bootloader mode and the"
+echo "port isn't in use elsewhere"
+echo ""

@@ -1,0 +1,39 @@
+$ curl -v -X PUT "http://joes-mac-mini:5984/test-persistent-enum/feather-binaryget-test/listen3.wav?rev=117-89652a0b0f079fe2c575e9dfb6f31ff9" --data-binary @listen2.wav -H "Content-Type: audio/wav"
+* STATE: INIT => CONNECT handle 0x600057860; line 1396 (connection #-5000)
+* Added connection 0. The cache now contains 1 members
+*   Trying 192.168.1.85...
+* STATE: CONNECT => WAITCONNECT handle 0x600057860; line 1449 (connection #0)
+* Connected to joes-mac-mini (192.168.1.85) port 5984 (#0)
+* STATE: WAITCONNECT => SENDPROTOCONNECT handle 0x600057860; line 1556 (connection #0)
+* STATE: SENDPROTOCONNECT => DO handle 0x600057860; line 1574 (connection #0)
+> PUT /test-persistent-enum/feather-binaryget-test/listen3.wav?rev=117-89652a0b0f079fe2c575e9dfb6f31ff9 HTTP/1.1
+> Host: joes-mac-mini:5984
+> User-Agent: curl/7.50.0
+> Accept: */*
+> Content-Type: audio/wav
+> Content-Length: 330240
+> Expect: 100-continue
+>
+* STATE: DO => DO_DONE handle 0x600057860; line 1653 (connection #0)
+* STATE: DO_DONE => WAITPERFORM handle 0x600057860; line 1780 (connection #0)
+* STATE: WAITPERFORM => PERFORM handle 0x600057860; line 1790 (connection #0)
+* HTTP 1.1 or later with persistent connection, pipelining supported
+< HTTP/1.1 100 Continue
+* We are completely uploaded and fine
+* HTTP 1.1 or later with persistent connection, pipelining supported
+< HTTP/1.1 201 Created
+* Server CouchDB/1.6.1 (Erlang OTP/17) is not blacklisted
+< Server: CouchDB/1.6.1 (Erlang OTP/17)
+< Location: http://joes-mac-mini:5984/test-persistent-enum/feather-binaryget-test/listen3.wav
+< ETag: "118-8a3ddf76e36cb7251e5810455cc40e43"
+< Date: Fri, 27 Jan 2017 20:07:58 GMT
+< Content-Type: text/plain; charset=utf-8
+< Content-Length: 87
+< Cache-Control: must-revalidate
+<
+{"ok":true,"id":"feather-binaryget-test","rev":"118-8a3ddf76e36cb7251e5810455cc40e43"}
+* STATE: PERFORM => DONE handle 0x600057860; line 1949 (connection #0)
+* multi_done
+* Connection #0 to host joes-mac-mini left intact
+* Expire cleared
+

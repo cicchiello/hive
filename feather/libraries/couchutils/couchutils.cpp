@@ -1,7 +1,9 @@
 #include <couchutils.h>
 
-//#define NDEBUG
+#define NDEBUG
 #include <strutils.h>
+
+#include <Trace.h>
 
 #include <str.h>
 
@@ -13,15 +15,16 @@
 
 /* STATIC */
 int CouchUtils::Doc::s_instanceCnt = 0;
-int CouchUtils::Doc::NameValuePair::s_instanceCnt = 0;
+int CouchUtils::NameValuePair::s_instanceCnt = 0;
 
 
-static void printNameValuePairImp(const CouchUtils::Doc::NameValuePair &nv, int indent = 0);
+static void printNameValuePairImp(const CouchUtils::NameValuePair &nv, int indent = 0);
 static void printDocImp(const CouchUtils::Doc &doc, int indent = 0);
+static void printArrImp(const CouchUtils::Arr &arr, int indent = 0);
 
 
 
-void CouchUtils::Doc::addNameValue(CouchUtils::Doc::NameValuePair *nv) {
+void CouchUtils::Doc::addNameValue(CouchUtils::NameValuePair *nv) {
     if (numNVs == arrSz) {
         NameValuePair **old = nvs;
 	nvs = new NameValuePair*[2*arrSz];
@@ -46,6 +49,7 @@ int CouchUtils::Doc::lookup(const char *name) const
 CouchUtils::Doc::Doc(const CouchUtils::Doc &d)
   : nvs(new NameValuePair*[d.arrSz]), numNVs(d.numNVs), arrSz(d.arrSz)
 {
+    TF("CouchUtils::Doc::Doc");
     s_instanceCnt++;
     assert(numNVs <= arrSz, "numNVs <= arrSz");
     for (int i = 0; i < arrSz; i++)
@@ -64,6 +68,18 @@ CouchUtils::Doc::~Doc()
 }
 
 
+CouchUtils::Doc &CouchUtils::Doc::operator=(const CouchUtils::Doc &o)
+{
+    if (this == &o)
+        return *this;
+
+    clear();
+    for (int i = 0; i < o.getSz(); i++) {
+        addNameValue(new NameValuePair(o[i].getName(), o[i].getValue()));
+    }
+}
+
+
 void CouchUtils::Doc::clear()
 {
     for (int i = 0; i < numNVs; i++) {
@@ -74,55 +90,157 @@ void CouchUtils::Doc::clear()
 }
 
 
-CouchUtils::Doc::NameValuePair::NameValuePair(const Str &name, const Str &value)
-  : _name(name), _value(value)
-{
-    _doc = NULL;
 
-    s_instanceCnt++;
+CouchUtils::Item::Item(const CouchUtils::Item &o)
+  : _str(o._str), _arr(o._arr ? new Arr(*o._arr) : 0), _doc(o._doc ? new Doc(*o._doc) : 0)
+{
 }
 
-CouchUtils::Doc::NameValuePair::NameValuePair(const char *name, const char *value)
-  : _name(name), _value(value)
-{
-    _doc = NULL;
 
-    s_instanceCnt++;
+const CouchUtils::Item &CouchUtils::Item::operator=(const CouchUtils::Item &o)
+{
+    if (&o == this)
+        return *this;
+    
+    _str = o._str;
+    
+    if (_arr && o._arr)
+        *_arr = *o._arr;
+    else {
+        delete _arr;
+	_arr = o._arr ? new Arr(*o._arr) : 0;
+    }
+
+    if (_doc && o._doc)
+        *_doc = *o._doc;
+    else {
+        delete _doc;
+	_doc = o._doc ? new Doc(*o._doc) : 0;
+    }
+    
+    return *this;
 }
 
-CouchUtils::Doc::NameValuePair::NameValuePair(const char *name, const CouchUtils::Doc *doc)
-  : _name(name)
-{
-    _doc = doc;
 
-    s_instanceCnt++;
+
+CouchUtils::Arr::Arr(const CouchUtils::Arr &o)
+  : _arr(o._sz ? new Item[o._sz] : 0), _sz(o._sz)
+{
+    for (int i = 0; i < _sz; i++) {
+        _arr[i] = o._arr[i];
+    }
 }
 
-CouchUtils::Doc::NameValuePair::NameValuePair(const Str &name, const CouchUtils::Doc *doc) 
-  : _name(name)
-{
-    _doc = doc;
 
-    s_instanceCnt++;
+void CouchUtils::Arr::append(const CouchUtils::Item &item)
+{
+    Item *n = new Item[_sz+1];
+    for (int i = 0; i < _sz; i++)
+        n[i] = _arr[i];
+    n[_sz++] = item;
+    delete [] _arr;
+    _arr = n;
 }
 
-CouchUtils::Doc::NameValuePair::NameValuePair(const CouchUtils::Doc::NameValuePair &p)
-  : _name(p._name), _doc(p.isDoc() ? new Doc(*p.getDoc()) : NULL), _value(p._value)
+
+const CouchUtils::Arr &CouchUtils::Arr::operator=(const CouchUtils::Arr &o)
 {
-    assert((_doc == NULL) == (p._doc == NULL), "Doc not copied properly");
+    if (&o == this)
+        return *this;
+
+    delete [] _arr;
+    _sz = o._sz;
+    _arr = _sz ? new Item[_sz] : 0;
+
+    for (int i = 0; i < _sz; i++) {
+        _arr[i] = o._arr[i];
+    }
+
+    return *this;
 }
 
-CouchUtils::Doc::NameValuePair::~NameValuePair()
-{
-    delete _doc;
 
-    s_instanceCnt--;
+/* STATIC */ 
+const char *CouchUtils::parseArr(const char *rawtext, CouchUtils::Arr *arr) 
+{
+    TF("CouchUtils::parseArr");
+    
+    const char *marker = strstr(rawtext, "[");
+    if (marker != NULL) {
+        marker = StringUtils::eatWhitespace(marker+1);
+	const char *firstClose = strstr(marker, "]");
+	if (firstClose != NULL) {
+	    while (true) {
+	        marker = StringUtils::eatWhitespace(marker);
+
+		const char *tmarker = StringUtils::eatPunctuation(marker, ']');
+		if (tmarker != NULL) 
+		    return tmarker;
+
+		const char *nestedDocMarker = StringUtils::eatPunctuation(marker, '{');
+		const char *nestedArrMarker = StringUtils::eatPunctuation(marker, '[');
+		if ((nestedDocMarker == NULL) && (nestedArrMarker == NULL)) {
+		    // primitive value 
+		    TRACE("found a string");
+
+		    Str value;
+		    marker = StringUtils::unquote(marker, &value);
+		    if (marker == NULL) {
+		        // invalid Doc
+		        return NULL;
+		    }
+
+		    TRACE2("parsed a primitive: ", value.c_str());
+		    arr->append(Item(value));
+		} else if (nestedDocMarker != NULL) {
+		    // nested Doc
+		    TRACE("found a document");
+		    assert(nestedArrMarker == NULL, "nestedArrMarker == NULL");
+		    
+		    Doc nested; 
+		    marker = parseDoc(marker, &nested);
+		    if (marker == NULL) {
+		        // invalid Doc
+		        return NULL;
+		    }
+
+		    arr->append(Item(nested));
+		} else {
+		    // nested Array
+		    TRACE("found an array");
+
+		    Arr nested;
+		    marker = parseArr(marker, &nested);
+		    if (marker == NULL) {
+		        // invalid Array
+		        return NULL;
+		    }
+
+		    arr->append(Item(nested));
+		}
+		
+		tmarker = StringUtils::eatPunctuation(marker, ',');
+		if (tmarker == NULL) {
+		    tmarker = StringUtils::eatPunctuation(marker, '}');
+		    if (tmarker == NULL) {
+		        return StringUtils::eatPunctuation(marker, ']');
+		    } else {
+		      return tmarker;
+		    }
+		}
+		marker = tmarker;
+	    } 
+	} 
+    } 
+    return NULL;
 }
 
 
 /* STATIC */ 
 const char *CouchUtils::parseDoc(const char *rawtext, CouchUtils::Doc *doc) 
 {
+    TF("CouchUtils::parseDoc");
+    
     const char *marker = strstr(rawtext, "{");
     if (marker != NULL) {
         marker = StringUtils::eatWhitespace(marker+1);
@@ -141,13 +259,17 @@ const char *CouchUtils::parseDoc(const char *rawtext, CouchUtils::Doc *doc)
 		    // error -- DONE
 		    return NULL;
 		}
+		TRACE2("parsed a name: ", name.c_str());
 
 		marker = StringUtils::eatPunctuation(marker, ':');
 		marker = StringUtils::eatWhitespace(marker);
 
-		tmarker = StringUtils::eatPunctuation(marker, '{');
-		if (tmarker == NULL) {
+		const char *nestedDocMarker = StringUtils::eatPunctuation(marker, '{');
+		const char *nestedArrMarker = StringUtils::eatPunctuation(marker, '[');
+		if ((nestedDocMarker == NULL) && (nestedArrMarker == NULL)) {
 		    // primitive value 
+		    TRACE("found a string");
+
 		    Str value;
 		    marker = StringUtils::unquote(marker, &value);
 		    if (marker == NULL) {
@@ -155,22 +277,44 @@ const char *CouchUtils::parseDoc(const char *rawtext, CouchUtils::Doc *doc)
 		        return NULL;
 		    }
 
-		    doc->addNameValue(new Doc::NameValuePair(name.c_str(), value.c_str()));
-		} else {
+		    TRACE2("parsed a primitive value: ", value.c_str());
+		    doc->addNameValue(new NameValuePair(name.c_str(), value.c_str()));
+		} else if (nestedDocMarker != NULL) {
 		    // nested Doc
-		    Doc *nested = new Doc();
-		    marker = parseDoc(marker, nested);
+		    TRACE("found a document");
+		    assert(nestedArrMarker == NULL, "nestedArrMarker == NULL");
+		    
+		    Doc nested; 
+		    marker = parseDoc(marker, &nested);
 		    if (marker == NULL) {
 		        // invalid Doc
 		        return NULL;
 		    }
 
-		    doc->addNameValue(new Doc::NameValuePair(name.c_str(), nested));
-		}
+		    doc->addNameValue(new NameValuePair(name.c_str(), nested));
+		} else {
+		    // nested Array
+		    TRACE("found an array");
 
+		    Arr nested;
+		    marker = parseArr(marker, &nested);
+		    if (marker == NULL) {
+		        // invalid Array
+		        return NULL;
+		    }
+
+		    doc->addNameValue(new NameValuePair(name.c_str(), nested));
+		}
+		
 		tmarker = StringUtils::eatPunctuation(marker, ',');
-		if (tmarker == NULL) 
-		    return StringUtils::eatPunctuation(marker, '}');
+		if (tmarker == NULL) {
+		    tmarker = StringUtils::eatPunctuation(marker, '}');
+		    if (tmarker == NULL) {
+		        return StringUtils::eatPunctuation(marker, ']');
+		    } else {
+		      return tmarker;
+		    }
+		}
 		marker = tmarker;
 	    } 
 	} 
@@ -180,26 +324,27 @@ const char *CouchUtils::parseDoc(const char *rawtext, CouchUtils::Doc *doc)
 
 
 /* STATIC */
-void printNameValuePairImp(const CouchUtils::Doc::NameValuePair &nv, int indent)
+void printNameValuePairImp(const CouchUtils::NameValuePair &nv, int indent)
 {
-//PL("trace 1");
+    TF("::printNameValuePairImp");
+    
     P("\"");
-//PL("trace 2");
     P(nv.getName().c_str());
-//PL("trace 3");
     P("\" : ");
-//PL("trace 4");
-    if (nv.isDoc()) {
-//PL("trace 5");
+    if (nv.getValue().isDoc()) {
         PL("{");
-	printDocImp(*nv.getDoc(), indent+4);
+	printDocImp(nv.getValue().getDoc(), indent+4);
 	for (int j = 0; j < indent; j++)
 	    P(' ');
 	P("}");
+    } else if (nv.getValue().isArr()) {
+	P("[");
+	printArrImp(nv.getValue().getArr(), indent+4);
+	P("]");
     } else {
-//PL("trace 6");
+        assert(nv.getValue().isStr(), "nv.isStr()");
         P("\"");
-	P(nv.getValue().c_str());
+	P(nv.getValue().getStr().c_str());
 	P("\"");
     }
 }
@@ -222,11 +367,70 @@ void printDocImp(const CouchUtils::Doc &doc, int indent)
 
 
 /* STATIC */
+void printArrImp(const CouchUtils::Arr &arr, int indent)
+{
+    TF("::printArrImp");
+    int sz = arr.getSz();
+    for (int i = 0; i < sz; i++) {
+        if (arr[i].isDoc()) {
+	    PL("{");
+	    printDocImp(arr[i].getDoc(), indent);
+	    PL("}");
+	} else if (arr[i].isArr())
+	    printArrImp(arr[i].getArr(), indent);
+	else {
+            P("\"");
+	    P(arr[i].getStr().c_str());
+	    P("\"");
+	}
+	if (i+1 < sz) 
+	    P(",");
+    }
+}
+
+
+/* STATIC */
 void CouchUtils::printDoc(const CouchUtils::Doc &doc) 
 {
     PL("{");
     printDocImp(doc, 4);
     PL("}");
+}
+
+/* STATIC */
+void CouchUtils::printArr(const CouchUtils::Arr &arr) 
+{
+    P("[");
+    printArrImp(arr, 4);
+    PL("]");
+}
+
+/* STATIC */
+const char *CouchUtils::urlEncode(const char* msg, Str *buf)
+{
+    // according to https://tools.ietf.org/html/rfc3986, the following are the legal characters within a url
+    // "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~:/?#[]@!$&'()*+,;="
+    // (however, any that may be context specific are also escaped here)
+    static const char *hex = "0123456789abcdef";
+
+    int i = 0;
+    while (*msg!='\0'){
+        if( ('a' <= *msg && *msg <= 'z') ||
+	    ('A' <= *msg && *msg <= 'Z') ||
+	    ('0' <= *msg && *msg <= '9') ||
+	    ('/' == *msg) || ('&' == *msg) ||
+	    ('=' == *msg) || ('?' == *msg) || (',' == *msg) ||
+	    ('_' == *msg) || ('.' == *msg) || ('-' == *msg)) {
+	    buf->add(*msg);
+        } else {
+	    buf->add('%');
+	    buf->add(hex[*msg >> 4]);
+	    buf->add(hex[*msg & 0x0f]);
+        }
+        msg++;
+    }
+    buf->add(0);
+    return buf->c_str();
 }
 
 
@@ -273,9 +477,9 @@ const char *CouchUtils::toString(const CouchUtils::Doc &doc, Str *buf)
     for (int i = 0; i < doc.getSz(); i++) {
         const Str &name = doc[i].getName();
 	int requiredLen = buf->len()+5+name.len();
-	if (doc[i].isDoc()) {
+	if (doc[i].getValue().isDoc()) {
 	    Str nested;
-	    toString(*doc[i].getDoc(), &nested);
+	    toString(doc[i].getValue().getDoc(), &nested);
 	    requiredLen += nested.len()+4;
 	    buf->expand(requiredLen);
 	    char *nonConstBuf = (char*) buf->c_str();
@@ -283,7 +487,7 @@ const char *CouchUtils::toString(const CouchUtils::Doc &doc, Str *buf)
 	    if (i+1 < doc.getSz()) 
 	        strcat(nonConstBuf, ",");
 	} else {
-	    const Str &value = doc[i].getValue();
+	    const Str &value = doc[i].getValue().getStr();
 	    requiredLen += value.len()+4;
 	    buf->expand(requiredLen);
 	    char *nonConstBuf = (char*) buf->c_str();

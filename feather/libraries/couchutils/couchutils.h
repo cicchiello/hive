@@ -9,44 +9,91 @@ class IPAddress;
 class CouchUtils {
 public:
 
-  class Doc {
-  public:
+  class Item;
+  class Arr;
+  class Doc;
+  class NameValuePair;
 
-    class NameValuePair {
-    private:
-      const Str _name, _value;
-      const Doc *_doc;
-      
-    public:
-      NameValuePair(const char *name, const char *value);
-      NameValuePair(const char *name, const Doc *value);
-      NameValuePair(const Str &name, const Str &value);
-      NameValuePair(const Str &name, const Doc *value);
-      NameValuePair(const NameValuePair &);
-      ~NameValuePair();
-
-      bool isDoc() const {return _doc != 0;}
-      const Str &getName() const {return _name;}
-      const Str &getValue() const {return _value;}
-      const Doc *getDoc() const {return _doc;}
-
-      static int s_instanceCnt;
-
-    private:
-    };
-
+  class Item {
   private:
+    Str _str;
+    Arr *_arr;
+    Doc *_doc;
+    
+  public:
+    Item() : _arr(0), _doc(0) {}
+    Item(const char *cstr) : _str(cstr), _arr(0), _doc(0) {}
+    Item(const Str &str) : _str(str), _arr(0), _doc(0) {}
+    Item(const Arr &arr) : _arr(new Arr(arr)), _doc(0) {}
+    Item(const Doc &doc) : _arr(0), _doc(new Doc(doc)) {}
+    Item(const Item &o);
+    ~Item() {delete _arr; delete _doc;}
+    
+    const Item &operator=(const Item &o);
+    
+    bool isDoc() const {return _doc != 0;}
+    bool isArr() const {return _arr != 0;}
+    bool isStr() const {return !isDoc() && !isArr();}
 
+    const Str &getStr() const {return _str;}
+    const Doc &getDoc() const {return *_doc;}
+    const Arr &getArr() const {return *_arr;}
+  };
+  
+  class Arr {
+  private:
+    Item *_arr;
+    int _sz;
+
+  public:
+    Arr() : _sz(0), _arr(0) {};
+    Arr(const Arr &arr);
+    ~Arr() {delete [] _arr;}
+    const Arr &operator=(const Arr &);
+
+    void append(const Item &item);
+
+    int getSz() const {return _sz;}
+
+    const Item &operator[](int i) const {return _arr[i];}
+  };
+
+  
+  class NameValuePair {
+  private:
+    const Str _name;
+    const Item _item;
+
+    const NameValuePair&operator=(const NameValuePair&); // unimplemented
+    
+  public:
+    static int s_instanceCnt;
+    
+    NameValuePair(const char *n, const Item &v) : _name(n), _item(v) {s_instanceCnt++;}
+    NameValuePair(const Str &n, const Item &v) : _name(n), _item(v) {s_instanceCnt++;}
+    NameValuePair(const NameValuePair &o) : _name(o._name), _item(o._item) {s_instanceCnt++;}
+    ~NameValuePair() {s_instanceCnt--;}
+
+    const Str &getName() const {return _name;}
+    const Item &getValue() const {return _item;}
+
+  };
+
+    
+  class Doc {
+  private:
     int numNVs, arrSz;
     NameValuePair **nvs;
 
   public:
-    Doc()
-      : nvs(new NameValuePair*[10]), numNVs(0), arrSz(10)
-      {s_instanceCnt++;}
+    static int s_instanceCnt;
+    
+    Doc() : nvs(new NameValuePair*[10]), numNVs(0), arrSz(10) {s_instanceCnt++;}
     Doc(const Doc &d);
     ~Doc();
 
+    Doc &operator=(const Doc&);
+    
     void clear();
     
     void addNameValue(NameValuePair *nv);
@@ -56,22 +103,26 @@ public:
 
     int lookup(const char *name) const;
     const NameValuePair &operator[](int i) const {return *nvs[i];}
-
-    static int s_instanceCnt;
   };
 
 
+  // on success returns pointer to the string just past the closing '}', NULL on failure
   static const char *parseDoc(const char *rawtext, Doc *doc);
 
+  static void printArr(const Arr &arr);
   static void printDoc(const Doc &doc);
 
   static const char *toURL(const char *db, const char *docid, Str *page);
+  static const char *urlEncode(const char *msg, Str *url);
   static const char *toAttachmentPutURL(const char *db, const char *docid, 
 					const char *attachName, const char *revision, Str *result);
   static const char *toAttachmentGetURL(const char *db, const char *docid, 
 					const char *attachName, Str *result);
 
   static const char *toString(const Doc &doc, Str *buf);
+
+ private:
+  static const char *parseArr(const char *rawtext, Arr *arr);
 };
 
 #endif
