@@ -13,6 +13,8 @@ MYPACKAGES=strutils couchutils tests platformutils cloudpipe DHT
 OTHERPACKAGES=SPI arduino arduino_zero USB Wire
 PACKAGES=$(MYPACKAGES) $(OTHERPACKAGES)
 
+LIBOBJS=$(patsubst %.cpp,%.o,$(wildcard *.cpp)) $(patsubst %.c,%.o,$(wildcard *.c))
+
 HPACKAGES=
 CPACKAGES=Adafruit_BluefruitLE_nRF51 Adafruit_Motorshield
 PACKAGE_LIBS=$(addsuffix .lib,$(PACKAGES) $(HPACKAGES) $(CPACKAGES))
@@ -175,9 +177,31 @@ Adafruit_BluefruitLE_nRF51.lib :
 	cd Adafruit_BluefruitLE_nRF51; make -f $(ROOT)/Makefile Adafruit_BluefruitLE_nRF51.a
 	cd Adafruit_BluefruitLE_nRF51/utility; make -f $(ROOT)/Makefile Adafruit_BluefruitLE_nRF51.a
 
-Adafruit_Motorshield.lib :
-	cd Adafruit_Motorshield; make -f $(ROOT)/Makefile Adafruit_Motorshield.a
-	cd Adafruit_Motorshield/utility; make -f $(ROOT)/Makefile Adafruit_Motorshield.a
+Adafruit_Motorshield.lib : Adafruit_Motorshield/Adafruit_Motorshield.a
+	@echo Adafruit_Motorshield.lib done
+
+Motorshield.root = $(ROOT)/Adafruit_Motorshield
+Motorshield.util = $(Motorshield.root)/utility
+
+Motorshield.root.srcs = $(wildcard $(Motorshield.root)/*.cpp) $(wildcard $(Motorshield.root)/*.c)
+Motorshield.util.srcs = $(wildcard $(Motorshield.util)/*.cpp) $(wildcard $(Motorshield.util)/*.c)
+
+Adafruit_Motorshield/Adafruit_Motorshield.a: Adafruit_Motorshield/Motorshield.root.a \
+					     Adafruit_Motorshield/Motorshield.util.a
+	$(AR) rcs $@ $(patsubst %.cpp,%.o,$(Motorshield.root.srcs)) $(patsubst %.c,%.o,$(Motorshield.root.srcs))
+	$(AR) rcs $@ $(patsubst %.cpp,%.o,$(Motorshield.util.srcs)) $(patsubst %.c,%.o,$(Motorshield.util.srcs))
+
+Adafruit_Motorshield/Motorshield.root.a : $(Motorshield.root.srcs)
+	cd $(Motorshield.root); make -f $(ROOT)/Makefile lib.objs
+	$(AR) rcs $@ $(wildcard $(Motorshield.root)/*.o)
+
+Adafruit_Motorshield/Motorshield.util.a : $(Motorshield.util.srcs)
+	cd $(Motorshield.util); make -f $(ROOT)/Makefile lib.objs
+	$(AR) rcs $@ $(wildcard $(Motorshield.util)/*.o)
+
+lib.objs : $(LIBOBJS)
+	@echo LIBOBJS: $(LIBOBJS)
+	@echo $@ is ready
 
 clean :
 	@echo Deleting: && find -L $(ROOT) -name "*.o" 
