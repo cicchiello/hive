@@ -132,6 +132,15 @@ void Str::expand(int required)
     }
 }
 
+bool Str::equals(const Str &other) const
+{
+    if (this == &other)
+        return true;
+
+    return strcmp(c_str(), other.c_str()) == 0;
+}
+
+
 Str &Str::operator=(const Str &o)
 {
     assert(!deleted, "!deleted");

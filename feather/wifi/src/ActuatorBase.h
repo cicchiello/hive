@@ -6,10 +6,13 @@
 
 class Str;
 class HiveConfig;
+class RateProvider;
+
 
 class ActuatorBase : public Actuator {
  public:
-    ActuatorBase(const HiveConfig &config, const char *actuatorName, unsigned long now);
+    ActuatorBase(const HiveConfig &config, const RateProvider &rateProvider,
+		 const char *actuatorName, unsigned long now);
     ~ActuatorBase() {}
 
     bool isItTimeYet(unsigned long now) const;
@@ -24,10 +27,19 @@ class ActuatorBase : public Actuator {
         Getter(const char *ssid, const char *pswd,
 	       const char *dbHost, int dbPort,
 	       const char *url, const char *credentials, bool isSSL);
+	~Getter() {}
         virtual bool hasResult() const = 0;
 	virtual const char *className() const = 0;
 
-	const CouchUtils::Doc *getSingleRecord(CouchUtils::Doc *doc) const;
+	const CouchUtils::Doc *getSingleRecord() const;
+	const Str *getSingleValue() const;
+
+	virtual bool isError() const;
+	
+    private:
+	bool mIsParsed, mIsValueParsed, mIsError;
+	const CouchUtils::Doc *mRecord;
+	const Str *mValue;
     };
     
  protected:
@@ -46,7 +58,8 @@ class ActuatorBase : public Actuator {
     
  private:
     unsigned long mNextActionTime;
-    
+
+    const RateProvider &mRateProvider;
     const HiveConfig &mConfig;
     Getter *mGetter;
 };

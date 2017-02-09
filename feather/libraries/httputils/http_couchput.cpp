@@ -1,8 +1,8 @@
 #include <http_couchput.h>
 
 
-//#define HEADLESS
-//#define NDEBUG
+#define HEADLESS
+#define NDEBUG
 #include <strutils.h>
 
 #include <Trace.h>
@@ -79,12 +79,9 @@ HttpOp::EventResult HttpCouchPut::event(unsigned long now, unsigned long *callMe
 	Str str;
 	CouchUtils::toString(m_content, &str);
 	    
-	Str encodedStr;
-	CouchUtils::urlEncode(str.c_str(), &encodedStr);
-
-	sendPUT(client, encodedStr.len());
+	sendPUT(client, str.len());
 	if (str.len() > 0) {
-	    sendDoc(client, encodedStr.c_str());
+	    sendDoc(client, str.c_str());
 	    client.flush();
 	}
 	    

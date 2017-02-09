@@ -1,5 +1,6 @@
 #include <ConfigWriter.h>
 
+#define HEADLESS
 #define NDEBUG
 #include <strutils.h>
 

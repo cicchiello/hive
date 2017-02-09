@@ -10,13 +10,19 @@
 #include <pulsegen_consumer.h>
 
 
-//#define HEADLESS
+#define HEADLESS
 #define NDEBUG
 
 #include <Trace.h>
 
 #include <platformutils.h>
 
+#include <sdutils.h>
+
+#include <SdFat.h>
+
+
+#define STACKTRACE_FILENAME "/STACK.LOG"
 
 static HivePlatform *sPlatform = 0;
 static PulseGenConsumer **sConsumers10K = 0;
@@ -75,8 +81,26 @@ void DEBUG_wdtEarlyWarningHandler()
     PlatformUtils::nonConstSingleton().clearWDT();
 
     if (TraceScope::sCurrScope != NULL) {
-        P("wdtEarlyWarningHandler; most recent trace scope: ");
-	PL(TraceScope::sCurrScope->getFunc());
+        SdFile f;
+	bool canWrite = true;
+	if (!f.open(STACKTRACE_FILENAME, O_CREAT | O_WRITE)) {
+	    TRACE2("Couldn't create file ", STACKTRACE_FILENAME);
+	    canWrite = false;
+	}
+	
+        PL("wdtEarlyWarningHandler; scope stack trace: ");
+	const TraceScope *s = TraceScope::sCurrScope;
+	while (s != NULL) {
+	    PL(s->getFunc());
+	    if (canWrite) {
+	        f.write(s->getFunc(), strlen(s->getFunc()));
+		f.write("\n", 2);
+	    }
+	    s = s->getParent();
+	}
+	if (canWrite) {
+	    f.close();
+	}
     }
     
     PL("wdtEarlyWarningHandler; BARK!");

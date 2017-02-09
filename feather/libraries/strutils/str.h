@@ -24,6 +24,8 @@ class Str {
   
   int capacity() const;
   int len() const;
+
+  bool equals(const Str &other) const;
   
   void expand(int capacity);
 

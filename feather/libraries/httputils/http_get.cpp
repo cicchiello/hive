@@ -1,6 +1,6 @@
 #include <http_get.h>
 
-//#define HEADLESS
+#define HEADLESS
 #define NDEBUG
 #include <strutils.h>
 
@@ -51,6 +51,7 @@ bool HttpGet::processEventResult(HttpGet::EventResult r)
 	break;
     case HttpGet::ConnectTimeout:
         TRACE("WiFi shield couldn't connect!");
+	getHeaderConsumer().setTimedOut(true);
 	break;
     case HttpGet::ConnectFailed:
         TRACE("Unexpected WiFi Connect state: ");
@@ -111,7 +112,8 @@ void HttpGet::sendGET(Stream &client) const
 
 void HttpGet::sendPage(Stream &client) const
 {
-    P(m_page.c_str());
+    TF("HttpGet::sendPage");
+    TRACE(m_page.c_str());
     client.print(m_page.c_str());
 }
 

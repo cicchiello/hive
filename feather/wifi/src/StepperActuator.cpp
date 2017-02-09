@@ -144,11 +144,12 @@ PulseGenConsumer *StepperActuator::getPulseGenConsumer()
 }
 
 StepperActuator::StepperActuator(const HiveConfig &config,
+				 const RateProvider &rateProvider,
 				 const char *name,
 				 unsigned long now,
 				 int address, int port,
 				 bool isBackwards)
-  : ActuatorBase(config, name, now), mLoc(0), mTarget(0),
+  : ActuatorBase(config, rateProvider, name, now), mLoc(0), mTarget(0),
     mRunning(false), mIsBackwards(isBackwards)
 {
     TF("StepperActuator::StepperActuator");
@@ -228,20 +229,27 @@ bool StepperActuator::isItTimeYetForSelfDrive(unsigned long now)
 
 class StepperActuatorGetter : public ActuatorBase::Getter {
 private:
-    bool mHasTarget;
-    int mTarget, mParsed;
+    bool mHasTarget, mParsed, mIsError;
+    int mTarget;
   
 public:
     StepperActuatorGetter(const char *ssid, const char *pswd, const char *dbHost, int dbPort, bool isSSL,
 			  const char *url, const char *credentials)
       : ActuatorBase::Getter(ssid, pswd, dbHost, dbPort, url, credentials, isSSL),
-	mHasTarget(false), mTarget(0), mParsed(false)
+	mIsError(false), mHasTarget(false), mTarget(0), mParsed(false)
     {
         TF("StepperActuatorGetter::StepperActuatorGetter");
 	TRACE("entry");
     }
 
     int getTarget() const {return mTarget;}
+
+    bool isError() const
+    {
+      TF("StepperActuatorGetter::isError");
+      TRACE2("mIsError: ", mIsError);
+      return mIsError || ActuatorBase::Getter::isError();
+    }
   
     bool hasResult() const {
         if (mParsed)
@@ -249,23 +257,15 @@ public:
 
 	StepperActuatorGetter *nonConstThis = (StepperActuatorGetter*) this;
 	nonConstThis->mParsed = true;
-        CouchUtils::Doc doc;
-	const CouchUtils::Doc *record = getSingleRecord(&doc);
-	if (record != NULL) {
-	    int ival = record->lookup("value");
-	    if ((ival >= 0) &&
-		(*record)[ival].getValue().isArr() &&
-		((*record)[ival].getValue().getArr().getSz()==4)) {
-	        const CouchUtils::Arr &val = (*record)[ival].getValue().getArr();
-		if (!val[3].isDoc() && !val[3].isArr()) {
-		    const Str &locStr = val[3].getStr();
-		    nonConstThis->mTarget = atoi(locStr.c_str());
-		    nonConstThis->mHasTarget = true;
-		}
-	    }
+
+	const Str *vstr = getSingleValue();
+	if (vstr != NULL) {
+	    nonConstThis->mTarget = atoi(vstr->c_str());
+	    nonConstThis->mHasTarget = true;
+	    nonConstThis->mIsError = false;
+	    return true;
 	}
-	
-	return mHasTarget;
+	return false;
     }
 
     static const char *ClassName() {return "StepperActuatorGetter";}

@@ -17,6 +17,9 @@ class HiveConfig {
     
     bool isValid() const;
 
+    const char *getHiveId() const;
+    unsigned long getConfigTimestamp() const;
+    
     const char *getSSID() const;
     const char *getPSWD() const;
     const char *getDbHost() const;
@@ -24,9 +27,8 @@ class HiveConfig {
     const int isSSL() const;
     const char *getDbCredentials() const;
 
-    const char *getHiveId() const {return "F0-17-66-FC-5E-A1";} // for now -- eventually use mcu id or mac address
-
     const char *getLogDbName() const;
+    const char *getConfigDbName() const;
     const char *getDesignDocId() const;
     const char *getSensorByHiveViewName() const;
 

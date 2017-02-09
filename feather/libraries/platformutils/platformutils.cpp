@@ -19,7 +19,7 @@ const char *PlatformUtils::s_traceStr = NULL;
 
 void WDT_TRACE(const char *msg) {PlatformUtils::s_traceStr = msg;}
 
-// buf must be 17 bytes
+// buf must be 33 bytes
 static const char *serialId(char *buf)
 {
     volatile uint8_t *p1 = (volatile uint8_t *)0x0080A00C;
@@ -49,9 +49,10 @@ static const char *serialId(char *buf)
 const char *PlatformUtils::serialNumber() const
 {
     static bool s_serialInitialized = false;
-    static char s_serialBuf[17];
+    static char s_serialBuf[33];
     if (!s_serialInitialized) {
         serialId(s_serialBuf);
+	s_serialBuf[32] = 0;
     }
 
     return s_serialBuf;

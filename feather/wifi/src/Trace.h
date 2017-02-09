@@ -43,12 +43,7 @@ class TraceScope {
     const TraceScope *getParent() const {return parent;}
 };
 
-#ifndef HEADLESS
-#   define TF(f) TraceScope tscope(f,__FILE__,__LINE__);
-#else
-#   define TF(f) do {} while (0);
-#endif
-
+#define TF(f) TraceScope tscope(f,__FILE__,__LINE__);
 
 
 #ifndef NDEBUG

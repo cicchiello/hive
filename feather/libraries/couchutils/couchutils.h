@@ -38,6 +38,8 @@ public:
     const Str &getStr() const {return _str;}
     const Doc &getDoc() const {return *_doc;}
     const Arr &getArr() const {return *_arr;}
+
+    bool equals(const Item &other) const;
   };
   
   class Arr {
@@ -56,6 +58,8 @@ public:
     int getSz() const {return _sz;}
 
     const Item &operator[](int i) const {return _arr[i];}
+
+    bool equals(const Arr &other) const;
   };
 
   
@@ -103,6 +107,8 @@ public:
 
     int lookup(const char *name) const;
     const NameValuePair &operator[](int i) const {return *nvs[i];}
+
+    bool equals(const Doc &other) const;
   };
 
 
@@ -120,6 +126,7 @@ public:
 					const char *attachName, Str *result);
 
   static const char *toString(const Doc &doc, Str *buf);
+  static const char *toString(const Arr &arr, Str *buf);
 
  private:
   static const char *parseArr(const char *rawtext, Arr *arr);

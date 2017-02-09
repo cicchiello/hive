@@ -7,10 +7,10 @@
 
 class Str;
 
-
 class StepperActuator : public ActuatorBase {
  public:
     StepperActuator(const HiveConfig &config,
+		    const RateProvider &rateProvider,
 		    const char *name, unsigned long now,
 		    int address, int port, bool isBackwards=false);
     // ports: 1==M1 & M2; 2==M3 & M4

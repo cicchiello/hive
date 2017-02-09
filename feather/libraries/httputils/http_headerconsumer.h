@@ -7,7 +7,8 @@
 
 class HttpHeaderConsumer : public HttpResponseConsumer {
 private:
-  bool m_gotCR, m_haveFirstCRLF, m_haveHeader, m_parsedDoc, m_firstConsume, m_timedout, m_err;
+  bool m_gotCR, m_haveFirstCRLF, m_haveHeader, m_parsedDoc, m_firstConsume;
+  bool m_timedout, m_err, m_hasOk, m_hasNotFound;
   bool mHasContentLength, mIsChunked;
   int m_contentLength;
   unsigned long m_firstConsumeTime;
@@ -21,6 +22,7 @@ public:
   static const char *TAGChunked;
   static const char *TAG200;
   static const char *TAG201;
+  static const char *TAG404;
 
   HttpHeaderConsumer(const WifiUtils::Context &ctxt);
 
@@ -37,7 +39,10 @@ public:
   const Str &getErrmsg() const {return m_response;}
   
   bool hasOk() const;
+  bool hasNotFound() const;
+  
   bool isTimeout() const {return m_timedout;}
+  void setTimedOut(bool v) {m_timedout = v;}
 
   unsigned long consumeStart() const {return m_firstConsumeTime;}
 

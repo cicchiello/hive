@@ -2,8 +2,9 @@
 
 #include <Arduino.h>
 
-//#define HEADLESS
-//#define NDEBUG
+#define HEADLESS
+#define NDEBUG
+
 #include <Trace.h>
 
 #include <strutils.h>
@@ -211,17 +212,19 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 	break;
     case DNS_INIT:
     case DNS_WAITING: {
-        TF("HttpOp::event; DNS_INIT");
+        TF("HttpOp::event; DNS_INIT || DNS_WAITING");
         TRACE(m_opState == DNS_INIT ? "DNS_INIT" : "DNS_WAITING");
 	MyWiFi &w = m_ctxt.getWifi();
 	MyWiFi::DNS_State dnsState; 
 	if (m_opState == DNS_INIT) {
+	    TF("HttpOp::event; DNS_INIT");
 	    TRACE2("resolving mSpecifiedHostName: ", mSpecifiedHostName.c_str());
 	    mDnsCnt = 41; // 20x500ms == 20s
 	    dnsState = w.dnsNoWait(mSpecifiedHostName.c_str(), mResolvedHostIP);
 	    mDnsWaitStart = now;
 	    setOpState(DNS_WAITING);
 	} else {
+	    TF("HttpOp::event; DNS_WAITING");
 	    dnsState = w.dnsCheck(mResolvedHostIP);
 	}
 	
@@ -329,7 +332,7 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 	    }
 	    setOpState(DISCONNECTING);
 	}
-	*callMeBackIn_ms = 10l;
+	*callMeBackIn_ms = 50l;
 	return CallMeBack;
     }
     case DISCONNECTING: {

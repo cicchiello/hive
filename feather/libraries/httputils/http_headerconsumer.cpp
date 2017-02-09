@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+#define HEADLESS
 #define NDEBUG
 
 #include <Trace.h>
@@ -17,6 +18,7 @@ const char *HttpHeaderConsumer::TAGTransferEncoding = "Transfer-Encoding:";
 const char *HttpHeaderConsumer::TAGChunked = "chunked";
 const char *HttpHeaderConsumer::TAG200 = "HTTP/1.1 200 OK";
 const char *HttpHeaderConsumer::TAG201 = "HTTP/1.1 201 Created";
+const char *HttpHeaderConsumer::TAG404 = "HTTP/1.1 404 Object Not Found";
 
 
 HttpHeaderConsumer::HttpHeaderConsumer(const WifiUtils::Context &ctxt)
@@ -46,30 +48,42 @@ void HttpHeaderConsumer::reset()
 }
 
 
+bool HttpHeaderConsumer::hasNotFound() const
+{
+    TF("HttpHeaderConsumer::hasNotFound");
+    TRACE("entry");
+    if (!m_parsedDoc)
+        hasOk();
+
+    return m_hasNotFound;
+}
+
+
 bool HttpHeaderConsumer::hasOk() const
 {
     TF("HttpHeaderConsumer::hasOk");
     if (m_parsedDoc) {
         TRACE("already parsed");
-        return !m_err;
+        return m_hasOk;
     }
     
     if (!m_err) {
         HttpHeaderConsumer *nonConstThis = (HttpHeaderConsumer*) this;
         nonConstThis->m_parsedDoc = nonConstThis->m_err = true;
-        if ((strstr(m_response.c_str(), TAG200) != NULL) ||
-	    (strstr(m_response.c_str(), TAG201) != NULL)) {
+	nonConstThis->m_hasOk = (strstr(m_response.c_str(), TAG200) != NULL) ||
+	                        (strstr(m_response.c_str(), TAG201) != NULL);
+	nonConstThis->m_hasNotFound = (strstr(m_response.c_str(), TAG404) != NULL);
+        if (m_hasOk || m_hasNotFound) {
 	    const char *cl = strstr(m_response.c_str(), TAGContentLength);
 	    if (cl != NULL) {
 		cl = StringUtils::eatWhitespace(cl + strlen(TAGContentLength));
 		if (cl != NULL) {
-		    TRACE("found ok and Content-Length");
+		    TRACE("found (ok || notFound) && Content-Length");
 		    HttpHeaderConsumer *nonConstThis = (HttpHeaderConsumer *) this;
 		    nonConstThis->m_contentLength = atoi(cl);
 		    nonConstThis->m_err = false;
 		    nonConstThis->mHasContentLength = true;
-TRACE("returning true");
-		    return true;
+		    return m_hasOk;
 		} else {
 		    TRACE("Couldn't parse the Content-Length from HTTP response");
 		}
@@ -79,7 +93,7 @@ TRACE("returning true");
 		    TRACE("found ok and Chunked");
 		    nonConstThis->mIsChunked = true;
 		    nonConstThis->m_err = false;
-		    return true;
+		    return m_hasOk;
 		} else {
 		    TRACE("Couldn't extract the Content-Length from HTTP response");
 		}

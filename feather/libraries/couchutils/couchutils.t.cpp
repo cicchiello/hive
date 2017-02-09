@@ -147,6 +147,18 @@ bool CouchUtilsTest::setup() {
     assert(hasRate, "hasRate");
     assert(rate == 10, "rate == 10");
 		    
+
+    const char *rawdoc6 = "{\"total_rows\":22851,\"offset\":22654,\"rows\":[|\n|]}|";
+    Str s6 = rawdoc6;
+    for (int i = 0; i < s6.len(); i++)
+      if (s6.c_str()[i] == '|')
+	s6.set(0x0d, i);
+    TRACE2("s6.c_str(): ", s6.c_str());
+    
+    CouchUtils::Doc doc6;
+    CouchUtils::parseDoc(s6.c_str(), &doc6);
+    CouchUtils::printDoc(doc6);
+    
     m_didIt = true;
 
     return success;

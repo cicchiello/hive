@@ -1,5 +1,6 @@
 #include <http_couchconsumer.h>
 
+#define HEADLESS
 #define NDEBUG
 #include <strutils.h>
 
@@ -55,6 +56,7 @@ bool HttpCouchConsumer::consume(unsigned long now)
 		    uint8_t *s = (uint8_t*) m_response.c_str();
 		    int l = m_response.len();
 		    read = client.read(&s[l], avail);
+		    s[l+avail] = 0;
 		    if (read != avail) {
 		        PL("HttpCouchConsumer::consume; error while consuming "
 			   "couch response document");
@@ -68,7 +70,8 @@ bool HttpCouchConsumer::consume(unsigned long now)
 #endif
 		    TRACE3("response so far: <<", m_response.c_str(), ">>");
 		} else {
-		    TRACE("response is error");
+		    TRACE2("response is ", (isError() ? "error" : (hasNotFound() ? "notFound" : "unknown")));
+		    TRACE("silently consuming the rest of the response");
 		    // silently consume
 		    uint8_t buf[33];
 		    int a = avail;
@@ -79,11 +82,12 @@ bool HttpCouchConsumer::consume(unsigned long now)
 		}
 		m_contentCnt += read;
 	    } else if (now - consumeStart() > getTimeout()) {
-	        PL("HttpCouchConsumer::consume; consume timeout exceeded");
+	        TRACE("HttpCouchConsumer::consume; consume timeout exceeded");
 		return false; // indicate done consuming
 	    }
 	} else {
-	    assert(isError() || hasOk(), "isError() || hasOk()");
+	    TRACE("done consuming");
+	    assert(isError() || hasOk() || hasNotFound(), "isError() || hasOk() || hasNotFound()");
 	    return false; // indicate done consuming
 	}
 	return true; // indicate continue consuming

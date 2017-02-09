@@ -7,6 +7,7 @@
 
 #include <Trace.h>
 
+#include <platformutils.h>
 
 #include <couchutils.h>
 
@@ -25,34 +26,19 @@ void HiveConfig::setDoc(const CouchUtils::Doc &doc)
 }
 
 
-#ifdef foo
-HiveConfig::HiveConfig(const CouchUtils::Doc &d)
-  : mDoc(d), mRCause(new Str(*d.mRCause)), mVersionId(new Str(*d.mVersionId))
-{
-    TF("HiveConfig::HiveConfig(const CouchUtils::Doc&)");
-    //TRACE("doc: ");
-    //CouchUtils::printDoc(d);
-    //CouchUtils::printDoc(mDoc);
-}
-
-HiveConfig::HiveConfig(const HiveConfig &o)
-  : mDoc(o.getDoc())
-{
-}
-#endif
-
-
 void HiveConfig::setDefault()
 {
     TF("HiveConfig::setDefault");
     TRACE("entry");
     mDoc.clear();
-    mDoc.addNameValue(new CouchUtils::NameValuePair("SSID", CouchUtils::Item("JOE5")));
-    mDoc.addNameValue(new CouchUtils::NameValuePair("PSWD", CouchUtils::Item("abcdef012345")));
-    mDoc.addNameValue(new CouchUtils::NameValuePair("DBHOST", CouchUtils::Item("jfcenterprises.cloudant.com")));
-    mDoc.addNameValue(new CouchUtils::NameValuePair("DBPORT", CouchUtils::Item("443")));
-    mDoc.addNameValue(new CouchUtils::NameValuePair("ISSSL", CouchUtils::Item("true")));
-    mDoc.addNameValue(new CouchUtils::NameValuePair("DBCREDS", CouchUtils::Item("YWZ0ZXB0c2VjdW1iZWhpc29tb3J0aGVyOmU0ZjI4NmJlMWVlZjUzNGYxY2RkZDYyNDBlZDAxMzNiOTY4YjFjOWE=")));
+    mDoc.addNameValue(new CouchUtils::NameValuePair("hive-id", CouchUtils::Item(getHiveId())));
+    mDoc.addNameValue(new CouchUtils::NameValuePair("timestamp", CouchUtils::Item("1400000000")));
+    mDoc.addNameValue(new CouchUtils::NameValuePair("ssid", CouchUtils::Item("JOE5")));
+    mDoc.addNameValue(new CouchUtils::NameValuePair("pswd", CouchUtils::Item("abcdef012345")));
+    mDoc.addNameValue(new CouchUtils::NameValuePair("db-host", CouchUtils::Item("jfcenterprises.cloudant.com")));
+    mDoc.addNameValue(new CouchUtils::NameValuePair("db-port", CouchUtils::Item("443")));
+    mDoc.addNameValue(new CouchUtils::NameValuePair("is-ssl", CouchUtils::Item("true")));
+    mDoc.addNameValue(new CouchUtils::NameValuePair("db-creds", CouchUtils::Item("YWZ0ZXB0c2VjdW1iZWhpc29tb3J0aGVyOmU0ZjI4NmJlMWVlZjUzNGYxY2RkZDYyNDBlZDAxMzNiOTY4YjFjOWE=")));
     TRACE("exit");
 }
 
@@ -75,53 +61,64 @@ inline bool isNumber(const char *s) {
 bool HiveConfig::isValid() const
 {
     TF("HiveConfig::isValid");
-    TRACE(mDoc.lookup("SSID") >= 0);
-    TRACE(strcmp(mDoc[mDoc.lookup("SSID")].getValue().getStr().c_str(), "JOE5") == 0);
-    TRACE(mDoc.lookup("PSWD") >= 0);
-    TRACE(strcmp(mDoc[mDoc.lookup("PSWD")].getValue().getStr().c_str(), "abcdef012345") == 0);
-    TRACE(mDoc.lookup("DBHOST") >= 0);
-    TRACE(mDoc.lookup("DBPORT") >= 0);
-    TRACE(mDoc.lookup("ISSSL") >= 0);
-    TRACE(mDoc.lookup("DBCREDS") >= 0);
-    TRACE(!mDoc[mDoc.lookup("SSID")].isDoc());
-    TRACE(!mDoc[mDoc.lookup("PSWD")].isDoc());
-    TRACE(!mDoc[mDoc.lookup("DBHOST")].isDoc());
-    TRACE(!mDoc[mDoc.lookup("DBPORT")].isDoc());
-    TRACE(!mDoc[mDoc.lookup("ISSSL")].isDoc());
-    TRACE(!mDoc[mDoc.lookup("DBCREDS")].isDoc());
-    TRACE((strcmp(mDoc[mDoc.lookup("ISSSL")].getValue().getStr().c_str(),"true") == 0) ||
-	  (strcmp(mDoc[mDoc.lookup("ISSSL")].getValue().getStr().c_str(),"false") == 0));
-    TRACE(isNumber(mDoc[mDoc.lookup("DBPORT")].getValue().getStr().c_str()));
+    TRACE(mDoc.lookup("hive-id") >= 0);
+    TRACE((strcmp(mDoc[mDoc.lookup("hive-id")].getValue().getStr().c_str(), getHiveId()) == 0));
+    TRACE(mDoc.lookup("timestamp") >= 0);
+    TRACE(mDoc.lookup("ssid") >= 0);
+    TRACE(mDoc.lookup("pswd") >= 0);
+    TRACE(mDoc.lookup("db-host") >= 0);
+    TRACE(mDoc.lookup("db-port") >= 0);
+    TRACE(mDoc.lookup("is-ssl") >= 0);
+    TRACE(mDoc.lookup("db-creds") >= 0);
+    TRACE(mDoc[mDoc.lookup("hive-id")].getValue().isStr());
+    TRACE(mDoc[mDoc.lookup("timestamp")].getValue().isStr());
+    TRACE(mDoc[mDoc.lookup("ssid")].getValue().isStr());
+    TRACE(mDoc[mDoc.lookup("pswd")].getValue().isStr());
+    TRACE(mDoc[mDoc.lookup("db-host")].getValue().isStr());
+    TRACE(mDoc[mDoc.lookup("db-port")].getValue().isStr());
+    TRACE(isNumber(mDoc[mDoc.lookup("db-port")].getValue().getStr().c_str()));
+    TRACE(mDoc[mDoc.lookup("is-ssl")].getValue().isStr());
+    TRACE((strcmp(mDoc[mDoc.lookup("is-ssl")].getValue().getStr().c_str(),"true") == 0) ||
+	  (strcmp(mDoc[mDoc.lookup("is-ssl")].getValue().getStr().c_str(),"false") == 0));
+    TRACE(mDoc[mDoc.lookup("db-creds")].getValue().isStr());
     
-    return mDoc.lookup("SSID") >= 0 &&
-      (strcmp(mDoc[mDoc.lookup("SSID")].getValue().getStr().c_str(), "JOE5") == 0) && 
-      mDoc.lookup("PSWD") >= 0 &&
-      (strcmp(mDoc[mDoc.lookup("PSWD")].getValue().getStr().c_str(), "abcdef012345") == 0) && 
-      mDoc.lookup("DBHOST") >= 0 &&
-      mDoc.lookup("DBPORT") >= 0 &&
-      mDoc.lookup("ISSSL") >= 0 &&
-      mDoc.lookup("DBCREDS") >= 0 &&
-      !mDoc[mDoc.lookup("SSID")].getValue().isDoc() &&
-      !mDoc[mDoc.lookup("PSWD")].getValue().isDoc() &&
-      !mDoc[mDoc.lookup("DBHOST")].getValue().isDoc() &&
-      !mDoc[mDoc.lookup("DBPORT")].getValue().isDoc() &&
-      !mDoc[mDoc.lookup("ISSSL")].getValue().isDoc() &&
-      !mDoc[mDoc.lookup("DBCREDS")].getValue().isDoc() &&
-      ((strcmp(mDoc[mDoc.lookup("ISSSL")].getValue().getStr().c_str(),"true") == 0) ||
-       (strcmp(mDoc[mDoc.lookup("ISSSL")].getValue().getStr().c_str(),"false") == 0)) &&
-      isNumber(mDoc[mDoc.lookup("DBPORT")].getValue().getStr().c_str());
+    return mDoc.lookup("hive-id") >= 0 &&
+      (strcmp(mDoc[mDoc.lookup("hive-id")].getValue().getStr().c_str(), getHiveId()) == 0) &&
+      mDoc.lookup("timestamp") >= 0 && 
+      mDoc.lookup("ssid") >= 0 &&
+      mDoc.lookup("pswd") >= 0 &&
+      mDoc.lookup("db-host") >= 0 &&
+      mDoc.lookup("db-port") >= 0 &&
+      mDoc.lookup("is-ssl") >= 0 &&
+      mDoc.lookup("db-creds") >= 0 &&
+      mDoc[mDoc.lookup("hive-id")].getValue().isStr() &&
+      mDoc[mDoc.lookup("timestamp")].getValue().isStr() &&
+      mDoc[mDoc.lookup("ssid")].getValue().isStr() &&
+      mDoc[mDoc.lookup("pswd")].getValue().isStr() &&
+      mDoc[mDoc.lookup("db-host")].getValue().isStr() &&
+      mDoc[mDoc.lookup("db-port")].getValue().isStr() &&
+      isNumber(mDoc[mDoc.lookup("db-port")].getValue().getStr().c_str()) &&
+      mDoc[mDoc.lookup("is-ssl")].getValue().isStr() &&
+      ((strcmp(mDoc[mDoc.lookup("is-ssl")].getValue().getStr().c_str(),"true") == 0) ||
+       (strcmp(mDoc[mDoc.lookup("is-ssl")].getValue().getStr().c_str(),"false") == 0)) &&
+      mDoc[mDoc.lookup("db-creds")].getValue().isStr();
 }
 
 
-const char *HiveConfig::getSSID() const {return mDoc[mDoc.lookup("SSID")].getValue().getStr().c_str();}
-const char *HiveConfig::getPSWD() const {return mDoc[mDoc.lookup("PSWD")].getValue().getStr().c_str();}
-const char *HiveConfig::getDbHost() const {return mDoc[mDoc.lookup("DBHOST")].getValue().getStr().c_str();}
-const int HiveConfig::getDbPort() const {return atoi(mDoc[mDoc.lookup("DBPORT")].getValue().getStr().c_str());}
-const int HiveConfig::isSSL() const {return strcmp(mDoc[mDoc.lookup("ISSSL")].getValue().getStr().c_str(),"true")==0;}
+const char *HiveConfig::getSSID() const {return mDoc[mDoc.lookup("ssid")].getValue().getStr().c_str();}
+const char *HiveConfig::getPSWD() const {return mDoc[mDoc.lookup("pswd")].getValue().getStr().c_str();}
+const char *HiveConfig::getDbHost() const {return mDoc[mDoc.lookup("db-host")].getValue().getStr().c_str();}
+const int HiveConfig::getDbPort() const {return atoi(mDoc[mDoc.lookup("db-port")].getValue().getStr().c_str());}
+const int HiveConfig::isSSL() const {return strcmp(mDoc[mDoc.lookup("is-ssl")].getValue().getStr().c_str(),"true")==0;}
 const char *HiveConfig::getDbCredentials() const 
-  {return mDoc[mDoc.lookup("DBCREDS")].getValue().getStr().c_str();}
+  {return mDoc[mDoc.lookup("db-creds")].getValue().getStr().c_str();}
 
 const char *HiveConfig::getLogDbName() const {return "hive-sensor-log";}     // couchdb name
+const char *HiveConfig::getConfigDbName() const {return "hive-config";}      // couchdb name
 const char *HiveConfig::getDesignDocId() const {return "_design/SensorLog";}
 const char *HiveConfig::getSensorByHiveViewName() const {return "by-hive-sensor";}
 
+const char *HiveConfig::getHiveId() const
+{
+    return PlatformUtils::singleton().serialNumber();
+}

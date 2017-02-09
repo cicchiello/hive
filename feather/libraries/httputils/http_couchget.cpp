@@ -66,7 +66,7 @@ bool HttpCouchGet::haveDoc() const
 bool HttpCouchGet::testSuccess() const
 {
     TF("HttpCouchGet::testSuccess");
-    bool r = getHeaderConsumer().hasOk();
+    bool r = getHeaderConsumer().hasOk() || getHeaderConsumer().hasNotFound();
     TRACE(r ? "looks good" : "failed");
     return r;
 }
