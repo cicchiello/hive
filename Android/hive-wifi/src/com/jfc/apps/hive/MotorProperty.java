@@ -24,8 +24,8 @@ import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.DbCredentialsProperty;
 import com.jfc.misc.prop.StepsPerRevolutionProperty;
 import com.jfc.misc.prop.ThreadsPerMeterProperty;
-import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
-import com.jfc.srvc.ble2cld.PostActuatorBackground;
+import com.jfc.srvc.cloud.PostActuatorBackground;
+import com.jfc.srvc.cloud.PushEmbed;
 import com.jfc.util.misc.SplashyText;
 
 public class MotorProperty {
@@ -89,9 +89,8 @@ public class MotorProperty {
 						
 						String msg = "tx|"+hiveId.replace('-', ':')+"|action|"+sensor+"|"+steps;
 						
-						Intent ble2cld = new Intent(activity, BluetoothPipeSrvc.class);
-						ble2cld.putExtra("cmd", msg);
-						activity.startService(ble2cld);
+						new PushEmbed(msg);
+
 		        		alert.dismiss(); 
 		        		alert = null;
 		        	}

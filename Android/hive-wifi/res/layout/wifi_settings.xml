@@ -286,7 +286,7 @@
 	   		<TextView
 	   		    android:layout_width="wrap_content"
 	   		    android:layout_height="wrap_content"
-	   		    android:text="@string/ble_reset_label"
+	   		    android:text="@string/wifi_reset_label"
 	   		    android:textAppearance="?android:attr/textAppearanceMedium"
 	   		    android:textStyle="bold" />
 	
@@ -294,17 +294,17 @@
 	   		    android:layout_width="wrap_content"
 	   		    android:layout_height="wrap_content"
 	   		    android:layout_marginLeft="15dip"
-	   		    android:text="@string/ble_reset_desc_hint"
+	   		    android:text="@string/wifi_reset_desc_hint"
 	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
 
    		</LinearLayout>
    		
 		<ImageButton
-		    android:id="@+id/bleResetButton"
+		    android:id="@+id/wifiResetButton"
 		    android:layout_width="wrap_content"
 		    android:layout_height="wrap_content"
 		    android:layout_weight="0.01"
-		    android:contentDescription="@string/ble_reset_desc_hint"
+		    android:contentDescription="@string/wifi_reset_desc_hint"
 		    android:src="@drawable/ic_rarrow"
 		    android:text="@string/empty" />
 

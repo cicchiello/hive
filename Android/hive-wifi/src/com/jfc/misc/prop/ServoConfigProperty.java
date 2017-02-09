@@ -19,9 +19,7 @@ import com.jfc.apps.hive.HiveEnv;
 import com.jfc.apps.hive.R;
 import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.IPropertyMgr;
-import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
-import com.jfc.srvc.ble2cld.CmdOnCompletion;
-import com.jfc.srvc.ble2cld.CmdProcess;
+import com.jfc.srvc.cloud.PushEmbed;
 import com.jfc.util.misc.SplashyText;
 
 
@@ -95,28 +93,7 @@ public class ServoConfigProperty implements IPropertyMgr {
 	public static void informHiveOfNewConfig(Context ctxt, String hiveId) {
 		String msg = "tx|"+hiveId.replace('-', ':')+"|"+getHiveUpdateCommand(ctxt, hiveId);
 		
-		Intent ble2cld = new Intent(ctxt, BluetoothPipeSrvc.class);
-		ble2cld.putExtra("cmd", msg);
-		ctxt.startService(ble2cld);
-	}
-	
-	private static boolean s_initialized = false;
-	public static void staticInitialization() {
-		if (!s_initialized) {
-			s_initialized = true;
-			CmdProcess.singleton().registerCmd("GETSERVOCONFIG", new CmdProcess.Processor() {
-				@Override
-				public void process(Context ctxt, String[] tokens, CmdOnCompletion onCompletion) {
-	    			if (ActiveHiveProperty.isActiveHivePropertyDefined(ctxt)) {
-		    			String hiveId = HiveEnv.getHiveAddress(ctxt, ActiveHiveProperty.getActiveHiveProperty(ctxt));
-	        			String rply = ServoConfigProperty.getHiveUpdateCommand(ctxt, hiveId);
-	    				onCompletion.complete(rply);
-	    			} else {
-	    				Log.e(TAG, "couldn't determine hiveid; can't send sample rate");
-	    			}
-				}
-			});
-		}
+		new PushEmbed(msg);
 	}
 	
 	public ServoConfigProperty(final Activity activity, final TextView tv, ImageButton button) {

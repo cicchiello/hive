@@ -21,10 +21,8 @@ import com.adobe.xmp.impl.Base64;
 import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.DbCredentialsProperty;
 import com.jfc.misc.prop.IPropertyMgr;
-import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
-import com.jfc.srvc.ble2cld.CmdOnCompletion;
-import com.jfc.srvc.ble2cld.CmdProcess;
-import com.jfc.srvc.ble2cld.PostActuatorBackground;
+import com.jfc.srvc.cloud.PostActuatorBackground;
+import com.jfc.srvc.cloud.PushEmbed;
 import com.jfc.util.misc.DbAlertHandler;
 import com.jfc.util.misc.DialogUtils;
 import com.jfc.util.misc.SplashyText;
@@ -67,33 +65,9 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 		String sensor = "sample-rate";
 		String msg = "tx|"+hiveId.replace('-', ':')+"|action|"+sensor+"|"+rateStr;
 		
-		Intent ble2cld = new Intent(ctxt, BluetoothPipeSrvc.class);
-		ble2cld.putExtra("cmd", msg);
-		ctxt.startService(ble2cld);
+		new PushEmbed(msg);
 	}
 
-	private static boolean s_initialized = false;
-	public static void staticInitialization() {
-		if (!s_initialized) {
-			s_initialized = true;
-			CmdProcess.singleton().registerCmd("GETSAMPLERATE", new CmdProcess.Processor() {
-				@Override
-				public void process(Context ctxt, String[] tokens, CmdOnCompletion onCompletion) {
-					if (ActiveHiveProperty.isActiveHivePropertyDefined(ctxt)) {
-						String activeHive = ActiveHiveProperty.getActiveHiveProperty(ctxt);
-						String hiveId = HiveEnv.getHiveAddress(ctxt, activeHive);
-						String rateStr = Integer.toString(SensorSampleRateProperty.getRate(ctxt));
-						String sensor = "sample-rate";
-						String rply = "action|"+sensor+"|"+rateStr;
-						onCompletion.complete(rply);
-					} else {
-						Log.e(TAG, "couldn't determine hiveid; can't send sample rate");
-					}
-				}
-			});
-		}
-	}
-	
 	public SensorSampleRateProperty(final Activity activity, final TextView tv, ImageButton button, DbAlertHandler _dbAlert) {
 		this.mCtxt = activity.getApplicationContext();
 		this.mActivity = activity;

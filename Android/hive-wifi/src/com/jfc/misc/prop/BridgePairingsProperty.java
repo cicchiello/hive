@@ -34,7 +34,7 @@ import android.widget.Toast;
 
 import com.jfc.apps.hive.HiveEnv;
 import com.jfc.apps.hive.R;
-import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
+import com.jfc.srvc.cloud.PushEmbed;
 import com.jfc.util.misc.DialogUtils;
 import com.jfc.util.misc.SplashyText;
 
@@ -109,79 +109,12 @@ public class BridgePairingsProperty implements IPropertyMgr {
     	default: displayPairingState(mExistingPairs.size()+" hives");
     	}
     	
-    	if (BluetoothAdapter.getDefaultAdapter() != null) {
-	    	button.setOnClickListener(new OnClickListener() {
-				@Override
-				public void onClick(View v) {
-			    	
-			        final ArrayAdapter<Pair<String,String>> arrayAdapter = new PairAdapter(mActivity, mExistingPairs);
-			        
-			        arrayAdapter.sort(new Comparator<Pair<String,String>>() {
-						@Override
-						public int compare(Pair<String,String> lhs, Pair<String,String> rhs) {
-							return lhs.first.compareTo(rhs.first);
-						}
-					});
-			        
-			    	AlertDialog.Builder builder = new AlertDialog.Builder(mActivity);
-			        builder.setIcon(R.drawable.ic_hive);
-			        builder.setTitle(R.string.paired_hives);
-			        builder.setPositiveButton(R.string.scan, new DialogInterface.OnClickListener() {
-						@Override
-						public void onClick(DialogInterface dialog, int which) {
-							onScan();
-						}
-					});
-			        builder.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
-			            @Override
-			            public void onClick(DialogInterface dialog, int which) {
-			            	mAlert.dismiss();
-			            	mAlert = null;
-			            }
-			        });
-			        builder.setNeutralButton(R.string.clear_all, new DialogInterface.OnClickListener() {
-						@Override
-						public void onClick(DialogInterface dialog, int which) {
-			            	mAlert.dismiss();
-			            	mAlert = null;
-			        		Runnable okAction = new Runnable() {
-			    				@Override
-			    				public void run() {
-					            	mAlert.dismiss();
-					            	mAlert = null;
-					            	NumHivesProperty.setNumHivesProperty(mActivity, 0);
-					            	mExistingPairs = new ArrayList<Pair<String,String>>();
-					            	displayPairingState("no hives");
-					            	
-		                			Intent ble2cldIntent= new Intent(mActivity, BluetoothPipeSrvc.class);
-		                			ble2cldIntent.putExtra("cmd", "setup");
-		                			mActivity.startService(ble2cldIntent);
-			    				}
-			    			};
-			        		Runnable cancelAction = new Runnable() {
-			    				@Override
-			    				public void run() {
-					            	mAlert.dismiss();
-					            	mAlert = null;
-			    				}
-			    			};
-			            	mAlert = DialogUtils.createAndShowAlertDialog(mActivity, R.string.delete_warning, 
-			            			android.R.string.ok, okAction, android.R.string.cancel, cancelAction);
-			            	
-						}
-					});
-			        builder.setAdapter(arrayAdapter, null);
-			        mAlert = builder.show();
-				}
-			});
-    	} else {
-	    	button.setOnClickListener(new OnClickListener() {
-				@Override
-				public void onClick(View v) {
-		    		Toast.makeText(mActivity, "Bluetooth not supported on this device", Toast.LENGTH_LONG).show();
-				}
-			});
-    	}
+    	button.setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {
+	    		Toast.makeText(mActivity, "Bluetooth not supported on this device", Toast.LENGTH_LONG).show();
+			}
+		});
 	}
 
 	public AlertDialog getAlertDialog() {return mAlert;}
@@ -262,54 +195,6 @@ public class BridgePairingsProperty implements IPropertyMgr {
 			}
 		}
 		input.setText(baseName);
-		
-		AlertDialog.Builder builder = 
-				new AlertDialog.Builder(mActivity)
-					.setIcon(R.drawable.ic_hive)
-					.setTitle(R.string.choose_name)
-					.setMessage(R.string.empty)
-					.setView(input)
-					.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
-	            		public void onClick(DialogInterface dialog, int whichButton) {
-	            			String chosenName = input.getText().toString();
-	            			boolean foundLegalName = true;
-	            			for (Pair<String,String> p : mExistingPairs) {
-	            				if (p.first.equals(chosenName)) 
-	            					foundLegalName = false;
-	            			}
-	            			mAlert.dismiss();
-	            			mAlert = null;
-	            			
-	            			if (foundLegalName) {
-	            				mExistingPairs.add(new Pair<String,String>(chosenName, address));
-	            				NumHivesProperty.setNumHivesProperty(mActivity, mExistingPairs.size());
-	            				PairedHiveProperty.setPairedHiveId(mActivity, mExistingPairs.size()-1, address);
-	            				PairedHiveProperty.setPairedHiveName(mActivity, mExistingPairs.size()-1, chosenName);
-	            				onChange();
-	            				
-	            		    	switch(mExistingPairs.size()) {
-	            		    	case 0: displayPairingState("no hives"); break;
-	            		    	case 1: displayPairingState("1 hive"); break;
-	            		    	default: displayPairingState(mExistingPairs.size()+" hives");
-	            		    	}
-	            		    	
-	                    		SplashyText.highlightModifiedField(mActivity, mIdTv);
-	                    		
-	                			Intent ble2cldIntent= new Intent(mActivity, BluetoothPipeSrvc.class);
-	                			ble2cldIntent.putExtra("cmd", "setup");
-	                			mActivity.startService(ble2cldIntent);
-	            			} else {
-	        					Toast.makeText(mActivity, "Error: That name is already taken", Toast.LENGTH_LONG).show();
-	            			}
-	            		}
-            		})
-            		.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-	            		  public void onClick(DialogInterface dialog, int whichButton) {
-	            		    // Canceled.
-	            			  mAlert = null;
-	            		  }
-            		});
-		mAlert = builder.show();
 	}
 	
     private void scanLeDevice(final boolean enable) {

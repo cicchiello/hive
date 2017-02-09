@@ -11,8 +11,7 @@ import com.jfc.misc.prop.DbCredentialsProperty;
 import com.jfc.misc.prop.LatchProperty;
 import com.jfc.misc.prop.ServoConfigProperty;
 import com.jfc.misc.prop.UptimeProperty;
-import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
-import com.jfc.srvc.ble2cld.PollSensorBackground;
+import com.jfc.srvc.cloud.PollSensorBackground;
 import com.jfc.util.misc.DbAlertHandler;
 import com.jfc.util.misc.SplashyText;
 
@@ -90,15 +89,10 @@ public class MainActivity extends Activity {
 		
     	startPolling();
     	
-    	BluetoothPipeSrvc.startBlePipes(this);
-    	
     	boolean haveActiveHive = ActiveHiveProperty.isActiveHivePropertyDefined(this);
     	String title = getString(R.string.app_name) + (haveActiveHive ? ": "+ActiveHiveProperty.getActiveHiveProperty(this) : "");
     	setTitle(title);
     	
-    	DbCredentialsProperty.staticInitialization();
-    	SensorSampleRateProperty.staticInitialization();
-    	ServoConfigProperty.staticInitialization();
     }
 
 	private void requestPermission(MainActivity mainActivity) {
@@ -443,8 +437,8 @@ public class MainActivity extends Activity {
 			onSettings();
 			return true;
 		}
-		if (id == R.id.action_ble_settings) {
-			onBleSettings();
+		if (id == R.id.action_wifi_settings) {
+			onWifiSettings();
 			return true;
 		}
 		if (id == R.id.action_motor_settings) {
@@ -459,8 +453,8 @@ public class MainActivity extends Activity {
 		startActivityForResult(intent, 0);
 	}
 	
-	public void onBleSettings() {
-		Intent intent = new Intent(this, BleSettingsActivity.class);
+	public void onWifiSettings() {
+		Intent intent = new Intent(this, WifiSettingsActivity.class);
 		startActivityForResult(intent, 0);
 	}
 	

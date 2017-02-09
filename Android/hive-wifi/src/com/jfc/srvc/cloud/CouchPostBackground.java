@@ -1,4 +1,4 @@
-package com.jfc.srvc.ble2cld;
+package com.jfc.srvc.cloud;
 
 import android.os.AsyncTask;
 
@@ -28,9 +28,13 @@ public class CouchPostBackground extends AsyncTask<Void,Void,Boolean> {
 
     private String doc, dbUrl, authToken, devName;
     private String docId, rev;
-    private CmdOnCompletion onCompletion;
+    private OnCompletion onCompletion;
 
-    public CouchPostBackground(String _dbUrl, String _authToken, String _devName, String _doc, CmdOnCompletion _onCompletion) {
+    public interface OnCompletion {
+    	public void complete(String msg);
+    };
+    
+    public CouchPostBackground(String _dbUrl, String _authToken, String _devName, String _doc, OnCompletion _onCompletion) {
     	dbUrl = _dbUrl;
     	authToken = _authToken;
         doc = _doc;
