@@ -4,7 +4,6 @@ import java.util.Calendar;
 import java.util.Locale;
 
 import com.jfc.apps.hive.R;
-import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
 import com.jfc.util.misc.SplashyText;
 
 import android.app.Activity;
@@ -61,8 +60,9 @@ public class UptimeProperty implements IPropertyMgr {
 		        TextView statusTv = (TextView) mAlert.findViewById(R.id.current_status_text);
 		        TextView embeddedVersionTv = (TextView) mAlert.findViewById(R.id.embedded_version_text);
 		        upsinceTv.setText(upsinceValueStr);
-		        boolean isConnected = BluetoothPipeSrvc.isConnected(mActivity);
-		        statusTv.setText(isConnected ? "Connected" : "Unknown");
+		        
+		        statusTv.setText("Unknown");
+		        
 		        embeddedVersionTv.setText(UptimeProperty.getEmbeddedVersion(mActivity, hiveIndex));
 			}
 		};

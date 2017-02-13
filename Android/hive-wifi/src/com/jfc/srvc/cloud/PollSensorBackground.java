@@ -1,4 +1,4 @@
-package com.jfc.srvc.ble2cld;
+package com.jfc.srvc.cloud;
 
 import android.os.AsyncTask;
 import android.util.Log;

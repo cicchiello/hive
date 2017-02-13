@@ -2,12 +2,10 @@ package com.jfc.apps.hive;
 
 import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.BridgePairingsProperty;
-import com.jfc.misc.prop.EnableBridgeProperty;
 import com.jfc.misc.prop.HiveFactoryResetProperty;
 import com.jfc.misc.prop.IPropertyMgr;
 import com.jfc.misc.prop.NumHivesProperty;
 import com.jfc.misc.prop.PairedHiveProperty;
-import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -25,8 +23,8 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-public class BleSettingsActivity extends Activity {
-	private static final String TAG = BleSettingsActivity.class.getName();
+public class WifiSettingsActivity extends Activity {
+	private static final String TAG = WifiSettingsActivity.class.getName();
 
 	private List<IPropertyMgr> mMgrs = new ArrayList<IPropertyMgr>();
 	
@@ -50,7 +48,7 @@ public class BleSettingsActivity extends Activity {
 			}
         }
 
-        setContentView(R.layout.ble_settings);
+        setContentView(R.layout.wifi_settings);
 
         try {
         	Method m = getClass().getMethod("getActionBar", (Class<?>[]) null);
@@ -73,7 +71,7 @@ public class BleSettingsActivity extends Activity {
         BridgePairingsProperty pairing = new BridgePairingsProperty(this, (TextView) findViewById(R.id.hive_id_text), (ImageButton) findViewById(R.id.hive_pair_button)) {
         	@Override 
         	public void onChange() {
-        		Context ctxt = BleSettingsActivity.this;
+        		Context ctxt = WifiSettingsActivity.this;
         		if (NumHivesProperty.isNumHivesPropertyDefined(ctxt) && (NumHivesProperty.getNumHivesProperty(ctxt) == 1)) {
         			activeHive.setActiveHive(PairedHiveProperty.getPairedHiveName(ctxt, 0));
         		}
@@ -81,19 +79,16 @@ public class BleSettingsActivity extends Activity {
         };
         mMgrs.add(activeHive);
         mMgrs.add(pairing);
-        mMgrs.add(new EnableBridgeProperty(this, (ImageView) findViewById(R.id.enable_ble_button)));
 
         List<HiveFactoryResetProperty.Resetter> resetters = new ArrayList<HiveFactoryResetProperty.Resetter>();
     	resetters.add(new HiveFactoryResetProperty.Resetter() {
     		public void reset(Context ctxt) {
     			NumHivesProperty.clearNumHivesProperty(ctxt);
     			ActiveHiveProperty.resetActiveHiveProperty(ctxt);
-    			EnableBridgeProperty.setEnableBridgeProperty(ctxt, false);
     			BridgePairingsProperty.resetHiveIdProperty(ctxt);
-    	    	BluetoothPipeSrvc.startBlePipes(ctxt);
     		}});
-        mMgrs.add(new HiveFactoryResetProperty(this, (ImageButton) findViewById(R.id.bleResetButton), 
-        		R.string.ble_reset_question, resetters));
+        mMgrs.add(new HiveFactoryResetProperty(this, (ImageButton) findViewById(R.id.wifiResetButton), 
+        		R.string.wifi_reset_question, resetters));
 
         setTitle(getString(R.string.app_name)+": BLE Bridge");
     }

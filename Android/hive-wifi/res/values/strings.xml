@@ -2,9 +2,9 @@
 <resources>
 
     <string name="app_name">Hivewiz</string>
-    <string name="action_settings">App settings...</string>
-    <string name="action_ble_settings">BLE bridge settings...</string>
-    <string name="action_motor_settings">Motor settings...</string>
+    <string name="action_settings">App settings&#8230;</string>
+    <string name="action_wifi_settings">BLE bridge settings&#8230;</string>
+    <string name="action_motor_settings">Motor settings&#8230;</string>
     
     <string name="settings">Settings&#8230;</string>
     
@@ -31,9 +31,9 @@
     <string name="factory_reset_desc_hint">Reset ALL app settings</string>
     <string name="factory_reset_question">Are you certain you wish to reset ALL settings?</string>
     
-    <string name="ble_reset_label">Reset BLE settings</string>
-    <string name="ble_reset_desc_hint">Reset all Bluetooth bridge settings</string>
-    <string name="ble_reset_question">Are you certain you wish to reset the BLE settings?</string>
+    <string name="wifi_reset_label">Reset WiFi settings</string>
+    <string name="wifi_reset_desc_hint">Reset all WiFi settings</string>
+    <string name="wifi_reset_question">Are you certain you wish to reset the WiFi settings?</string>
     
     <string name="motor_reset_label">Reset Motor settings</string>
     <string name="motor_reset_desc_hint">Reset all Motor settings</string>

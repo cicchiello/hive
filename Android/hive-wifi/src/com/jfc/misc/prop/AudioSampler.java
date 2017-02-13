@@ -8,9 +8,7 @@ import java.io.OutputStream;
 import com.jfc.apps.hive.HiveEnv;
 import com.jfc.apps.hive.MainActivity;
 import com.jfc.apps.hive.R;
-import com.jfc.srvc.ble2cld.BluetoothPipeSrvc;
-import com.jfc.srvc.ble2cld.CmdOnCompletion;
-import com.jfc.srvc.ble2cld.CmdProcess;
+import com.jfc.srvc.cloud.PushEmbed;
 
 import android.Manifest;
 import android.app.Activity;
@@ -39,77 +37,6 @@ public class AudioSampler {
 
 	public AudioSampler(Activity _activity, ImageButton sampleButton) {
 		mActivity = _activity;
-		
-		CmdProcess.singleton().registerCmd("STREAM", new CmdProcess.Processor() {
-			@Override
-			public void process(Context ctxt, final String[] tokens, CmdOnCompletion onCompletion) {
-				if (mAlert != null) {
-					final int sampleDuration_ms = Integer.parseInt(tokens[3]);
-					if (sampleDuration_ms > 0) {
-						// then do something like the following once a file is needed
-						OutputStream os = null;
-						try {
-							String SDCardRoot = Environment.getExternalStorageDirectory().getAbsolutePath() + "/";
-						    File dirFile = new File(SDCardRoot + "hive" + File.separator);
-						    boolean stat1 = dirFile.mkdirs();
-						    File file = new File(SDCardRoot + "hive" + File.separator + "log.log");
-						    boolean stat = file.createNewFile();
-							os = new FileOutputStream(file);
-						} catch (Exception e) {
-							Log.e(TAG, "Exception!?!?");
-						}
-
-						final OutputStream fos = os;
-						BluetoothPipeSrvc.setStreamHandler(new BluetoothPipeSrvc.StreamHandler() {
-							@Override
-							public boolean consume(byte[] bytes) {
-								try {
-									fos.write(bytes);
-								} catch (IOException e) {
-									// TODO Auto-generated catch block
-									e.printStackTrace();
-								}
-								return true;
-							}
-						});
-						mActivity.runOnUiThread(new Runnable() {
-							public void run() {
-						        mProgressDialog = new ProgressDialog(mActivity);
-						        mProgressDialog.setMessage("Capturing...");
-						        mProgressDialog.setIndeterminate(false);
-						        mProgressDialog.setMax(10);
-						        mProgressDialog.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
-						        mProgressDialog.setCancelable(true);
-						        mProgressDialog.show();
-
-						        Runnable progressUpdater = new Runnable() {
-						        	public void run() {
-						                mProgressDialog.setProgress(mProgress);
-						                mProgress += 1;
-						                if (mProgress < 10)
-						                	mProgressUpdateTimer.postDelayed(this, mUpdateInterval_ms);
-						        	}
-						        };
-						        mProgress = 0;
-								mProgressUpdateTimer = new Handler();
-								mUpdateInterval_ms = sampleDuration_ms/10;
-								mProgressUpdateTimer.postDelayed(progressUpdater, mUpdateInterval_ms);
-							}
-						});
-					} else {
-						mProgressDialog.dismiss();
-					}
-			        final ImageView recordIv = (ImageView) mAlert.findViewById(R.id.record_button);
-			        if (recordIv != null) {
-			        	mActivity.runOnUiThread(new Runnable() {
-			        		public void run() {
-					        	recordIv.setImageResource("0".equals(tokens[3]) ? R.drawable.record : R.drawable.recording);
-			        		}
-			        	});
-			        }
-				}
-			}
-		});
 		
 	    File storageDir = null;
 	    if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())) {
@@ -145,9 +72,7 @@ public class AudioSampler {
 						String durationMsStr = Integer.toString(1000*10);
 						String msg = "tx|"+hiveId.replace('-', ':')+"|action|"+sensor+"|"+durationMsStr;
 						
-						Intent ble2cld = new Intent(mActivity, BluetoothPipeSrvc.class);
-						ble2cld.putExtra("cmd", msg);
-						mActivity.startService(ble2cld);
+						new PushEmbed(msg);
 					}
 				});
 		        
