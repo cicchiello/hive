@@ -9,8 +9,6 @@
 
 #include <strutils.h>
 
-#include <wifiutils.h>
-
 #include <MyWiFi.h>
 
 #include <wifiutils.h>
@@ -92,6 +90,7 @@ HttpOp::ConnectStat HttpOp::httpConnectInit(const IPAddress &host, const char *h
     TRACE2("m_port: ", m_port);
     TRACE2("m_isSSL: ", (m_isSSL ? "true" : "false"));
     TRACE2("host: ", IPtoString(host).c_str());
+    TRACE2("hostname: ", hostname);
     
     WiFiClient::ConnectStat s = m_ctxt.getClient().connectNoWait(host, m_port,
 								 m_isSSL ? SOCKET_FLAGS_SSL : 0,
@@ -267,17 +266,18 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
         ConnectStat stat;
         if (m_opState == HTTP_INIT) {
 	    TRACE("HTTP_INIT");
-	    mHttpConnectCnt = 100; //100*100ms == 20s
+	    mHttpConnectCnt = 100; //100*100ms == 10s
 	    stat = httpConnectInit(mResolvedHostIP, mSpecifiedHostName.c_str());
 	    mHttpWaitStart = now;
 	    setOpState(HTTP_WAITING);
 	} else {
-	    //TRACE("HTTP_WAITING");
+	    TRACE("HTTP_WAITING");
 	    stat = httpConnectCheck();
 	}
 	switch (stat) {
 	case WORKING: {
 	    TF("HttpOp::event; HTTP_INIT; WORKING");
+	    TRACE("WORKING");
 	    *callMeBackIn_ms = 100l;
 	    if (--mHttpConnectCnt == 0) {
 	        TRACE2("HTTP_WAITING timeout after (ms) ", (now-mHttpWaitStart));
@@ -291,6 +291,7 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 	    break;
 	case CONNECTED: {
 	    TF("HttpOp::event; HTTP_INIT; CONNECTED");
+	    TRACE("CONNECTED");
 	    setOpState(ISSUE_OP);
 	    *callMeBackIn_ms = 10l;
 	}
@@ -316,11 +317,15 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
         TF("HttpOp::event; CONSUME_RESPONSE");
         //TRACE2("CONSUME_RESPONSE ", now);
         if (!getResponseConsumer().consume(now)) {
-	    bool isError = getResponseConsumer().isError();
 	    m_finalResult = HTTPSuccessResponse; // start optimistically
-	    TRACE("http operation done: ");
-	    if (isError) {
-	        TRACE2("Errmsg from response consumer: ", getResponseConsumer().getErrmsg().c_str());
+	    if (!getResponseConsumer().isError()) {
+	      TRACE("http operation done: ");
+	    } else {
+	        if (getResponseConsumer().isTimeout()) {
+		    TRACE("TIMEOUT from response consumer");
+		} else {
+		    TRACE2("Errmsg from response consumer: ", getResponseConsumer().getErrmsg().c_str());
+		}
 		m_finalResult = HTTPFailureResponse;
 	        if (getRetryCnt() < MaxRetries) {
 		    TRACE2("retry #",(getRetryCnt()+1));

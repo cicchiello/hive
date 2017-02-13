@@ -29,6 +29,8 @@ class HttpGet : public HttpOp {
    // returns true on success
    virtual bool testSuccess() const {return true;}
 
+   virtual bool leaveOpen() const {return false;}
+   
    virtual void sendGET(class Stream &) const;
    virtual void sendPage(class Stream &) const;
 

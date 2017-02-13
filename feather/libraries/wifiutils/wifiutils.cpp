@@ -67,6 +67,8 @@ WifiUtils::Context::~Context()
     DL("WifiUtils::Context DTOR");
     reset();
 
+    client.stop();
+    
 //    getWifi().disconnect();
 
 //    digitalWrite(WINC_EN, LOW);

@@ -2,14 +2,15 @@
 #define HeartBeat_h
 
 
-#include <Sensor.h>
+#include <SensorBase.h>
 
 class HiveConfig;
 
-class HeartBeat : public Sensor {
+class HeartBeat : public SensorBase {
  public:
 
-    HeartBeat(const HiveConfig &config, const char *name,
+    HeartBeat(const HiveConfig &config,
+	      const char *name,
 	      const class RateProvider &rateProvider,
 	      const class TimeProvider &timeProvider,
 	      unsigned long now);
@@ -38,8 +39,6 @@ class HeartBeat : public Sensor {
 
     void considerFlash(unsigned long now, unsigned long times_per_ms, unsigned long onTime_ms);
 
-    const HiveConfig &mConfig;
-    class HttpCouchPost *mPoster;
     FlashMode mFlashMode;
     bool mLedIsOn, mFlashModeChanged;
     unsigned long mNextActionTime, mNextPostActionTime, mNextBlinkActionTime;

@@ -43,7 +43,7 @@ bool ActuatorBase::isItTimeYet(unsigned long now) const
 bool ActuatorBase::loop(unsigned long now, Mutex *wifi)
 {
     TF("ActuatorBase::loop");
-    if (wifi->own(getSemaphore())) {
+    if (wifi->own(this)) {
         if (mGetter == NULL) {
 	    TRACE("creating getter");
 
@@ -55,6 +55,7 @@ bool ActuatorBase::loop(unsigned long now, Mutex *wifi)
 	    if (!mGetter->processEventResult(mGetter->event(now, &callMeBackIn_ms))) {
 	        TRACE("done");
 		if (mGetter->hasResult()) {
+		    TRACE("have result");
 		    processResult(mGetter);
 		    setNextTime(now, &mNextActionTime);
 		} else if (mGetter->isError()) {
@@ -66,7 +67,7 @@ bool ActuatorBase::loop(unsigned long now, Mutex *wifi)
 		}
 		delete mGetter;
 		mGetter = NULL;
-		wifi->release(getSemaphore());
+		wifi->release(this);
 	    } else {
 	        mNextActionTime = now + callMeBackIn_ms;
 	    }
@@ -169,3 +170,21 @@ const Str *ActuatorBase::Getter::getSingleValue() const
     return 0;
 }
 
+
+void ActuatorBase::buildStandardSensorEncodedUrl(const char *sensorName, Str *encodedUrl) const
+{
+    Str url;
+    url.append(getConfig().getDesignDocId());
+    url.append("/_view/");
+    url.append(getConfig().getSensorByHiveViewName());
+    url.append("?limit=1&start_key=[\"");
+    url.append(getConfig().getHiveId());
+    url.append("\",\"");
+    url.append(sensorName);
+    url.append("\",\"9999999999\"]&end_key=[\"");
+    url.append(getConfig().getHiveId());
+    url.append("\",\"");
+    url.append(sensorName);
+    url.append("\",\"1470000000\"]&descending=true");
+    CouchUtils::urlEncode(url.c_str(), encodedUrl);
+}

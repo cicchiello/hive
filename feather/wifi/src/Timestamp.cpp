@@ -3,13 +3,16 @@
 #include <Arduino.h>
 
 
-//#define HEADLESS
+#define HEADLESS
 #define NDEBUG
 #include <strutils.h>
 
 #include <Trace.h>
 
 #include <str.h>
+
+#include <MyWiFi.h>
+#include <wifiutils.h>
 
 #include <rtcconversions.h>
 #include <http_couchget.h>
@@ -87,9 +90,15 @@ bool Timestamp::loop(unsigned long now)
         mNextAttempt = now + 1000l; // delay for 1s before trying to use the wifi
     } else if (now > mNextAttempt && !mHaveTimestamp) {
         if (mGetter == NULL) {
-	    TRACE("creating getter");
 	    Str url;
 	    CouchUtils::toURL(TimestampDb, TimestampDocId, &url);
+	    //TRACE2("creating getter with url: ", url.c_str());
+	    //TRACE2("thru wifi: ", mSsid->c_str());
+	    //TRACE2("with pswd: ", mPswd->c_str());
+	    //TRACE2("to host: ", mDbHost->c_str());
+	    //TRACE2("port: ", mDbPort);
+	    //TRACE2("using ssl? ", (mIsSSL ? "yes" : "no"));
+	    //TRACE2("with creds: ", mDbCredentials->c_str());
 	    mGetter = new RTCGetter(mSsid->c_str(), mPswd->c_str(),
 				    mDbHost->c_str(), mDbPort, mIsSSL,
 				    url.c_str(), mDbCredentials->c_str());
@@ -97,7 +106,7 @@ bool Timestamp::loop(unsigned long now)
 	    unsigned long callMeBackIn_ms = 0;
 	    HttpOp::EventResult er = mGetter->event(now, &callMeBackIn_ms);
 	    if (!mGetter->processEventResult(er)) {
-	        TRACE("done");
+	        //TRACE("done");
 		bool retry = false;
 		if (mGetter->hasTimestamp()) {
 		    Str timestampStr = mGetter->getTimestamp();
@@ -120,11 +129,12 @@ bool Timestamp::loop(unsigned long now)
 		    TRACE("setting up for a retry");
 		    mTimestamp = 0;
 		    callMeBackIn_ms = 5000l;
+		    mGetter->getContext().getWifi().end();
 		}
 		delete mGetter;
 		mGetter = NULL;
 	    } else {
-	        TRACE2("getter asked to be called again in (ms) ", callMeBackIn_ms);
+	        //TRACE2("getter asked to be called again in (ms) ", callMeBackIn_ms);
 	    }
 	    mNextAttempt = now + callMeBackIn_ms;
 	}

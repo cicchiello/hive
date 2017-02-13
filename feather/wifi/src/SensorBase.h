@@ -29,12 +29,12 @@ class SensorBase : public Sensor {
     unsigned long getNextPostTime() const;
     void setNextPostTime(unsigned long n);
     
- private:
-    virtual const void *getSemaphore() const = 0;
-
     // helper function
     static void setNextTime(unsigned long now, unsigned long *t);
+
+    void postImplementation(unsigned long now, Mutex *wifi);
     
+ private:
     unsigned long mNextSampleTime, mNextPostTime;
 
     Str *mValueStr;

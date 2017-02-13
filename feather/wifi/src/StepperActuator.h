@@ -32,7 +32,6 @@ class StepperActuator : public ActuatorBase {
  private:
     friend class StepperActuatorPulseGenConsumer;
     
-    const void *getSemaphore() const;
     Getter *createGetter() const;
 
     bool isItTimeYetForSelfDrive(unsigned long now);

@@ -22,8 +22,6 @@ class BeeCounter : public SensorBase, private PulseGenConsumer {
     PulseGenConsumer *getPulseGenConsumer();
     
  private:
-    const void *getSemaphore() const;
-    
     const char *className() const {return "BeeCounter";}
     
     void pulse(unsigned long now);
@@ -46,11 +44,5 @@ class BeeCounter : public SensorBase, private PulseGenConsumer {
     int ploadPin, clockEnablePin, clockPin, dataPin;
 };
 
-
-inline
-const void *BeeCounter::getSemaphore() const
-{
-    return this;
-}
 
 #endif

@@ -177,3 +177,18 @@ Str StringUtils::TAG(const char *func, const char *msg)
     return tag;
 }
 
+
+int StringUtils::ahextoi(const char *hexascii, int len)
+{
+    int r = 0;
+    for (int i = 0; i < len; i++) {
+        unsigned char b = hexascii[i]-'0';
+	if (b > 9 && hexascii[i]>='a' && hexascii[i]<='f')
+	    b = hexascii[i]-'a'+10;
+	if (b > 9 && hexascii[i]>='A' && hexascii[i]<='F')
+	    b = hexascii[i]-'A'+10;
+	r *= 16;
+	r += b;
+    }
+    return r;
+}

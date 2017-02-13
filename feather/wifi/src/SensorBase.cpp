@@ -51,19 +51,11 @@ bool SensorBase::isItTimeYet(unsigned long now)
 }
 
 
-bool SensorBase::loop(unsigned long now, Mutex *wifi)
+void SensorBase::postImplementation(unsigned long now, Mutex *wifi)
 {
-    TF("SensorBase::loop");
-
-    if (now > mNextSampleTime) {
-        sensorSample(mValueStr);
-	setNextTime(now, &mNextSampleTime);
-    }
-
-    const char *value = NULL;
-    if ((now >= mNextPostTime) && (strcmp(mValueStr->c_str(),"NAN")!=0) && wifi->own(getSemaphore())) {
-        TRACE("working on posting...");
-	unsigned long callMeBackIn_ms = 10l;
+    TF("SensorBase::postImplementation");
+    if (wifi->own(this)) {
+        unsigned long callMeBackIn_ms = 10l;
 	if (mPoster == NULL) {
 	    TRACE("creating poster");
 
@@ -81,10 +73,20 @@ bool SensorBase::loop(unsigned long now, Mutex *wifi)
 							   CouchUtils::Item(timestampStr)));
 	    doc.addNameValue(new CouchUtils::NameValuePair("value",
 							   CouchUtils::Item(*mValueStr)));
-	    CouchUtils::printDoc(doc);
+	    Str dump;
+	    CouchUtils::toString(doc, &dump);
 
 	    Str url("/");
 	    url.append(mConfig.getLogDbName());
+	    
+	    TRACE2("creating POST with url: ", url.c_str());
+	    TRACE2("thru wifi: ", mConfig.getSSID());
+	    TRACE2("with pswd: ", mConfig.getPSWD());
+	    TRACE2("to host: ", mConfig.getDbHost());
+	    TRACE2("port: ", mConfig.getDbPort());
+	    TRACE2("using ssl? ", (mConfig.isSSL() ? "yes" : "no"));
+	    TRACE2("with creds: ", mConfig.getDbCredentials());
+	    TRACE2("doc: ", dump.c_str());
 	    
 	    mPoster = new HttpCouchPost(mConfig.getSSID(), mConfig.getPSWD(),
 					mConfig.getDbHost(), mConfig.getDbPort(),
@@ -106,10 +108,26 @@ bool SensorBase::loop(unsigned long now, Mutex *wifi)
 		}
 		delete mPoster;
 		mPoster = NULL;
-		wifi->release(getSemaphore());
+		wifi->release(this);
 	    }
 	}
 	mNextPostTime = now + callMeBackIn_ms;
+    }
+}
+
+
+bool SensorBase::loop(unsigned long now, Mutex *wifi)
+{
+    TF("SensorBase::loop");
+
+    if (now > mNextSampleTime) {
+        sensorSample(mValueStr);
+	setNextTime(now, &mNextSampleTime);
+    }
+
+    const char *value = NULL;
+    if ((now >= mNextPostTime) && (strcmp(mValueStr->c_str(),"NAN")!=0)) {
+        postImplementation(now, wifi);
     }
     
     return true; // always want to be called back eventually; when will be determined by mNextActionTime

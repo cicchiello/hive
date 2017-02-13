@@ -25,8 +25,6 @@ class Latch : public SensorBase, private PulseGenConsumer {
     PulseGenConsumer *getPulseGenConsumer();
     
  private:
-    const void *getSemaphore() const;
-    
     const char *className() const {return "Latch";}
     
     void pulse(unsigned long now);
@@ -52,11 +50,6 @@ PulseGenConsumer *Latch::getPulseGenConsumer()
     return this;
 }
 
-inline
-const void *Latch::getSemaphore() const
-{
-    return this;
-}
 
 
 #endif

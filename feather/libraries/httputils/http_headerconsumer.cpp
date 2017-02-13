@@ -32,7 +32,7 @@ HttpHeaderConsumer::HttpHeaderConsumer(const WifiUtils::Context &ctxt)
 
 void HttpHeaderConsumer::init()
 {
-    m_timedout = m_haveHeader = m_parsedDoc = m_haveFirstCRLF = m_gotCR = m_err = false;
+    m_hasOk = m_timedout = m_haveHeader = m_parsedDoc = m_haveFirstCRLF = m_gotCR = m_err = false;
     mIsChunked = mHasContentLength = false;
     m_firstConsume = true;
     m_contentLength = 0;
@@ -117,13 +117,14 @@ bool HttpHeaderConsumer::consume(unsigned long now)
 	m_firstConsumeTime = now;
     }
     
+    Adafruit_WINC1500Client &client = m_ctxt.getClient();
     if (now - consumeStart() > getTimeout()) {
         TRACE("timeout!");
 	TRACE(now);
 	m_err = m_timedout = true;
+	client.stop();
 	return false;
     } else if (!m_haveHeader) {
-        Adafruit_WINC1500Client &client = m_ctxt.getClient();
         if (client.connected()) {
 	    // if there are incoming bytes available
 	    // from the host, read them and process them
@@ -134,7 +135,7 @@ bool HttpHeaderConsumer::consume(unsigned long now)
 		m_response.add(c);
 		if ((c == 0x0a) && m_gotCR && m_haveFirstCRLF) {
 		    //DHL("CRLFCRLF");
-		    // 2 CRLF marks end of HTTP response, with content to follow
+		    // 2 CRLF marks end of HTTP response, with content (optionally) to follow
 		    m_haveHeader = true;
 		    return false;
 		} else if ((c == 0x0a) && m_gotCR) {

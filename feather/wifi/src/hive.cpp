@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
-//#define HEADLESS
-//#define NDEBUG
+#define HEADLESS
+#define NDEBUG
 
 #include <Trace.h>
 
@@ -93,15 +93,10 @@ void setup(void)
     s_provisioner = new Provision(ResetCause, VERSION, CONFIG_FILENAME, millis());
     s_provisioner->startConfiguration();
     
-//    s_configReader = new ConfigReader(CONFIG_FILENAME);
-//    s_configReader->setup();
- 
     CHKPT("setup done");
     PL("Setup done...");
     
     pinMode(10, OUTPUT);  // set the SPI_CS pin as output
-
-//    s_config = new HiveConfig(ResetCause, VERSION);
 }
 
 
@@ -125,6 +120,10 @@ void loop(void)
 	    if (!s_provisioner->loop(now, &sWifiMutex)) {
 	        s_mainState = INIT_SENSORS;
 		s_config = &s_provisioner->getConfig();  // DON'T delete s_provisioner!  Ever!
+
+		Str dump;
+		CouchUtils::toString(s_config->getDoc(), &dump);
+		TRACE2("Using Config: ", dump.c_str());
 	    }
 	}
     }

@@ -1,7 +1,7 @@
 #include <http_couchpost.h>
 
 
-//#define HEADLESS
+#define HEADLESS
 #define NDEBUG
 #include <strutils.h>
 
@@ -30,6 +30,7 @@ HttpCouchPost::HttpCouchPost(const char *ssid, const char *ssidPswd,
 
 void HttpCouchPost::sendPOST(Stream &s, int contentLength) const
 {
+    TF("HttpCouchPost::sendPOST");
     D("POST ");
     s.print("POST ");
     sendPage(s);
@@ -68,7 +69,6 @@ void HttpCouchPost::sendDoc(Stream &s, const char *doc) const
 HttpOp::EventResult HttpCouchPost::event(unsigned long now, unsigned long *callMeBackIn_ms)
 {
     TF("HttpCouchPost::event");
-    TRACE("entry");
 
     OpState opState = getOpState();
     switch (opState) {

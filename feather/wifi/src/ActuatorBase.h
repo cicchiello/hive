@@ -37,6 +37,8 @@ class ActuatorBase : public Actuator {
 	virtual bool isError() const;
 	
     private:
+	virtual bool leaveOpen() const {return true;}
+	
 	bool mIsParsed, mIsValueParsed, mIsError;
 	const CouchUtils::Doc *mRecord;
 	const Str *mValue;
@@ -45,12 +47,12 @@ class ActuatorBase : public Actuator {
  protected:
     virtual const char *className() const = 0;
 
-    virtual const void *getSemaphore() const = 0;
-
     virtual Getter *createGetter() const = 0;
-
+    
     virtual void processResult(Getter *getter) = 0;
 
+    void buildStandardSensorEncodedUrl(const char *sensorName, Str *encodedUrl) const;
+    
     unsigned long setNextActionTime(unsigned long t);
     
     // helper function

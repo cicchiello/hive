@@ -10,7 +10,6 @@ class SensorRateActuator : public ActuatorBase, public RateProvider {
     SensorRateActuator(const HiveConfig &config, const char *sensorName, unsigned long now);
     ~SensorRateActuator() {}
 
-    const void *getSemaphore() const;
     Getter *createGetter() const;
     
     void scheduleNextAction(unsigned long now);

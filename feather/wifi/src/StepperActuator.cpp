@@ -273,16 +273,10 @@ public:
     const char *className() const;
 };
 
+
 const char *StepperActuatorGetter::className() const
 {
     return StepperActuatorGetter::ClassName();
-}
-
-
-const void *StepperActuator::getSemaphore() const
-{
-    TF("StepperMonitor::getSemaphore");
-    return this;
 }
 
 
@@ -293,22 +287,10 @@ ActuatorBase::Getter *StepperActuator::createGetter() const
 
     // curl -X GET 'http://jfcenterprises.cloudant.com/hive-sensor-log/_design/SensorLog/_view/by-hive-sensor?endkey=%5B%22F0-17-66-FC-5E-A1%22,%22sample-rate%22,%2200000000%22%5D&startkey=%5B%22F0-17-66-FC-5E-A1%22,%22sensor-rate%22,%2299999999%22%5D&descending=true&limit=1'
 	  
-    Str url, encodedUrl;
-    url.append(getConfig().getDesignDocId());
-    url.append("/_view/");
-    url.append(getConfig().getSensorByHiveViewName());
-    url.append("?endkey=[\"");
-    url.append(getConfig().getHiveId());
-    url.append("\",\"");
-    url.append(getName());
-    url.append("\",\"00000000\"]&startkey=[\"");
-    url.append(getConfig().getHiveId());
-    url.append("\",\"");
-    url.append(getName());
-    url.append("\",\"99999999\"]&descending=true&limit=1");
-    CouchUtils::urlEncode(url.c_str(), &encodedUrl);
-	
-    url.clear();
+    Str encodedUrl;
+    buildStandardSensorEncodedUrl(getName(), &encodedUrl);
+
+    Str url;
     CouchUtils::toURL(getConfig().getLogDbName(), encodedUrl.c_str(), &url);
     TRACE2("URL: ", url.c_str());
 	

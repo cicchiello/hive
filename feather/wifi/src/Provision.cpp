@@ -102,8 +102,10 @@ bool Provision::loadLoop(unsigned long now)
 	    bool haveValidConfig = false;
 	    if (mConfigReader->hasConfig()) {
 	        mConfig->setDoc(mConfigReader->getConfig());
-	        TRACE("have a local configuration");
-		mConfig->print();
+
+		Str dump;
+		CouchUtils::toString(mConfig->getDoc(), &dump);
+	        TRACE2("Have a local configuration: ", dump.c_str());
 		
 		haveValidConfig = mConfig->isValid();
 		if (!haveValidConfig) {

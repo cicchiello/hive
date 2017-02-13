@@ -81,6 +81,7 @@ public:
   static void consumeNumber(Str *line);
   
   static void itoahex(char buf[2], char i);
+  static int ahextoi(const char *hexascii, int len);
 
   static void urlEncodePrint(Stream &stream, const char *msg);
 

@@ -31,13 +31,6 @@ StepperMonitor::~StepperMonitor()
 }
 
 
-const void *StepperMonitor::getSemaphore() const
-{
-    TF("StepperMonitor::getSemaphore");
-    return getName();
-}
-
-
 bool StepperMonitor::sensorSample(Str *value)
 {
     TF("StepperMonitor::sensorSample");

@@ -18,7 +18,7 @@ class HttpCouchConsumer : public HttpHeaderConsumer {
  private:
    void init();
 
-   int m_contentCnt;
+   void cleanChunkedResult(const char *terminationMarker);
 };
 
 #endif

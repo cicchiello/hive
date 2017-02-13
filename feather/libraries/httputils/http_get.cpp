@@ -64,8 +64,7 @@ bool HttpGet::processEventResult(HttpGet::EventResult r)
         TRACE("Failure: No response received for the HTTP GET");
 	break;
     case HttpGet::HTTPFailureResponse:
-        TRACE("Received an HTTP failure response: ");
-	TRACE(getHeaderConsumer().getResponse().c_str());
+        TRACE2("Received an HTTP failure response: ", getHeaderConsumer().getResponse().c_str());
 	break;
     case HttpGet::HTTPSuccessResponse:
         if (!testSuccess()) {
@@ -86,7 +85,7 @@ bool HttpGet::processEventResult(HttpGet::EventResult r)
         TRACE("Disconnect FAILURE");
 	break;
     case HttpOp::UnknownFailure:
-        TRACE("Unknown FAILURE");
+        TRACE2("Received an HTTP UNKNOWN failure response: ", getHeaderConsumer().getResponse().c_str());
 	break;
     default: 
         TRACE2("Unexpected EventResult: ", r);
@@ -100,11 +99,23 @@ void HttpGet::sendGET(Stream &client) const
     TF("HttpGet::sendGET");
     
     assert(getContext().getClient().connected(), "Client isn't connected !?!? (1)");
-    client.print("GET "); sendPage(client); client.print(" "); client.println(TAGHTTP11);
+    P("GET ");
+    client.print("GET ");
+    sendPage(client);
+    P(" ");
+    client.print(" ");
+    PL(TAGHTTP11);
+    client.println(TAGHTTP11);
+    PL("User-Agent: Hive/0.0.1");
     client.println("User-Agent: Hive/0.0.1");
     sendHost(client);
+    PL("Accept: */*");
     client.println("Accept: */*");
-    client.println("Connection: close");
+    if (!leaveOpen()) {
+      PL("Connection: close");
+      client.println("Connection: close");
+    }
+    PL();
     client.println();
     assert(getContext().getClient().connected(), "Client isn't connected !?!? (2)");
 }
@@ -113,7 +124,7 @@ void HttpGet::sendGET(Stream &client) const
 void HttpGet::sendPage(Stream &client) const
 {
     TF("HttpGet::sendPage");
-    TRACE(m_page.c_str());
+    P(m_page.c_str());
     client.print(m_page.c_str());
 }
 

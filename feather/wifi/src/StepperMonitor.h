@@ -20,8 +20,6 @@ class StepperMonitor : public SensorBase {
     bool isItTimeYet(unsigned long now);
     
  private:
-    const void *getSemaphore() const;
-    
     const char *className() const {return "StepperMonitor";}
 
     int mTarget;
