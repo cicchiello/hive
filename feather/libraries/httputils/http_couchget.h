@@ -19,9 +19,16 @@ class HttpCouchGet : public HttpGet {
    virtual HttpHeaderConsumer &getHeaderConsumer() {return m_consumer;}
    virtual const HttpHeaderConsumer &getHeaderConsumer() const {return m_consumer;}
 
+   HttpCouchConsumer &getCouchConsumer() {return m_consumer;}
+   const HttpCouchConsumer &getCouchConsumer() const {return m_consumer;}
+   
    bool haveDoc() const;
    const CouchUtils::Doc &getDoc() const;
 
+   bool isError() const {return m_consumer.isError();}
+   bool hasNotFound() const {return m_consumer.hasNotFound();}
+   bool isTimeout() const {return m_consumer.isTimeout();}
+   
  protected:
    HttpCouchGet(const HttpCouchGet &); //intentionally unimplemented
 

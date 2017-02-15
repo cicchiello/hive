@@ -100,8 +100,6 @@ bool ConfigWriter::loop() {
     TF("ConfigWriter::loop");
 
     if (!mIsDone) {
-TRACE("doc: ");	
-CouchUtils::printDoc(mConfig);
         mIsDone = true;
 	mSuccess = false;
     
@@ -128,8 +126,6 @@ CouchUtils::printDoc(mConfig);
 	    return false;
 	}
 
-TRACE("doc: ");	
-CouchUtils::printDoc(mConfig);
 	mSuccess = true;
     }
     

@@ -5,12 +5,19 @@
 #ifndef HEADLESS
 #define P(args) Serial.print(args)
 #define PL(args) Serial.println(args)
+#define _PWHERE(FILE,LINE) P("INFO; " ); P(FILE); P("; line: "); P(LINE); P("; ")
+#define PH(arg) _PWHERE(__FILE__,__LINE__); PL(arg);
+#define PH2(arg1,arg2) _PWHERE(__FILE__,__LINE__); P(arg1); PL(arg2);
+#define PH3(arg1,arg2,arg3) _PWHERE(__FILE__,__LINE__); P(arg1); P(arg2); PL(arg3);
 #else
 #ifndef NDEBUG
 #   define NDEBUG
 #endif
 #define P(args) do {} while (0)
 #define PL(args) do {} while (0)
+#define PH(args) do {} while (0)
+#define PH2(arg1,arg2) do {} while (0)
+#define PH3(arg1,arg2,arg3) do {} while (0)
 #endif
 
 #ifndef NDEBUG
@@ -32,8 +39,9 @@ class TraceScope {
     TraceScope(const char *_func, const char *_file, const int _line)
       : func(_func), file(_file), line(_line), parent(0)
     {
-        if (sCurrScope)
-	    parent=sCurrScope;
+        TraceScope *ts = sCurrScope;
+        if (ts)
+	    parent=ts;
 	sCurrScope = this;
     }
     ~TraceScope() {sCurrScope = parent;}
@@ -74,7 +82,9 @@ class TraceScope {
 #   define TRACE3(msg1,msg2,msg3) _TWHERE3("TRACE",tscope.getFunc(),__FILE__,__LINE__,msg1,msg2,msg3);
 #   define TRACEDUMP(msg) _TRECURSE("TRACEDUMP",&tscope)
 #   define ERR(action) TRACEDUMP("CRASH"); action
-#   define assert(c,msg) if (!(c)) {TF(msg);TRACE("assertion");do{}while(1);}
+#   define FAIL(msg) {TRACE(msg); TRACEDUMP("CRASH"); do{}while(1);}
+#   define assert(c,msg) if (!(c)) {TF(msg);PH("assertion");do{}while(1);}
+#   define assert2(c,msg1,msg2) if (!(c)) {TF(msg1);PH2("assertion: ",msg2);do{}while(1);}
 
 
 #else
@@ -84,8 +94,11 @@ class TraceScope {
 #   define TRACE3(msg1,msg2,msg3) while (0);
 #   define TRACEDUMP(msg) do {} while (0);
 #   define ERR(action) action
+#   define FAIL(msg) do {} while (0)
 #   define assert(c,msg) do {} while (0)
+#   define assert2(c,msg1,msg2) do {} while (0)
 
 #endif
+
 
 #endif

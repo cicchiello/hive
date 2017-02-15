@@ -29,6 +29,7 @@ class HiveConfig {
 
     const char *getLogDbName() const;
     const char *getConfigDbName() const;
+    const char *getChannelDbName() const;
     const char *getDesignDocId() const;
     const char *getSensorByHiveViewName() const;
 

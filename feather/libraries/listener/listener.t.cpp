@@ -35,7 +35,7 @@ bool ListenTest::loop() {
         if (listener == NULL) {
 	    const char *filename = "LISTEN.WAV";
 
-	    listener = new Listener(ADCPIN);
+	    listener = new Listener(ADCPIN, A0);
 	    TRACE2("Listening; time (ms) : ", millis());
 	    bool stat = listener->record(10500, filename, verbose);
 	    assert(stat, "Couldn't start recording");

@@ -2,7 +2,8 @@
 
 #include <wifiutils.h>
 
-//#define NDEBUG
+#define HEADLESS
+#define NDEBUG
 #include <strutils.h>
 
 #include <Trace.h>
@@ -14,6 +15,8 @@
 #include <platformutils.h>
 
 
+//#define ENABLE_TRACKING
+#ifdef ENABLE_TRACKING
 struct Tracker {
   unsigned long writeDelta;
   unsigned long endTime;
@@ -36,7 +39,7 @@ void dumpStats()
     P("avg delta: "); PL(totalDelta/trackerCnt);
     trackerCnt = 0;
 }
-
+#endif
 
 
 HttpBinaryPut::HttpBinaryPut(const char *ssid, const char *ssidPswd, 
@@ -124,7 +127,7 @@ HttpBinaryPut::EventResult HttpBinaryPut::event(unsigned long now, unsigned long
     OpState opState = getOpState();
     switch (opState) {
     case ISSUE_OP: {
-        TRACE("ISSUE_OP");
+        TF("HttpBinaryPut::event; ISSUE_OP");
 
 	sendPUT(getContext().getClient(), m_provider->getSize());
 	setOpState(CHUNKING);
@@ -136,39 +139,56 @@ HttpBinaryPut::EventResult HttpBinaryPut::event(unsigned long now, unsigned long
     }
       break;
     case CHUNKING: {
-        unsigned char *buf = 0;
-	int sz = m_provider->takeIfAvailable(&buf);
-	while (sz > 0) {
-	    unsigned long b = micros();
-	    getContext().getClient().write(buf, sz);
-	    m_provider->giveBack(buf);
-	    m_writtenCnt += sz;
-	    unsigned long n = micros();
-	    tracker[trackerCnt].endTime = n;
-	    tracker[trackerCnt++].writeDelta = n - b;
+        TF("HttpBinaryPut::event; CHUNKING");
+	if (m_provider->isDone()) {
+	    TRACE3("Done writing; wrote: ", m_writtenCnt, " bytes");
+	    setOpState(CONSUME_RESPONSE);
+	    if (m_writtenCnt != m_provider->getSize()) {
+	        TRACE("m_writtenCnt doesn't match m_provider->getSize()");
+		TRACE2("m_writtenCnt == ", m_writtenCnt);
+		TRACE2("m_provider->getSize() == ", m_provider->getSize());
+	    }
+	    assert(m_writtenCnt == m_provider->getSize(), "m_writtenCnt == m_provider->getSize()");
+	    m_provider->close();
+	} else {
+	    unsigned char *buf = 0;
+	    int sz = m_provider->takeIfAvailable(&buf);
+	    if (sz > 0) {
+	        unsigned long b = micros();
+		TRACE2("Sending a chunk of size ", sz);
+		getContext().getClient().write(buf, sz);
 
-	    if (m_provider->isDone()) {
-	        TRACE3("Done writing; wrote: ", m_writtenCnt, " bytes");
-		setOpState(CONSUME_RESPONSE);
-		if (m_writtenCnt != m_provider->getSize()) {
-		    TRACE("m_writtenCnt doesn't match m_provider->getSize()");
-		    TRACE2("m_writtenCnt == ", m_writtenCnt);
-		    TRACE2("m_provider->getSize() == ", m_provider->getSize());
+#ifndef HEADLESS
+#ifndef NDEBUG
+		TRACE("Sent the following chunk: ");
+		for (int ii = 0; ii < sz; ii++) {
+		    _TAG("TRACE"); _TAG(tscope.getFunc()); _TAG(__FILE__); _TAG(__LINE__);
+		    Serial.println((int) buf[ii], HEX);
 		}
-		assert(m_writtenCnt == m_provider->getSize(), "m_writtenCnt == m_provider->getSize()");
-		m_provider->close();
-		sz = 0;
+		    
+#endif
+#endif
+
+		m_provider->giveBack(buf);
+		m_writtenCnt += sz;
+
+#ifdef ENABLE_TRACKING		
+		unsigned long n = micros();
+		tracker[trackerCnt].endTime = n;
+		tracker[trackerCnt++].writeDelta = n - b;
+#endif		
+
 	    } else {
-	        PlatformUtils::nonConstSingleton().clearWDT();
-	        sz = m_provider->takeIfAvailable(&buf);
+	        TRACE("Nothing available");
 	    }
 	}
-      
+
 	*callMeBackIn_ms = 1l;
 	return CallMeBack;
     }
       break;
     default:
+        TF("HttpBinaryPut::event; default");
         return this->HttpCouchGet::event(now, callMeBackIn_ms);
     }
 }

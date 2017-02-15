@@ -179,7 +179,7 @@ bool HttpCouchConsumer::consume(unsigned long now)
 }
 
 
-const char *HttpCouchConsumer::parseDoc(CouchUtils::Doc *doc)
+const char *HttpCouchConsumer::parseDoc(CouchUtils::Doc *doc) const
 {
     DL("HttpCouchConsumer::parseDoc");
     return CouchUtils::parseDoc(getResponse().c_str(), doc);

@@ -14,7 +14,7 @@ class HeartBeat : public SensorBase {
 	      const class RateProvider &rateProvider,
 	      const class TimeProvider &timeProvider,
 	      unsigned long now);
-    ~HeartBeat() {}
+    ~HeartBeat();
 
     static const int LED_PIN = 13;
     static const unsigned long LED_NORMAL_TOGGLE_RATE_MS = 1000l;  // toggle LED once per second
@@ -31,6 +31,8 @@ class HeartBeat : public SensorBase {
     bool isItTimeYet(unsigned long now);
     bool loop(unsigned long now, Mutex *wifi);
 
+    bool sensorSample(Str *value);
+
  private:
     HeartBeat(const HeartBeat &); // intentionally unimplemented
     const HeartBeat &operator=(const HeartBeat &o); // intentionallly unimplemented
@@ -39,6 +41,7 @@ class HeartBeat : public SensorBase {
 
     void considerFlash(unsigned long now, unsigned long times_per_ms, unsigned long onTime_ms);
 
+    Str *mTimestampStr;
     FlashMode mFlashMode;
     bool mLedIsOn, mFlashModeChanged;
     unsigned long mNextActionTime, mNextPostActionTime, mNextBlinkActionTime;

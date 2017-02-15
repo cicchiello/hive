@@ -23,6 +23,7 @@ class StepperActuator : public ActuatorBase {
     int getTarget() const;
 
     void processResult(ActuatorBase::Getter *getter);
+    void processResult(unsigned long now, const char *msg);
 
     PulseGenConsumer *getPulseGenConsumer();
     
@@ -58,12 +59,6 @@ inline int StepperActuator::getLocation() const
 inline int StepperActuator::getTarget() const
 {
     return mTarget;
-}
-
-inline
-void StepperActuator::setNextActionTime(unsigned long now)
-{
-    setNextActionTime(now + mMsPerStep);
 }
 
 

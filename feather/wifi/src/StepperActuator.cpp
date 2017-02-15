@@ -183,9 +183,16 @@ StepperActuator::~StepperActuator()
 }
 
 
+void StepperActuator::setNextActionTime(unsigned long now)
+{
+    ActuatorBase::setNextActionTime(now + mMsPerStep);
+}
+
+
 void StepperActuator::step()
 {
     TF("StepperActuator::step");
+TRACE("entry");
     if (mLoc != mTarget) {
         int dir = mLoc < mTarget ?
 			 (mIsBackwards ? BACKWARD : FORWARD) :
@@ -217,7 +224,7 @@ bool StepperActuator::isItTimeYetForSelfDrive(unsigned long now)
 {
     TF("StepperActuator::isItTimeYetForSelfDrive");
     if ((now > getNextActionTime()) && (mLoc != mTarget)) {
-        D("StepperActuator::isItTimeYet; missed an appointed visit by ");
+        D("StepperActuator::isItTimeYetForSelfDrive; missed an appointed visit by ");
 	D(now - getNextActionTime());
 	D(" ms; now == ");
 	DL(now);
@@ -311,4 +318,16 @@ void StepperActuator::processResult(ActuatorBase::Getter *baseGetter)
         ERROR("class cast exception");
     }
 }
+
+
+void StepperActuator::processResult(unsigned long now, const char *msg)
+{
+    TF("StepperActuator::fakeProcessResult");
+    TRACE("entry");
+    StepperActuatorPulseGenConsumer::nonConstSingleton()->addStepper(this);
+    setNextActionTime(now+1000l);
+    
+    mTarget += 10000;
+}
+
 

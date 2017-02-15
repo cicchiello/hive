@@ -30,7 +30,7 @@ class HttpOp {
        DISCONNECTED
    }; 
 
-   virtual ~HttpOp() {}
+   virtual ~HttpOp();
   
    enum EventResult {
        CallMeBack,
@@ -86,13 +86,14 @@ class HttpOp {
 
  private:
    const WifiUtils::Context m_ctxt;
-   OpState m_opState;
 
    const IPAddress mSpecifiedHostIP;
-   IPAddress mResolvedHostIP;
    const Str m_ssid, m_pswd, m_credentials, mSpecifiedHostName;
    const int m_port;
    const bool m_isSSL;
+   
+   IPAddress mResolvedHostIP;
+   OpState m_opState;
    
    int mWifiConnectState, m_disconnectCnt, m_retries, mHttpConnectCnt, mDnsCnt;
    unsigned long mHttpWaitStart, mDnsWaitStart, mWifiWaitStart;

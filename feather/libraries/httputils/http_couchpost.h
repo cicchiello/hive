@@ -19,6 +19,7 @@ class HttpCouchPost : private HttpCouchGet {
    using HttpCouchGet::EventResult;
    
    using HttpCouchGet::getHeaderConsumer;
+   using HttpCouchGet::getCouchConsumer;
    using HttpCouchGet::getDoc;
    using HttpCouchGet::haveDoc;
    using HttpCouchGet::processEventResult;

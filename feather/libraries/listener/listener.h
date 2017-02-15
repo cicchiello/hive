@@ -18,7 +18,7 @@ public:
     static const uint16_t SAMPLES_PER_CHUNK = 256;
 
 
-    Listener(int ADCPIN);
+    Listener(int ADCPIN, int BIASPIN);
     virtual ~Listener();
 
     bool record(unsigned int duration_ms, const char *filename, bool verbose = false);
@@ -56,7 +56,7 @@ public:
     uint8_t *m_cache;
 
     // adc buffering management
-    int m_ADCPIN, m_duration_ms; 
+    int m_ADCPIN, m_BIASPIN, m_duration_ms; 
     bool m_initializedADC;
     unsigned long m_endTime, m_captureStartTime_us;
     ADC_BufFifo m_fifo;

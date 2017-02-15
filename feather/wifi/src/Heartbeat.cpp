@@ -3,8 +3,8 @@
 #include <Arduino.h>
 
 
-//#define HEADLESS
-//#define NDEBUG
+#define HEADLESS
+#define NDEBUG
 
 #include <Trace.h>
 
@@ -25,13 +25,19 @@ HeartBeat::HeartBeat(const HiveConfig &config,
 		     unsigned long now)
   : SensorBase(config, name, rateProvider, timeProvider, now), 
     mLedIsOn(false), mNextActionTime(now + LED_OFFLINE_TOGGLE_RATE_MS), mFlashModeChanged(true),
-    mFlashMode(Initial), mNextBlinkActionTime(0),
+    mFlashMode(Initial), mNextBlinkActionTime(0), mTimestampStr(new Str("1470000000")),
     mNextPostActionTime(now + 30000l /*rateProvider.secondsBetweenSamples()*1000l*/)
 {
     TF("HeartBeat::HeartBeat");
     pinMode(LED_PIN, OUTPUT);  // pin will be used to indicate heartbeat
     TRACE2("now: ", now);
     TRACE2("mNextPostActionTime: ", mNextPostActionTime);
+}
+
+
+HeartBeat::~HeartBeat()
+{
+    delete mTimestampStr;
 }
 
 
@@ -50,6 +56,13 @@ void HeartBeat::considerFlash(unsigned long now, unsigned long rate_ms, unsigned
 	digitalWrite(LED_PIN, mLedIsOn ? LOW : HIGH);
 	mLedIsOn = !mLedIsOn;
     }
+}
+
+
+bool HeartBeat::sensorSample(Str *valueStr)
+{
+    *valueStr = *mTimestampStr;
+    return true;
 }
 
 
@@ -78,8 +91,11 @@ bool HeartBeat::loop(unsigned long now, Mutex *wifi)
     mFlashModeChanged = false;
 
     if (mFlashMode == Normal) {
-        if (now >= mNextPostActionTime) 
+        if (now >= mNextPostActionTime) {
+	    getTimeProvider().toString(now, mTimestampStr);
+	    
 	    postImplementation(now, wifi);
+	}
     }
     
     return true; // always want to be called back eventually; when will be determined by mNextActionTime

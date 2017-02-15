@@ -25,7 +25,7 @@ HttpOp::HttpOp(const char *ssid, const char *pswd,
 	       const IPAddress &hostip, int port,
 	       const char *credentials, bool isSSL)
   : m_ssid(ssid), m_pswd(pswd), mSpecifiedHostName((char*)0), m_port(port), m_credentials(credentials),
-    mSpecifiedHostIP(hostip), m_isSSL(isSSL), m_retries(0), m_opState(WIFI_INIT), mWifiConnectState(0)
+    mSpecifiedHostIP(hostip), m_isSSL(isSSL)
 {
     init();
 }
@@ -34,9 +34,15 @@ HttpOp::HttpOp(const char *ssid, const char *pswd,
 HttpOp::HttpOp(const char *ssid, const char *pswd, 
 	       const char *hostname, int port, const char *credentials, bool isSSL)
   : m_ssid(ssid), m_pswd(pswd), mSpecifiedHostName(hostname), m_port(port), m_credentials(credentials),
-    mSpecifiedHostIP(), m_isSSL(isSSL), m_retries(0), m_opState(WIFI_INIT), mWifiConnectState(0)
+    mSpecifiedHostIP(), m_isSSL(isSSL)
 {
     init();
+}
+
+
+HttpOp::~HttpOp()
+{
+    getContext().getWifi().end();
 }
 
 
@@ -57,8 +63,10 @@ void HttpOp::init()
 	FAIL();
     }
 
-    m_disconnectCnt = 0;
+    mDnsCnt = mHttpConnectCnt = mWifiConnectState = m_retries = m_disconnectCnt = 0;
+    mWifiWaitStart = mDnsWaitStart = mHttpWaitStart = 0;
     m_finalResult = UnknownFailure;
+    m_opState = WIFI_INIT;
 }
 
 
@@ -218,7 +226,7 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 	if (m_opState == DNS_INIT) {
 	    TF("HttpOp::event; DNS_INIT");
 	    TRACE2("resolving mSpecifiedHostName: ", mSpecifiedHostName.c_str());
-	    mDnsCnt = 41; // 20x500ms == 20s
+	    mDnsCnt = 41; // 40x500ms == 20s
 	    dnsState = w.dnsNoWait(mSpecifiedHostName.c_str(), mResolvedHostIP);
 	    mDnsWaitStart = now;
 	    setOpState(DNS_WAITING);

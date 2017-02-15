@@ -90,6 +90,7 @@ bool Timestamp::loop(unsigned long now)
         mNextAttempt = now + 1000l; // delay for 1s before trying to use the wifi
     } else if (now > mNextAttempt && !mHaveTimestamp) {
         if (mGetter == NULL) {
+	    TF("Timestamp::loop; creating RTCGetter");
 	    Str url;
 	    CouchUtils::toURL(TimestampDb, TimestampDocId, &url);
 	    //TRACE2("creating getter with url: ", url.c_str());
@@ -103,6 +104,7 @@ bool Timestamp::loop(unsigned long now)
 				    mDbHost->c_str(), mDbPort, mIsSSL,
 				    url.c_str(), mDbCredentials->c_str());
 	} else {
+	    TF("Timestamp::loop; processing getter events");
 	    unsigned long callMeBackIn_ms = 0;
 	    HttpOp::EventResult er = mGetter->event(now, &callMeBackIn_ms);
 	    if (!mGetter->processEventResult(er)) {

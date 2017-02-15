@@ -13,6 +13,9 @@ class PlatformUtils {
     // full system reset, ensuring that the Feather's bootloader is launched at reset
     void resetToBootloader();
 
+    // full system reset without attempting to re-enter bootloader
+    void reset();
+
     
     void setRTC(const char *timestr);
 

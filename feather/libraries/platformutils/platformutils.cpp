@@ -294,6 +294,12 @@ void PlatformUtils::resetToBootloader()
 }
 
 
+void PlatformUtils::reset()
+{
+    NVIC_SystemReset();
+}
+
+
 
 static __inline__ void WDTsync() __attribute__((always_inline, unused));
 static void WDTsync() {

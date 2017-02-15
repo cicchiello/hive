@@ -84,7 +84,6 @@ void DEBUG_wdtEarlyWarningHandler()
         SdFile f;
 	bool canWrite = true;
 	if (!f.open(STACKTRACE_FILENAME, O_CREAT | O_WRITE)) {
-	    TRACE2("Couldn't create file ", STACKTRACE_FILENAME);
 	    canWrite = false;
 	}
 	

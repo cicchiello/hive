@@ -9,7 +9,7 @@ class HttpCouchConsumer : public HttpHeaderConsumer {
    HttpCouchConsumer(const WifiUtils::Context &ctxt);
    ~HttpCouchConsumer();
 
-   const char *parseDoc(CouchUtils::Doc *doc);
+   const char *parseDoc(CouchUtils::Doc *doc) const;
   
    bool consume(unsigned long now);
 

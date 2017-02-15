@@ -54,10 +54,14 @@ bool HttpCouchGet::haveDoc() const
     TF("HttpCouchGet::haveDoc");
     TRACE("entry");
     if (!m_parsedDoc) {
-        HttpCouchGet *nonConstThis = (HttpCouchGet*) this;
-	nonConstThis->m_haveDoc = nonConstThis->m_consumer.parseDoc(&nonConstThis->m_doc) != 0;
-	nonConstThis->m_parsedDoc = true;
-	TRACE("parsed");
+
+        if (m_consumer.hasOk()) {
+	    HttpCouchGet *nonConstThis = (HttpCouchGet*) this;
+	    nonConstThis->m_parsedDoc = true;
+	    
+	    nonConstThis->m_haveDoc = nonConstThis->m_consumer.parseDoc(&nonConstThis->m_doc) != 0;
+	    TRACE("parsed");
+	}
     }
     return m_haveDoc;
 }

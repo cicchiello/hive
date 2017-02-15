@@ -12,7 +12,6 @@
 
 #include <hiveconfig.h>
 #include <http_couchpost.h>
-
 #include <RateProvider.h>
 #include <TimeProvider.h>
 
@@ -51,9 +50,19 @@ bool SensorBase::isItTimeYet(unsigned long now)
 }
 
 
-void SensorBase::postImplementation(unsigned long now, Mutex *wifi)
+bool SensorBase::processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms)
+{
+    TF("SensorBase::processResult");
+    TRACE("WARNING: This probably shouldn't be called -- check derived class");
+    setNextTime(0, callMeBackIn_ms);
+    return false;
+}
+
+
+bool SensorBase::postImplementation(unsigned long now, Mutex *wifi)
 {
     TF("SensorBase::postImplementation");
+    bool callMeBack = true;
     if (wifi->own(this)) {
         unsigned long callMeBackIn_ms = 10l;
 	if (mPoster == NULL) {
@@ -100,8 +109,7 @@ void SensorBase::postImplementation(unsigned long now, Mutex *wifi)
 	    if (!mPoster->processEventResult(er)) {
 	        TRACE("done");
 		if (mPoster->getHeaderConsumer().hasOk()) {
-		    TRACE("hasOk");
-		    setNextTime(0, &callMeBackIn_ms);
+		    callMeBack = processResult(mPoster->getCouchConsumer(), &callMeBackIn_ms);
 		} else {
 		    TRACE("POST failed; retrying again in 5s");
 		    callMeBackIn_ms = 5000l;
@@ -113,6 +121,8 @@ void SensorBase::postImplementation(unsigned long now, Mutex *wifi)
 	}
 	mNextPostTime = now + callMeBackIn_ms;
     }
+
+    return callMeBack;
 }
 
 
@@ -126,11 +136,13 @@ bool SensorBase::loop(unsigned long now, Mutex *wifi)
     }
 
     const char *value = NULL;
+    bool callMeBack = true; // normally want to be called back -- at some later pre-determined time
     if ((now >= mNextPostTime) && (strcmp(mValueStr->c_str(),"NAN")!=0)) {
-        postImplementation(now, wifi);
+        // let the postImplementation say whether we're totally done or not
+        callMeBack = postImplementation(now, wifi);
     }
     
-    return true; // always want to be called back eventually; when will be determined by mNextActionTime
+    return callMeBack;
 }
 
 

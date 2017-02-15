@@ -42,18 +42,18 @@ public:
   bool hasNotFound() const;
   
   bool isTimeout() const {return m_timedout;}
-  void setTimedOut(bool v) {m_timedout = v;}
 
   unsigned long consumeStart() const {return m_firstConsumeTime;}
 
   void reset();
 
- protected:
-  void setError(bool v) {m_err = v;}
+  void setTimedOut(bool v) {m_timedout = v;}
   
  private:
   void init();
 
+  void setError(bool v) {m_err = v;}
+  
   HttpHeaderConsumer(const HttpHeaderConsumer &); // intentionally unimplemented
 };
 

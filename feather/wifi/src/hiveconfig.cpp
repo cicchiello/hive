@@ -115,6 +115,7 @@ const char *HiveConfig::getDbCredentials() const
 
 const char *HiveConfig::getLogDbName() const {return "hive-sensor-log";}     // couchdb name
 const char *HiveConfig::getConfigDbName() const {return "hive-config";}      // couchdb name
+const char *HiveConfig::getChannelDbName() const {return "hive-channel";}    // couchdb name
 const char *HiveConfig::getDesignDocId() const {return "_design/SensorLog";}
 const char *HiveConfig::getSensorByHiveViewName() const {return "by-hive-sensor";}
 

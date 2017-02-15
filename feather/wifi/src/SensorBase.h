@@ -7,6 +7,7 @@
 class Str;
 class Mutex;
 class HiveConfig;
+class HttpCouchConsumer;
 
 
 class SensorBase : public Sensor {
@@ -23,6 +24,8 @@ class SensorBase : public Sensor {
     virtual bool sensorSample(Str *value) = 0;
 
  protected:
+    const HiveConfig &getConfig() const {return mConfig;}
+    
     unsigned long getNextSampleTime() const;
     void setNextSampleTime(unsigned long n);
     
@@ -32,7 +35,9 @@ class SensorBase : public Sensor {
     // helper function
     static void setNextTime(unsigned long now, unsigned long *t);
 
-    void postImplementation(unsigned long now, Mutex *wifi);
+    bool postImplementation(unsigned long now, Mutex *wifi);
+    
+    virtual bool processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms);
     
  private:
     unsigned long mNextSampleTime, mNextPostTime;

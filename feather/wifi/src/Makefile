@@ -14,7 +14,8 @@ LOCALOBJS= \
 	SensorRateActuator.o TempSensor.o HumidSensor.o \
 	ConfigReader.o ConfigWriter.o hiveconfig.o \
 	SensorBase.o StepperMonitor.o ActuatorBase.o StepperActuator.o \
-	beecnt.o latch.o AudioActuator.o sine.o Provision.o 
+	beecnt.o latch.o AudioActuator.o Provision.o \
+	AppChannel.o AudioUpload.o
 
 #	ServoConfigActuator.o \
 
