@@ -26,8 +26,8 @@ static const char *DateTag = "Date: ";
 class RTCGetter : public HttpCouchGet {
 public:
     RTCGetter(const char *ssid, const char *pswd, const char *dbHost, int dbPort, bool isSSL,
-	      const char *url, const char *credentials)
-      : HttpCouchGet(ssid, pswd, dbHost, dbPort, url, credentials, isSSL)
+	      const char *url, const char *dbUser, const char *dbPswd)
+      : HttpCouchGet(ssid, pswd, dbHost, dbPort, url, dbUser, dbPswd, isSSL)
     {
         TF("RTCGetter::RTCGetter");
 	TRACE("entry");
@@ -66,10 +66,11 @@ public:
 
 
 Timestamp::Timestamp(const char *ssid, const char *pswd, const char *dbHost, const int dbPort, bool isSSL,
-		     const char *dbCredentials)
+		     const char *dbUser, const char *dbPswd)
   : mGetter(NULL),
     mSsid(new Str(ssid)), mPswd(new Str(pswd)), mDbHost(new Str(dbHost)), mDbPort(dbPort), mIsSSL(isSSL),
-    mDbCredentials(new Str(dbCredentials)),
+    mDbUser(new Str(dbUser)),
+    mDbPswd(new Str(dbPswd)),
     mNextAttempt(0), mHaveTimestamp(false)
 {
 }
@@ -79,8 +80,10 @@ Timestamp::~Timestamp()
     delete mSsid;
     delete mPswd;
     delete mDbHost;
-    delete mDbCredentials;
+    delete mDbUser;
+    delete mDbPswd;
 }
+
 
 bool Timestamp::loop(unsigned long now)
 {
@@ -99,10 +102,11 @@ bool Timestamp::loop(unsigned long now)
 	    //TRACE2("to host: ", mDbHost->c_str());
 	    //TRACE2("port: ", mDbPort);
 	    //TRACE2("using ssl? ", (mIsSSL ? "yes" : "no"));
-	    //TRACE2("with creds: ", mDbCredentials->c_str());
+	    //TRACE2("with dbuser: ", mDbUser->c_str());
+	    //TRACE2("with dbpswd: ", mDbPswd->c_str());
 	    mGetter = new RTCGetter(mSsid->c_str(), mPswd->c_str(),
 				    mDbHost->c_str(), mDbPort, mIsSSL,
-				    url.c_str(), mDbCredentials->c_str());
+				    url.c_str(), mDbUser->c_str(), mDbPswd->c_str());
 	} else {
 	    TF("Timestamp::loop; processing getter events");
 	    unsigned long callMeBackIn_ms = 0;

@@ -21,8 +21,8 @@ private:
   
 public:
     SensorRateGetter(const char *ssid, const char *pswd, const char *dbHost, int dbPort, bool isSSL,
-		     const char *url, const char *credentials)
-      : ActuatorBase::Getter(ssid, pswd, dbHost, dbPort, url, credentials, isSSL),
+		     const char *url, const char *dbuser, const char *dbpswd)
+      : ActuatorBase::Getter(ssid, pswd, dbHost, dbPort, url, dbuser, dbpswd, isSSL),
 	mHasRate(false), mIsError(false), mIsParsed(false)
     {
         TF("SensorRateGetter::SensorRateGetter");
@@ -93,7 +93,7 @@ ActuatorBase::Getter *SensorRateActuator::createGetter() const
 	
     return new SensorRateGetter(getConfig().getSSID(), getConfig().getPSWD(),
 				getConfig().getDbHost(), getConfig().getDbPort(), getConfig().isSSL(),
-				url.c_str(), getConfig().getDbCredentials());
+				url.c_str(), getConfig().getDbUser(), getConfig().getDbPswd());
 }
 
 

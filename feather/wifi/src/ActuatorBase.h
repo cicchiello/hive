@@ -26,7 +26,7 @@ class ActuatorBase : public Actuator {
     public:
         Getter(const char *ssid, const char *pswd,
 	       const char *dbHost, int dbPort,
-	       const char *url, const char *credentials, bool isSSL);
+	       const char *url, const char *dbUser, const char *dbPswd, bool isSSL);
 	~Getter() {}
         virtual bool hasResult() const = 0;
 	virtual const char *className() const = 0;

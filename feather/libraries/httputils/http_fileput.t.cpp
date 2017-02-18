@@ -22,17 +22,17 @@ static const char *CONTENT_TYPE = "audio/wav";
 
 
 HttpFilePutTest::HttpFilePutTest()
-  : HttpPutBaseTest(defaultDbCredentials, defaultDbHost, defaultDbPort, false),
+  : HttpPutBaseTest(defaultDbUser, defaultDbPswd, defaultDbHost, defaultDbPort, false),
     m_putter(0), mNow(0), mTransferStart(0), mTransferTime(0)
 {
 }
 
 
-HttpFilePutTest::HttpFilePutTest(const char *credentials,
+HttpFilePutTest::HttpFilePutTest(const char *dbUser, const char *dbPswd, 
 				 const char *dbHost,
 				 int dbPort,
 				 bool isSSL)
-  : HttpPutBaseTest(credentials, dbHost, dbPort, isSSL),
+  : HttpPutBaseTest(dbUser, dbPswd, dbHost, dbPort, isSSL),
     m_putter(0), mNow(0), mTransferStart(0), mTransferTime(0)
 {
 }
@@ -65,7 +65,7 @@ bool HttpFilePutTest::createPutter(const CouchUtils::Doc &originalDoc)
 
 	m_putter = new HttpFilePut(ssid, pass,
 				     getDbHost(), getDbPort(),
-				     url.c_str(), getCredentials(), getIsSSL(),
+				     url.c_str(), getDbUser(), getDbPswd(), getIsSSL(),
 				     LOCAL_FILENAME, CONTENT_TYPE);
 	mTransferStart = mNow;
 	mTransferTime = 0;

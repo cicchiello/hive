@@ -10,11 +10,11 @@
 #include <str.h>
 
 
-HttpPutBaseTest::HttpPutBaseTest(const char *credentials,
+HttpPutBaseTest::HttpPutBaseTest(const char *dbUser, const char *dbPswd,
 				 const char *dbHost,
 				 int dbPort,
 				 bool isSSL)
-: HttpOpTest(credentials, dbHost, dbPort, isSSL), m_getter(0)
+  : HttpOpTest(dbUser, dbPswd, dbHost, dbPort, isSSL), m_getter(0)
 {
 }
 
@@ -34,7 +34,7 @@ bool HttpPutBaseTest::loop() {
 	    Str url;
 	    CouchUtils::toURL(defaultDbName, getDocid(), &url);
 	    m_getter = new HttpCouchGet(ssid, pass, getDbHost(), getDbPort(),
-					url.c_str(), getCredentials(), getIsSSL());
+					url.c_str(), getDbUser(), getDbPswd(), getIsSSL());
 	} else {
 	    unsigned long callMeBackIn_ms = 0;
 	    HttpCouchGet::EventResult r = m_getter->event(now, &callMeBackIn_ms);

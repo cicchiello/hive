@@ -8,8 +8,9 @@
 
 HttpCouchGet::HttpCouchGet(const char *ssid, const char *ssidPswd, 
 			   const char *host, int port, const char *page,
-			   const char *credentials, bool isSSL)
-  : HttpGet(ssid, ssidPswd, host, port, page, credentials, isSSL),
+			   const char *dbUser, const char *dbPswd,
+			   bool isSSL)
+  : HttpGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
     m_consumer(getContext())
 {
     init();
@@ -18,8 +19,9 @@ HttpCouchGet::HttpCouchGet(const char *ssid, const char *ssidPswd,
 
 HttpCouchGet::HttpCouchGet(const char *ssid, const char *ssidPswd, 
 			   const IPAddress &hostip, int port, const char *page,
-			   const char *credentials, bool isSSL)
-  : HttpGet(ssid, ssidPswd, hostip, port, page, credentials, isSSL),
+			   const char *dbUser, const char *dbPswd,
+			   bool isSSL)
+  : HttpGet(ssid, ssidPswd, hostip, port, page, dbUser, dbPswd, isSSL),
     m_consumer(getContext())
 {
     init();

@@ -179,7 +179,7 @@ WifiUtils::ConnectorStatus WifiUtils::connector(const WifiUtils::Context &ctxt,
     TRACE("entry");
 
     uint8_t r;
-    if (*connectorState >= 20) {
+    if (*connectorState >= 30) {
         TRACE("connect attempt failed; timeout");
         // couldn't connect
 	ctxt.getWifi().connectionFailed();

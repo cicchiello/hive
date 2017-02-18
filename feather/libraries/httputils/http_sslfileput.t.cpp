@@ -6,7 +6,7 @@
 #include <Trace.h>
 
 HttpSSLFilePutTest::HttpSSLFilePutTest()
-  : HttpFilePutTest(sslDbCredentials, sslDbHost, sslDbPort, true)
+  : HttpFilePutTest(sslDbUser, sslDbPswd, sslDbHost, sslDbPort, true)
 {
 }
 

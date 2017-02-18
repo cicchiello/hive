@@ -7,10 +7,12 @@
 class HttpFilePut : private HttpCouchGet {
  public:
     HttpFilePut(const char *ssid, const char *ssidPswd, 
-		const char *host, int port, const char *page, const char *credentials,
+		const char *host, int port, const char *page,
+		const char *dbUser, const char *dbPswd,
 		bool isSSL, const char *filename, const char *contentType);
     HttpFilePut(const char *ssid, const char *ssidPswd, 
-		const IPAddress &hostip, int port, const char *page, const char *credentials,
+		const IPAddress &hostip, int port, const char *page, 
+		const char *dbUser, const char *dbPswd,
 		bool isSSL, const char *filename, const char *contentType);
     virtual ~HttpFilePut();
 

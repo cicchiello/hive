@@ -94,13 +94,14 @@ bool SensorBase::postImplementation(unsigned long now, Mutex *wifi)
 	    TRACE2("to host: ", mConfig.getDbHost());
 	    TRACE2("port: ", mConfig.getDbPort());
 	    TRACE2("using ssl? ", (mConfig.isSSL() ? "yes" : "no"));
-	    TRACE2("with creds: ", mConfig.getDbCredentials());
+	    TRACE2("with dbuser: ", mConfig.getDbUser());
+	    TRACE2("with dbpswd: ", mConfig.getDbPswd());
 	    TRACE2("doc: ", dump.c_str());
 	    
 	    mPoster = new HttpCouchPost(mConfig.getSSID(), mConfig.getPSWD(),
 					mConfig.getDbHost(), mConfig.getDbPort(),
 					url.c_str(), doc,
-					mConfig.getDbCredentials(),
+					mConfig.getDbUser(), mConfig.getDbPswd(), 
 					mConfig.isSSL());
 	} else {
 	    TRACE("processing event");

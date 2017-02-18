@@ -10,10 +10,12 @@ class HttpCouchGet : public HttpGet {
  public:
    HttpCouchGet(const char *ssid, const char *ssidPswd, 
 		const char *host, int port, const char *page,
-		const char *credentials, bool isSSL = false);
+		const char *dbuser, const char *dbpswd, 
+		bool isSSL = false);
    HttpCouchGet(const char *ssid, const char *ssidPswd, 
 		const IPAddress &hostip, int port, const char *page,
-		const char *credentials, bool isSSL = false);
+		const char *dbuser, const char *dbpswd, 
+		bool isSSL = false);
    ~HttpCouchGet();
    
    virtual HttpHeaderConsumer &getHeaderConsumer() {return m_consumer;}

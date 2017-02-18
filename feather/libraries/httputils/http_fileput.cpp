@@ -16,9 +16,10 @@
 #include <platformutils.h>
 
 HttpFilePut::HttpFilePut(const char *ssid, const char *ssidPswd, 
-			 const char *host, int port, const char *page, const char *credentials,
+			 const char *host, int port, const char *page, 
+			 const char *dbUser, const char *dbPswd,
 			 bool isSSL, const char *filename, const char *contentType)
-  : HttpCouchGet(ssid, ssidPswd, host, port, page, credentials, isSSL),
+  : HttpCouchGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
     m_filename(filename), m_contentType(contentType)
 {
     TF("HttpBinaryPut::HttpBinaryPut");
@@ -29,14 +30,16 @@ HttpFilePut::HttpFilePut(const char *ssid, const char *ssidPswd,
     TRACE2("Using host: ",host);
     TRACE2("Using port: ",port);
     TRACE2("Using page: ",page);
-    TRACE2("Using credentials: ", (credentials?credentials:"<null>"));
+    TRACE2("Using dbUser: ", (dbUser?dbUser:"<null>"));
+    TRACE2("Using dbPswd: ", (dbPswd?dbPswd:"<null>"));
     TRACE2("Using contentType: ", contentType);
 }
 
 HttpFilePut::HttpFilePut(const char *ssid, const char *ssidPswd, 
-			 const IPAddress &hostip, int port, const char *page, const char *credentials,
+			 const IPAddress &hostip, int port, const char *page,
+			 const char *dbUser, const char *dbPswd,
 			 bool isSSL, const char *filename, const char *contentType)
-  : HttpCouchGet(ssid, ssidPswd, hostip, port, page, credentials, isSSL),
+  : HttpCouchGet(ssid, ssidPswd, hostip, port, page, dbUser, dbPswd, isSSL),
     m_filename(filename), m_contentType(contentType)
 {
     TF("HttpBinaryPut::HttpBinaryPut");

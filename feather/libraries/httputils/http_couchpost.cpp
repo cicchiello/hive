@@ -9,20 +9,20 @@
 
 
 HttpCouchPost::HttpCouchPost(const char *ssid, const char *ssidPswd, 
-			   const char *host, int port, const char *page,
-			   const CouchUtils::Doc &content,
-			   const char *credentials, bool isSSL)
-  : HttpCouchGet(ssid, ssidPswd, host, port, page, credentials, isSSL),
+			     const char *host, int port, const char *page,
+			     const CouchUtils::Doc &content,
+			     const char *dbUser, const char *dbPswd, bool isSSL)
+  : HttpCouchGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
     m_content(content)
 {
 }
 
 
 HttpCouchPost::HttpCouchPost(const char *ssid, const char *ssidPswd, 
-			   const IPAddress &hostip, int port, const char *page,
-			   const CouchUtils::Doc &content,
-			   const char *credentials, bool isSSL)
-  : HttpCouchGet(ssid, ssidPswd, hostip, port, page, credentials, isSSL),
+			     const IPAddress &hostip, int port, const char *page,
+			     const CouchUtils::Doc &content,
+			     const char *dbUser, const char *dbPswd, bool isSSL)
+  : HttpCouchGet(ssid, ssidPswd, hostip, port, page, dbUser, dbPswd, isSSL),
     m_content(content)
 {
 }

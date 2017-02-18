@@ -106,6 +106,7 @@ public:
     bool isEmpty() const {return numNVs == 0;}
 
     int lookup(const char *name) const;
+    int lookup(const Str &name) const {return lookup(name.c_str());}
     const NameValuePair &operator[](int i) const {return *nvs[i];}
 
     bool equals(const Doc &other) const;

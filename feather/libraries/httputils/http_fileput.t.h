@@ -9,7 +9,7 @@ class Str;
 class HttpFilePutTest : public HttpPutBaseTest {
   public:
     HttpFilePutTest();
-    HttpFilePutTest(const char *credentials,
+    HttpFilePutTest(const char *dbUser, const char *dbPswd,
 		    const char *dbHost,
 		    int dbPort,
 		    bool isSSL);

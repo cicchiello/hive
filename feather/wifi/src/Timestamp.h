@@ -9,7 +9,7 @@ class Str;
 class Timestamp : public TimeProvider {
  public:
     Timestamp(const char *ssid, const char *pswd, const char *dbHost, const int dbPort, bool isSSL,
-	      const char *dbCredentials);
+	      const char *dbUser, const char *dbPswd);
     ~Timestamp();
 
     // returns true when it has the time; false to be called back later
@@ -30,7 +30,7 @@ class Timestamp : public TimeProvider {
     unsigned long mNextAttempt;
     unsigned long mTimestamp, mSecondsAtMark;
 
-    const Str *mSsid, *mPswd, *mDbHost, *mDbCredentials;
+    const Str *mSsid, *mPswd, *mDbHost, *mDbUser, *mDbPswd;
     const int mDbPort;
     const bool mIsSSL;
     

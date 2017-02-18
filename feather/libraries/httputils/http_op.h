@@ -63,9 +63,11 @@ class HttpOp {
    
  protected:
    HttpOp(const char *ssid, const char *ssidPswd, const char *host, int port,
-	  const char *credentials, bool isSSL = false);
+	  const char *dbUser, const char *dbPswd,
+	  bool isSSL = false);
    HttpOp(const char *ssid, const char *ssidPswd, const IPAddress &host, int port,
-	  const char *credentials, bool isSSL = false);
+	  const char *dbUser, const char *dbPswd,
+	  bool isSSL = false);
 
    HttpOp(const HttpOp &); //intentionally unimplemented
 
@@ -88,7 +90,7 @@ class HttpOp {
    const WifiUtils::Context m_ctxt;
 
    const IPAddress mSpecifiedHostIP;
-   const Str m_ssid, m_pswd, m_credentials, mSpecifiedHostName;
+   const Str m_ssid, m_pswd, mSpecifiedHostName, m_dbuser, m_dbpswd;
    const int m_port;
    const bool m_isSSL;
    

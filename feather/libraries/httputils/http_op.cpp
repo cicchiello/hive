@@ -12,6 +12,7 @@
 #include <MyWiFi.h>
 
 #include <wifiutils.h>
+#include <base64.h>
 
 #include <hive_platform.h>
 
@@ -23,8 +24,9 @@ const long HttpOp::RetryDelay_ms = 3000l;
 
 HttpOp::HttpOp(const char *ssid, const char *pswd, 
 	       const IPAddress &hostip, int port,
-	       const char *credentials, bool isSSL)
-  : m_ssid(ssid), m_pswd(pswd), mSpecifiedHostName((char*)0), m_port(port), m_credentials(credentials),
+	       const char *dbUser, const char *dbPswd,
+	       bool isSSL)
+  : m_ssid(ssid), m_pswd(pswd), mSpecifiedHostName((char*)0), m_port(port), m_dbuser(dbUser), m_dbpswd(dbPswd),
     mSpecifiedHostIP(hostip), m_isSSL(isSSL)
 {
     init();
@@ -32,8 +34,10 @@ HttpOp::HttpOp(const char *ssid, const char *pswd,
 
 
 HttpOp::HttpOp(const char *ssid, const char *pswd, 
-	       const char *hostname, int port, const char *credentials, bool isSSL)
-  : m_ssid(ssid), m_pswd(pswd), mSpecifiedHostName(hostname), m_port(port), m_credentials(credentials),
+	       const char *hostname, int port,
+	       const char *dbUser, const char *dbPswd,
+	       bool isSSL)
+  : m_ssid(ssid), m_pswd(pswd), mSpecifiedHostName(hostname), m_port(port), m_dbuser(dbUser), m_dbpswd(dbPswd),
     mSpecifiedHostIP(), m_isSSL(isSSL)
 {
     init();
@@ -139,6 +143,7 @@ void HttpOp::httpConnectCancel()
 
 void HttpOp::sendHost(class Stream &s) const
 {
+    TF("HttpOp::sendHost");
     assert(getContext().getClient().connected(), "Client isn't connected !?!? (1)");
 
     P("Host: ");
@@ -156,11 +161,17 @@ void HttpOp::sendHost(class Stream &s) const
     s.print(":");
     PL(m_port);
     s.println(m_port);
-    if (m_credentials.len() > 0) {
+    if (m_dbuser.len() > 0) {
+	Str creds;
+	creds.append(m_dbuser).append(":").append(m_dbpswd);
+	
+	Str encoded;
+	base64_encode(&encoded, creds.c_str(), creds.len());
+
         P("Authorization: Basic ");
-	PL(m_credentials.c_str());
-        s.print("Authorization: Basic ");
-	s.println(m_credentials.c_str());
+	PL(encoded.c_str());
+	s.print("Authorization: Basic ");
+	s.println(encoded.c_str());
     }
     assert(getContext().getClient().connected(), "Client isn't connected !?!? (3)");
 }

@@ -43,9 +43,10 @@ void dumpStats()
 
 
 HttpBinaryPut::HttpBinaryPut(const char *ssid, const char *ssidPswd, 
-			     const char *host, int port, const char *page, const char *credentials,
+			     const char *host, int port, const char *page,
+			     const char *dbUser, const char *dbPswd, 
 			     bool isSSL, HttpDataProvider *provider, const char *contentType)
-  : HttpCouchGet(ssid, ssidPswd, host, port, page, credentials, isSSL),
+  : HttpCouchGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
     m_provider(provider), m_contentType(contentType), m_writtenCnt(0)
 {
    TF("HttpBinaryPut::HttpBinaryPut");
@@ -58,9 +59,10 @@ HttpBinaryPut::HttpBinaryPut(const char *ssid, const char *ssidPswd,
 }
 
 HttpBinaryPut::HttpBinaryPut(const char *ssid, const char *ssidPswd, 
-			     const IPAddress &hostip, int port, const char *page, const char *credentials,
+			     const IPAddress &hostip, int port, const char *page,
+			     const char *dbUser, const char *dbPswd, 
 			     bool isSSL, HttpDataProvider *provider, const char *contentType)
-  : HttpCouchGet(ssid, ssidPswd, hostip, port, page, credentials, isSSL),
+  : HttpCouchGet(ssid, ssidPswd, hostip, port, page, dbUser, dbPswd, isSSL),
     m_provider(provider), m_contentType(contentType), m_writtenCnt(0)
 {
    TF("HttpBinaryPut::HttpBinaryPut");

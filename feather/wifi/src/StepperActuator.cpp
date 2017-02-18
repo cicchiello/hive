@@ -241,8 +241,8 @@ private:
   
 public:
     StepperActuatorGetter(const char *ssid, const char *pswd, const char *dbHost, int dbPort, bool isSSL,
-			  const char *url, const char *credentials)
-      : ActuatorBase::Getter(ssid, pswd, dbHost, dbPort, url, credentials, isSSL),
+			  const char *url, const char *dbUser, const char *dbPswd)
+      : ActuatorBase::Getter(ssid, pswd, dbHost, dbPort, url, dbUser, dbPswd, isSSL),
 	mIsError(false), mHasTarget(false), mTarget(0), mParsed(false)
     {
         TF("StepperActuatorGetter::StepperActuatorGetter");
@@ -303,7 +303,7 @@ ActuatorBase::Getter *StepperActuator::createGetter() const
 	
     return new StepperActuatorGetter(getConfig().getSSID(), getConfig().getPSWD(),
 				     getConfig().getDbHost(), getConfig().getDbPort(), getConfig().isSSL(),
-				     url.c_str(), getConfig().getDbCredentials());
+				     url.c_str(), getConfig().getDbUser(), getConfig().getDbPswd());
 }
 
 

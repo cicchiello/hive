@@ -22,17 +22,17 @@ static const char *CONTENT_TYPE = "audio/wav";
 static const int SAMPLING_DURATION_MS = 15000;
 
 HttpStreamTest::HttpStreamTest()
-  : HttpPutBaseTest(defaultDbCredentials, defaultDbHost, defaultDbPort, false),
+  : HttpPutBaseTest(defaultDbUser, defaultDbPswd, defaultDbHost, defaultDbPort, false),
     m_putter(0), m_provider(0), mNow(0), mTransferStart(0), mTransferTime(0)
 {
 }
 
 
-HttpStreamTest::HttpStreamTest(const char *credentials,
+HttpStreamTest::HttpStreamTest(const char *dbUser, const char *dbPswd,
 			       const char *dbHost,
 			       int dbPort,
 			       bool isSSL)
-  : HttpPutBaseTest(credentials, dbHost, dbPort, isSSL),
+  : HttpPutBaseTest(dbUser, dbPswd, dbHost, dbPort, isSSL),
     m_putter(0), m_provider(0), mNow(0), mTransferStart(0), mTransferTime(0)
 {
 }
@@ -67,7 +67,7 @@ bool HttpStreamTest::createPutter(const CouchUtils::Doc &originalDoc)
 	m_provider = new ADCDataProvider(SAMPLING_DURATION_MS);
 	m_putter = new HttpBinaryPut(ssid, pass,
 				     getDbHost(), getDbPort(),
-				     url.c_str(), getCredentials(), getIsSSL(),
+				     url.c_str(), getDbUser(), getDbPswd(), getIsSSL(),
 				     m_provider, CONTENT_TYPE);
 	m_putter->setRetryCnt(HttpOp::MaxRetries); // so no retries
 	mTransferStart = mNow;

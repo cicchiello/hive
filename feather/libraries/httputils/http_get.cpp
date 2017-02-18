@@ -13,8 +13,9 @@
 
 HttpGet::HttpGet(const char *ssid, const char *ssidPswd, 
 		 const char *host, int port, const char *page,
-		 const char *credentials, bool isSSL)
-  : HttpOp(ssid, ssidPswd, host, port, credentials, isSSL),
+		 const char *dbUser, const char *dbPswd,
+		 bool isSSL)
+  : HttpOp(ssid, ssidPswd, host, port, dbUser, dbPswd, isSSL),
     m_page(page)
 {
     TF("HttpGet::HttpGet (1)");
@@ -23,8 +24,9 @@ HttpGet::HttpGet(const char *ssid, const char *ssidPswd,
 
 HttpGet::HttpGet(const char *ssid, const char *ssidPswd, 
 		 const IPAddress &hostip, int port, const char *page,
-		 const char *credentials, bool isSSL)
-  : HttpOp(ssid, ssidPswd, hostip, port, credentials, isSSL),
+		 const char *dbUser, const char *dbPswd,
+		 bool isSSL)
+  : HttpOp(ssid, ssidPswd, hostip, port, dbUser, dbPswd, isSSL),
     m_page(page)
 {
     TF("HttpGet::HttpGet (2)");

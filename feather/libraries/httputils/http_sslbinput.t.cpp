@@ -69,7 +69,7 @@ MyOtherDataProvider::~MyOtherDataProvider()
 
 
 HttpSSLBinaryPutTest::HttpSSLBinaryPutTest()
-  : HttpBinaryPutTest(sslDbCredentials, sslDbHost, sslDbPort, true)
+  : HttpBinaryPutTest(sslDbUser, sslDbPswd, sslDbHost, sslDbPort, true)
 {
 }
 
@@ -95,7 +95,7 @@ bool HttpSSLBinaryPutTest::createPutter(const CouchUtils::Doc &originalDoc)
 	m_provider = new MyOtherDataProvider(chunks, bytesPerChunk);
 	m_putter = new HttpSSLBinaryPut(ssid, pass,
 					getDbHost(), getDbPort(),
-					url.c_str(), getCredentials(),
+					url.c_str(), getDbUser(), getDbPswd(), 
 					m_provider, CONTENT_TYPE);
 	mTransferStart = mNow;
 	mTransferTime = 0;

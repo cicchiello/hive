@@ -69,17 +69,8 @@ const char *HivePlatform::getResetCause() const
 }
 
 
-void HEADLESS_wdtEarlyWarningHandler()
+void stackDump()
 {
-    // force an immediate system reset 
-    NVIC_SystemReset();
-}
-
-void DEBUG_wdtEarlyWarningHandler()
-{
-    // first, prevent the WDT from doing a full system reset by resetting the timer
-    PlatformUtils::nonConstSingleton().clearWDT();
-
     if (TraceScope::sCurrScope != NULL) {
         SdFile f;
 	bool canWrite = true;
@@ -101,6 +92,26 @@ void DEBUG_wdtEarlyWarningHandler()
 	    f.close();
 	}
     }
+}
+
+
+void HEADLESS_wdtEarlyWarningHandler()
+{
+    // first, prevent the WDT from doing a full system reset by resetting the timer
+    PlatformUtils::nonConstSingleton().clearWDT();
+
+    stackDump();
+    
+    // force an immediate system reset 
+    NVIC_SystemReset();
+}
+
+void DEBUG_wdtEarlyWarningHandler()
+{
+    // first, prevent the WDT from doing a full system reset by resetting the timer
+    PlatformUtils::nonConstSingleton().clearWDT();
+
+    stackDump();
     
     PL("wdtEarlyWarningHandler; BARK!");
     PL("");

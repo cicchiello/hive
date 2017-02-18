@@ -83,8 +83,8 @@ bool ActuatorBase::loop(unsigned long now, Mutex *wifi)
 
 ActuatorBase::Getter::Getter(const char *ssid, const char *pswd,
 			     const char *dbHost, int dbPort,
-			     const char *url, const char *credentials, bool isSSL)
-  : HttpCouchGet(ssid, pswd, dbHost, dbPort, url, credentials, isSSL),
+			     const char *url, const char *dbUser, const char *dbPswd, bool isSSL)
+  : HttpCouchGet(ssid, pswd, dbHost, dbPort, url, dbUser, dbPswd, isSSL),
     mIsParsed(false), mIsError(false), mRecord(0), mIsValueParsed(false), mValue(0)
 {
     TF("ActuatorBase::Getter::Getter");

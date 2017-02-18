@@ -71,10 +71,8 @@ bool ConfigReader::loop() {
         mIsDone = true;
 	mHasConfig = false;
 
-TRACE("trace");	
 	SdFat sd;
 	SDUtils::initSd(sd);
-TRACE("trace");	
 
 	// file must exist to begin with
 	bool exists = sd.exists(mFilename->c_str());
@@ -84,7 +82,6 @@ TRACE("trace");
 	    TRACE(mErrMsg->c_str());
 	    return false;
 	}
-TRACE("trace");	
 
 	Str rawContents;
 	if (!loadFile(mFilename->c_str(), &rawContents, mErrMsg)) {

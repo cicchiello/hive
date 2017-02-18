@@ -194,12 +194,14 @@ bool AudioUpload::loop(unsigned long now, Mutex *wifi)
 		//TRACE2("to host: ", getConfig().getDbHost());
 		//TRACE2("port: ", getConfig().getDbPort());
 		//TRACE2("using ssl? ", (getConfig().isSSL() ? "yes" : "no"));
-		//TRACE2("with creds: ", getConfig().getDbCredentials());
+		//TRACE2("with dbuser: ", getConfig().getDbUser());
+		//TRACE2("with dbpswd: ", getConfig().getDbPswd());
 
 		mDataProvider = new MyDataProvider(mFilename->c_str());
 		mBinaryPutter = new HttpBinaryPut(getConfig().getSSID(), getConfig().getPSWD(),
 						  getConfig().getDbHost(), getConfig().getDbPort(),
-						  url.c_str(), getConfig().getDbCredentials(),
+						  url.c_str(),
+						  getConfig().getDbUser(), getConfig().getDbPswd(),
 						  getConfig().isSSL(),
 						  mDataProvider, mContentType->c_str());
 	    } else {
@@ -263,10 +265,10 @@ bool AudioUpload::processResult(const HttpCouchConsumer &consumer, unsigned long
 	    *mRevision = rev;
 	    mHaveDocId = true;
 	    mIsDone = false;
-	    TRACE2("saved doc to id/rev: ", Str(id).append("/").append(rev).c_str());
+	    PH2("saved doc to id/rev: ", Str(id).append("/").append(rev).c_str());
 	}
     } else {
-        TRACE("Unexpected problem with the result");
+        PH("Unexpected problem with the result");
     }
 
     TRACE2("returning: ", (callMeBack?"true":"false"));

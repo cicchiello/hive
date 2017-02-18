@@ -14,13 +14,13 @@
 //
 
 
-HttpPutTest::HttpPutTest(const char *credentials, const char *dbHost, int dbPort, bool isSSL)
-  : HttpPutBaseTest(credentials, dbHost, dbPort, isSSL), m_putter(0)
+HttpPutTest::HttpPutTest(const char *dbUser, const char *dbPswd, const char *dbHost, int dbPort, bool isSSL)
+  : HttpPutBaseTest(dbUser, dbPswd, dbHost, dbPort, isSSL), m_putter(0)
 {
 }
 
 HttpPutTest::HttpPutTest()
-  : HttpPutBaseTest(defaultDbCredentials, defaultDbHost, defaultDbPort, false),
+  : HttpPutBaseTest(defaultDbUser, defaultDbPswd, defaultDbHost, defaultDbPort, false),
     m_putter(0)
 {
 }
@@ -69,7 +69,7 @@ bool HttpPutTest::createPutter(const CouchUtils::Doc &originalDoc)
 	CouchUtils::toURL(defaultDbName, getDocid(), &url);
 
 	m_putter = new HttpCouchPut(ssid, pass, getDbHost(), getDbPort(),
-				    url.c_str(), updateDoc, getCredentials(), getIsSSL());
+				    url.c_str(), updateDoc, getDbUser(), getDbPswd(), getIsSSL());
 
 	return m_putter != NULL;
     } else {
@@ -90,7 +90,7 @@ bool HttpPutTest::createPutter(const CouchUtils::Doc &originalDoc)
     CouchUtils::toURL(defaultDbName, getDocid(), &url);
 
     m_putter = new HttpCouchPut(ssid, pass, getDbHost(), getDbPort(),
-				url.c_str(), updateDoc, getCredentials(), getIsSSL());
+				url.c_str(), updateDoc, getDbUser(), getDbPswd(), getIsSSL());
 
     return m_putter != NULL;
 }

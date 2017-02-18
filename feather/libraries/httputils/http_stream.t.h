@@ -10,7 +10,7 @@ class Str;
 class HttpStreamTest : public HttpPutBaseTest {
   public:
     HttpStreamTest();
-    HttpStreamTest(const char *credentials,
+    HttpStreamTest(const char *dbUser, const char *dbPswd, 
 		   const char *dbHost,
 		   int dbPort,
 		   bool isSSL);

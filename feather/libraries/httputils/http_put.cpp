@@ -17,17 +17,19 @@ const char *HttpPut::DefaultContentType = "application/x-www-form-urlencoded";
 
 
 HttpPut::HttpPut(const char *ssid, const char *ssidPswd, 
-		 const char *host, int port, const char *page, const char *credentials,
+		 const char *host, int port, const char *page, 
+		 const char *dbUser, const char *dbPswd, 
 		 const char *contentType, bool isSSL)
-  : HttpOp(ssid, ssidPswd, host, port, credentials, isSSL),
+  : HttpOp(ssid, ssidPswd, host, port, dbUser, dbPswd, isSSL),
     m_contentType(contentType), m_page(page)
 {
 }
 
 HttpPut::HttpPut(const char *ssid, const char *ssidPswd, 
-		 const IPAddress &hostip, int port, const char *page, const char *credentials,
+		 const IPAddress &hostip, int port, const char *page, 
+		 const char *dbUser, const char *dbPswd, 
 		 const char *contentType, bool isSSL)
-  : HttpOp(ssid, ssidPswd, hostip, port, credentials, isSSL),
+  : HttpOp(ssid, ssidPswd, hostip, port, dbUser, dbPswd, isSSL),
     m_contentType(contentType), m_page(page)
 {
 }
