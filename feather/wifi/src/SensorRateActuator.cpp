@@ -103,7 +103,7 @@ void SensorRateActuator::processResult(ActuatorBase::Getter *baseGetter)
     
     if (baseGetter->className() == SensorRateGetter::ClassName()) {
         SensorRateGetter *getter = (SensorRateGetter*) baseGetter;
-        TRACE2("hasRate(): ", getter->hasRate());
+        PH2("hasRate(): ", getter->hasRate());
 	mSeconds = getter->getRate();
     } else {
         ERR("class cast exception");
@@ -114,5 +114,12 @@ void SensorRateActuator::processResult(ActuatorBase::Getter *baseGetter)
 SensorRateActuator::SensorRateActuator(const HiveConfig &config, const char *name, unsigned long now)
   : ActuatorBase(config, *this, name, now), mSeconds(5*60)
 {
+}
+
+
+bool SensorRateActuator::isMyMsg(const char *msg) const
+{
+    assert(false, "unimplemented");
+    return strncmp(msg, getName(), strlen(getName())) == 0;
 }
 

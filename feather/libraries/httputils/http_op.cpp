@@ -16,17 +16,55 @@
 
 #include <hive_platform.h>
 
+
+#undef min
+#undef max
+#include <string>
+#include <map>
+#include <utility>
+
 /* STATIC */
 const char *HttpOp::TAGHTTP11 = "HTTP/1.1";
 const int HttpOp::MaxRetries = 5;
 const long HttpOp::RetryDelay_ms = 3000l;
 
 
+class MyMap {
+private:
+  Str keys[10];
+  IPAddress values[10];
+  int num;
+  
+public:
+  MyMap() : num(0) {}
+  bool isFull() {return (num == 10);}
+  void add(const Str& key, const IPAddress &value) {
+    keys[num] = key;
+    values[num++] = value;
+  }
+  bool contains(const Str &key) const {
+    for (int i = 0; i < num; i++)
+      if (keys[i].equals(key))
+	return true;
+    return false;
+  }
+  const IPAddress &getValue(const Str &key) const {
+    for (int i = 0; i < num; i++)
+      if (keys[i].equals(key))
+	return values[i];
+    return IPAddress();
+  }
+};
+
+typedef MyMap MapType;
+static MapType sDnsResolutions;
+
+
 HttpOp::HttpOp(const char *ssid, const char *pswd, 
 	       const IPAddress &hostip, int port,
 	       const char *dbUser, const char *dbPswd,
 	       bool isSSL)
-  : m_ssid(ssid), m_pswd(pswd), mSpecifiedHostName((char*)0), m_port(port), m_dbuser(dbUser), m_dbpswd(dbPswd),
+  : m_ssid(ssid), m_pswd(pswd), mSpecifiedHostname((char*)0), m_port(port), m_dbuser(dbUser), m_dbpswd(dbPswd),
     mSpecifiedHostIP(hostip), m_isSSL(isSSL)
 {
     init();
@@ -37,7 +75,7 @@ HttpOp::HttpOp(const char *ssid, const char *pswd,
 	       const char *hostname, int port,
 	       const char *dbUser, const char *dbPswd,
 	       bool isSSL)
-  : m_ssid(ssid), m_pswd(pswd), mSpecifiedHostName(hostname), m_port(port), m_dbuser(dbUser), m_dbpswd(dbPswd),
+  : m_ssid(ssid), m_pswd(pswd), mSpecifiedHostname(hostname), m_port(port), m_dbuser(dbUser), m_dbpswd(dbPswd),
     mSpecifiedHostIP(), m_isSSL(isSSL)
 {
     init();
@@ -149,12 +187,12 @@ void HttpOp::sendHost(class Stream &s) const
     P("Host: ");
     s.print("Host: ");
     
-    if (mSpecifiedHostName.len() == 0) {
+    if (mSpecifiedHostname.len() == 0) {
         P(mSpecifiedHostIP);
         s.print(mSpecifiedHostIP);
     } else {
-        P(mSpecifiedHostName.c_str());
-        s.print(mSpecifiedHostName.c_str());
+        P(mSpecifiedHostname.c_str());
+        s.print(mSpecifiedHostname.c_str());
     }
     assert(getContext().getClient().connected(), "Client isn't connected !?!? (2)");
     P(":");
@@ -204,8 +242,21 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 	    TRACE2("GATEWAY: ", IPtoString(m_ctxt.getWifi().gatewayIP()).c_str());
 	    TRACE2("SUBNET: ", IPtoString(m_ctxt.getWifi().subnetMask()).c_str());
 	    TRACE2("DNS: ", IPtoString(m_ctxt.getWifi().dnsIP()).c_str());
-	    TRACE(mSpecifiedHostName.len() == 0 ? "Skipping DNSlookup" : "Performing DNS lookup");
-	    setOpState(mSpecifiedHostName.len() == 0 ? HTTP_INIT : DNS_INIT);
+	    TRACE2("URL: ", mSpecifiedHostname.c_str());
+	    if (mSpecifiedHostname.len() == 0) {
+	        TRACE("Skipping DNS lookup because an IP address was supplied");
+		setOpState(HTTP_INIT);
+	    } else {
+	        if (sDnsResolutions.contains(mSpecifiedHostname)) {
+		    const IPAddress &ip = sDnsResolutions.getValue(mSpecifiedHostname);
+		    TRACE2("reusing previously resolved IP: ", IPtoString(ip).c_str());
+		    mResolvedHostIP = ip;
+		    setOpState(HTTP_INIT);
+		} else {
+		    TRACE("Performing DNS lookup");
+		    setOpState(DNS_INIT);
+		}
+	    }
 	    *callMeBackIn_ms = 10l;
 	    return CallMeBack;
 	}
@@ -236,9 +287,9 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 	MyWiFi::DNS_State dnsState; 
 	if (m_opState == DNS_INIT) {
 	    TF("HttpOp::event; DNS_INIT");
-	    TRACE2("resolving mSpecifiedHostName: ", mSpecifiedHostName.c_str());
+	    TRACE2("resolving mSpecifiedHostname: ", mSpecifiedHostname.c_str());
 	    mDnsCnt = 41; // 40x500ms == 20s
-	    dnsState = w.dnsNoWait(mSpecifiedHostName.c_str(), mResolvedHostIP);
+	    dnsState = w.dnsNoWait(mSpecifiedHostname.c_str(), mResolvedHostIP);
 	    mDnsWaitStart = now;
 	    setOpState(DNS_WAITING);
 	} else {
@@ -253,6 +304,8 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 	    // have ipAddress
 	    Str ip;
 	    TRACE2("Have IP Address after waiting (ms) ", (now-mDnsWaitStart));
+	    if (!sDnsResolutions.isFull())
+	        sDnsResolutions.add(mSpecifiedHostname, mResolvedHostIP);
 	    TRACE2("IP: ", IPtoString(mResolvedHostIP).c_str());
 	    setOpState(HTTP_INIT);
 	}
@@ -286,7 +339,7 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
         if (m_opState == HTTP_INIT) {
 	    TRACE("HTTP_INIT");
 	    mHttpConnectCnt = 100; //100*100ms == 10s
-	    stat = httpConnectInit(mResolvedHostIP, mSpecifiedHostName.c_str());
+	    stat = httpConnectInit(mResolvedHostIP, mSpecifiedHostname.c_str());
 	    mHttpWaitStart = now;
 	    setOpState(HTTP_WAITING);
 	} else {

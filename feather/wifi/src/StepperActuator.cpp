@@ -331,3 +331,9 @@ void StepperActuator::processResult(unsigned long now, const char *msg)
 }
 
 
+bool StepperActuator::isMyMsg(const char *msg) const
+{
+    assert(false, "unimplemented");
+    return strncmp(msg, getName(), strlen(getName())) == 0;
+}
+

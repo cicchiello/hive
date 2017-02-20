@@ -34,12 +34,6 @@ void ActuatorBase::setNextTime(unsigned long now, unsigned long *t)
 }
 
 
-bool ActuatorBase::isItTimeYet(unsigned long now) const
-{
-    return (now >= mNextActionTime);
-}
-
-
 bool ActuatorBase::loop(unsigned long now, Mutex *wifi)
 {
     TF("ActuatorBase::loop");

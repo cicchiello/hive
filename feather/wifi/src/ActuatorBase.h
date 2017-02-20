@@ -15,7 +15,6 @@ class ActuatorBase : public Actuator {
 		 const char *actuatorName, unsigned long now);
     ~ActuatorBase() {}
 
-    bool isItTimeYet(unsigned long now) const;
     bool loop(unsigned long now, Mutex *wifi);
 
     const HiveConfig &getConfig() const;

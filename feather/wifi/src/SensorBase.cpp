@@ -11,11 +11,16 @@
 #include <Mutex.h>
 
 #include <hiveconfig.h>
+#include <hive_platform.h>
 #include <http_couchpost.h>
 #include <RateProvider.h>
 #include <TimeProvider.h>
 
 #include <str.h>
+
+
+#define DELTA (getRateProvider().seconsBetweenSamples()*1000l)
+//#define DELTA (30000l)
 
 
 SensorBase::SensorBase(const HiveConfig &config,
@@ -26,8 +31,8 @@ SensorBase::SensorBase(const HiveConfig &config,
   : Sensor(name, rateProvider, timeProvider, now), mValueStr(new Str("NAN")),
     mPoster(0), mConfig(config)
 {
-    setNextTime(now, &mNextSampleTime);
-    setNextTime(now, &mNextPostTime);
+    mNextSampleTime = now + DELTA;
+    mNextPostTime = now + DELTA;
 }
 
 
@@ -37,24 +42,15 @@ SensorBase::~SensorBase()
 }
 
 
-/* STATIC */
-void SensorBase::setNextTime(unsigned long now, unsigned long *t)
-{
-    *t = now + 30000l /*rateProvider.secondsBetweenSamples()*1000l*/;
-}
-
-
-bool SensorBase::isItTimeYet(unsigned long now)
-{
-    return (now >= mNextSampleTime) || (now >= mNextPostTime);
-}
-
-
 bool SensorBase::processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms)
 {
     TF("SensorBase::processResult");
-    TRACE("WARNING: This probably shouldn't be called -- check derived class");
-    setNextTime(0, callMeBackIn_ms);
+    if (consumer.hasOk()) {
+        TRACE("POST succeeded");
+    } else {
+        PH2("fail POST; response: ", consumer.getResponse().c_str());
+    }
+    *callMeBackIn_ms = DELTA;
     return false;
 }
 
@@ -96,7 +92,7 @@ bool SensorBase::postImplementation(unsigned long now, Mutex *wifi)
 	    TRACE2("using ssl? ", (mConfig.isSSL() ? "yes" : "no"));
 	    TRACE2("with dbuser: ", mConfig.getDbUser());
 	    TRACE2("with dbpswd: ", mConfig.getDbPswd());
-	    TRACE2("doc: ", dump.c_str());
+	    PH2("doc: ", dump.c_str());
 	    
 	    mPoster = new HttpCouchPost(mConfig.getSSID(), mConfig.getPSWD(),
 					mConfig.getDbHost(), mConfig.getDbPort(),
@@ -105,6 +101,8 @@ bool SensorBase::postImplementation(unsigned long now, Mutex *wifi)
 					mConfig.isSSL());
 	} else {
 	    TRACE("processing event");
+	    HivePlatform::nonConstSingleton()->clearWDT();
+	    HivePlatform::singleton()->markWDT("processing events");
 	    HttpCouchPost::EventResult er = mPoster->event(now, &callMeBackIn_ms);
 	    TRACE2("event result: ", er);
 	    if (!mPoster->processEventResult(er)) {
@@ -133,7 +131,8 @@ bool SensorBase::loop(unsigned long now, Mutex *wifi)
 
     if (now > mNextSampleTime) {
         sensorSample(mValueStr);
-	setNextTime(now, &mNextSampleTime);
+        TRACE4("sampled sensor ", getName(), ": ", mValueStr->c_str());
+	mNextSampleTime = now + DELTA;
     }
 
     const char *value = NULL;

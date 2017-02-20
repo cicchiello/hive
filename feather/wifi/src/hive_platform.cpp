@@ -10,7 +10,7 @@
 #include <pulsegen_consumer.h>
 
 
-#define HEADLESS
+//#define HEADLESS
 #define NDEBUG
 
 #include <Trace.h>
@@ -69,7 +69,7 @@ const char *HivePlatform::getResetCause() const
 }
 
 
-void stackDump()
+static void stackDump()
 {
     if (TraceScope::sCurrScope != NULL) {
         SdFile f;
@@ -78,7 +78,7 @@ void stackDump()
 	    canWrite = false;
 	}
 	
-        PL("wdtEarlyWarningHandler; scope stack trace: ");
+        PL("FAULT: Stack trace: ");
 	const TraceScope *s = TraceScope::sCurrScope;
 	while (s != NULL) {
 	    PL(s->getFunc());
@@ -119,6 +119,10 @@ void DEBUG_wdtEarlyWarningHandler()
     if (PlatformUtils::s_traceStr != NULL) {
         P("WDT Trace message: ");
 	PL(PlatformUtils::s_traceStr);
+	P("WDT last mark time: ");
+	PL(PlatformUtils::s_traceTime);
+	P("now: ");
+	PL(millis());
     } else {
         PL("No WDT trace message registered");
     }
@@ -148,11 +152,18 @@ void HivePlatform::clearWDT()
 }
 
 
+void HivePlatform::markWDT(const char *msg) const
+{
+    PlatformUtils::singleton().markWDT(msg, millis());
+}
+
+
 void HivePlatform::trace(const char *msg) 
 {
     WDT_TRACE(msg);
 }
- 
+
+
 void HivePlatform::error(const char *err) 
 {
     WDT_TRACE(err);
@@ -198,8 +209,6 @@ static void notifyConsumers()
 {
     static bool sIsOdd = false;
 
-    HivePlatform::trace("::notifyConsumers; entry");
-    
     unsigned long now = millis();
     int i;
 
@@ -207,17 +216,14 @@ static void notifyConsumers()
         i = 0;
 	while (sConsumers10K[i] != 0) 
 	    sConsumers10K[i++]->pulse(now);
-    HivePlatform::trace("::notifyConsumers; trace 3");
     }
-    HivePlatform::trace("::notifyConsumers; trace 4");
     sIsOdd = !sIsOdd;
 
     i = 0;
     while (sConsumers20K[i] != 0) 
         sConsumers20K[i++]->pulse(now);
-    
-    HivePlatform::trace("::notifyConsumers; exit");
 }
+
 
 void HivePlatform::pulseGen_20K_init()
 {

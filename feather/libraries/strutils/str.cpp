@@ -187,3 +187,9 @@ Str Str::tolower() const
 
     return r;
 }
+
+
+bool Str::lessThan(const Str &o) const
+{
+    return strcmp(c_str(), o.c_str()) < 0;
+}

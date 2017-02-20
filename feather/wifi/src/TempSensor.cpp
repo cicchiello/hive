@@ -38,8 +38,6 @@ TempSensor::TempSensor(const HiveConfig &config,
   : SensorBase(config, name, rateProvider, timeProvider, now),
     mTempStr(new Str("NAN")), mT(25.0), mHasTemp(false)
 {
-    setNextTime(now, &mNextSampleTime);
-    setNextTime(now, &mNextPostTime);
     dht.begin();
 }
 

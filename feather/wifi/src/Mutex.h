@@ -8,6 +8,8 @@ class Mutex {
   Mutex() :owner(0) {}
   bool own(const void *tag);
   void release(const void *tag);
+
+  bool isAvailable() const {return owner == 0;}
 };
 
 inline

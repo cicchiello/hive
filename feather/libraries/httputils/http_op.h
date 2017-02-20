@@ -90,7 +90,7 @@ class HttpOp {
    const WifiUtils::Context m_ctxt;
 
    const IPAddress mSpecifiedHostIP;
-   const Str m_ssid, m_pswd, mSpecifiedHostName, m_dbuser, m_dbpswd;
+   const Str m_ssid, m_pswd, mSpecifiedHostname, m_dbuser, m_dbpswd;
    const int m_port;
    const bool m_isSSL;
    

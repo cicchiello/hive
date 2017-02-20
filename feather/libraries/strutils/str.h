@@ -29,6 +29,8 @@ class Str {
   int length() const {return len();}
 
   bool equals(const Str &other) const;
+  bool lessThan(const Str &other) const;
+  
   bool endsWith(const char *cmp) const;
   
   void expand(int capacity);
@@ -49,5 +51,11 @@ inline Str::Str() : buf(0), cap(0), deleted(false) {}
 inline const char *Str::c_str() const {return buf;}
 inline int Str::capacity() const {return cap;}
 inline void Str::set(char c, int i) {buf[i] = c;}
+
+inline
+bool operator<(const Str &l, const Str &r) {
+    return l.lessThan(r);
+}
+
 
 #endif

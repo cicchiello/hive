@@ -15,8 +15,34 @@
 #include <hive_platform.h>
 
 
+/* STATIC */
+Actuator *Actuator::sActiveActuators[Actuator::MAX_ACTUATORS];
+
+/* STATIC */
+int Actuator::sNumActiveActuators = 0;
+
+
+/* STATIC */
+void Actuator::activate(Actuator *actuator)
+{
+    assert(!actuator->mIsActive, "!actuator->mIsActive");
+    actuator->mIsActive = true;
+    sActiveActuators[sNumActiveActuators++] = actuator;
+}
+
+void Actuator::deactivate(int index)
+{
+    Actuator *oneToDeactiveate = sActiveActuators[index];
+    for (int i = index; i < sNumActiveActuators-1; i++)
+        sActiveActuators[i] = sActiveActuators[i+1];
+
+    sActiveActuators[--sNumActiveActuators] = NULL;
+}
+
+
+
 Actuator::Actuator(const char *name, unsigned long now)
-  : mName(new Str(name))
+  : mName(new Str(name)), mIsActive(false)
 {
     // schedule first sample time
     mNextActionTime = now + 5*1000;
@@ -31,11 +57,6 @@ Actuator::~Actuator()
 const char *Actuator::getName() const
 {
     return mName->c_str();
-}
-
-bool Actuator::isItTimeYet(unsigned long now) const
-{
-    return now >= mNextActionTime;
 }
 
 

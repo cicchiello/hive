@@ -11,7 +11,7 @@
 
 #include <Mutex.h>
 
-#include <platformutils.h>
+#include <hive_platform.h>
 #include <hiveconfig.h>
 
 #include <MyWiFi.h>
@@ -30,20 +30,24 @@
 #define DONE             4
 
 
-#define FREQ 4000l
+#define FREQ 5000l
 
 
-AppChannel::AppChannel(const HiveConfig &config)
+AppChannel::AppChannel(const HiveConfig &config, unsigned long now)
   : mNextAttempt(0), mState(LOAD_PREV_MSG_ID), mConfig(config),
-    mInitialMsg(false), mHavePayload(false),
+    mInitialMsg(false), mHavePayload(false), mIsOnline(false),
     mPrevMsgId("undefined"), mNewMsgId(), mPayload(),
-    mGetter(NULL)
+    mGetter(NULL), mOfflineTime(now)
 {
 }
 
 
 AppChannel::~AppChannel()
 {
+    if (mGetter != NULL) {
+        PH("Deleting mGetter");
+	delete mGetter;
+    }
 }
 
 
@@ -101,6 +105,8 @@ bool AppChannel::loadPrevMsgId()
     SdFat sd;
     SDUtils::initSd(sd);
 
+    //sd.remove(FILENAME);
+ 
     if (sd.exists(NEW_FILENAME)) {
         TRACE("Found pre-existing NEW_FILENAME");
 	
@@ -149,6 +155,59 @@ bool AppChannel::loadPrevMsgId()
 }
 
 
+bool AppChannel::processDoc(const CouchUtils::Doc &doc,
+			    bool gettingHeader,
+			    unsigned long *callMeBackIn_ms)
+{
+    bool isValid = true;
+    if (gettingHeader) {
+        int i = doc.lookup("msg-id");
+	if (i < 0 || !doc[i].getValue().isStr()) {
+	    isValid = false;
+	} else {
+	    TRACE2("mPrevMsgId: ", mPrevMsgId.c_str());
+	    TRACE2("mInitialMsg: ", (mInitialMsg ? "true" : "false"));
+	    const Str &msgId = doc[i].getValue().getStr();
+	    if (!mInitialMsg && msgId.equals(mPrevMsgId)) {
+	        PH3("Msg ", msgId.c_str(), " has already been processed");
+		// nothing to do
+	    } else {
+	        // then go get the msg -- don't release the mutex and continue very soon
+	        PH2("Attempting to get message id: ", msgId.c_str());
+		mNewMsgId = msgId;
+		mState = READ_MSG;
+		*callMeBackIn_ms = 10l;
+	    }
+	} 
+    } else {
+        int i = doc.lookup("prev-msg-id");
+	int j = doc.lookup("payload");
+	if (i < 0 || !doc[i].getValue().isStr() ||
+	    j < 0 || !doc[j].getValue().isStr()) {
+	    isValid = false;
+	} else {
+	    const Str &prevMsgId = doc[i].getValue().getStr();
+	    bool isOriginalMsg = prevMsgId.equals("0");
+	    if (isOriginalMsg || prevMsgId.equals(mPrevMsgId)) {
+	        mPayload = doc[j].getValue().getStr();
+		// good!  this means I have the next message that the system should process
+		PH2("Have the next message to process: ", mPayload.c_str());
+		mHavePayload = true;
+		mState = READ_HEADER;
+		mInitialMsg = false;
+	    } else {
+	        mNewMsgId = prevMsgId;
+		// then I should look further back in the history;
+		PH2("There's an older message; getting: ", mNewMsgId.c_str());
+		mState = READ_MSG;
+		*callMeBackIn_ms = 10l;
+	    }
+	}
+    }
+    return isValid;
+}
+
+
 bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHeader)
 {
     TF("AppChannel::getterLoop");
@@ -157,6 +216,7 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
         unsigned long callMeBackIn_ms = 10l;
         if (mGetter == NULL) {
 	    mHavePayload = false;
+	    mStartTime = now;
 	  
 	    Str objid, encodedUrl;
 	    if (gettingHeader) {
@@ -169,84 +229,48 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 	    
 	    Str url;
 	    CouchUtils::toURL(mConfig.getChannelDbName(), encodedUrl.c_str(), &url);
-	    //TRACE2("creating getter with url: ", url.c_str());
-	    //TRACE2("thru wifi: ", mConfig.getSSID());
-	    //TRACE2("with pswd: ", mConfig.getPSWD());
-	    //TRACE2("to host: ", mConfig.getDbHost());
-	    //TRACE2("port: ", mConfig.getDbPort());
-	    //TRACE2("using ssl? ", (mConfig.isSSL() ? "yes" : "no"));
-	    //TRACE2("with creds: ", mConfig.getDbCredentials());
+	    TRACE2("creating getter with url: ", url.c_str());
+	    TRACE2("thru wifi: ", mConfig.getSSID());
+	    TRACE2("with pswd: ", mConfig.getPSWD());
+	    TRACE2("to host: ", mConfig.getDbHost());
+	    TRACE2("port: ", mConfig.getDbPort());
+	    TRACE2("using ssl? ", (mConfig.isSSL() ? "yes" : "no"));
+	    TRACE2("with db-user: ", mConfig.getDbUser());
+	    TRACE2("with db-pswd: ", mConfig.getDbPswd());
 	    mGetter = new HttpCouchGet(mConfig.getSSID(), mConfig.getPSWD(),
 				       mConfig.getDbHost(), mConfig.getDbPort(), url.c_str(),
-				       mConfig.getDbCredentials(), mConfig.isSSL());
+				       mConfig.getDbUser(), mConfig.getDbPswd(), 
+				       mConfig.isSSL());
 	} else {
+	    HivePlatform::nonConstSingleton()->clearWDT();
+	    HivePlatform::singleton()->markWDT("AppChannel::loop; calling getter::event");
 	    HttpOp::EventResult er = mGetter->event(now, &callMeBackIn_ms);
+	    HivePlatform::singleton()->markWDT("AppChannel::loop; processing event result");
 	    if (!mGetter->processEventResult(er)) {
+	        HivePlatform::singleton()->markWDT("AppChannel::loop; done processing event result");
 	        //TRACE("done");
 		bool retry = false;
-		callMeBackIn_ms = FREQ; // most cases should schedule a callback in FREQ
+		callMeBackIn_ms = FREQ - ((now=millis())-mStartTime); // most cases should schedule a callback in FREQ
 		if (mGetter->hasNotFound()) {
-		    PL("AppChannel::getterLoop; object not found, so nothing to do");
+		    PH2("object not found, so nothing to do @ ", now);
 		    // nothing to do
-		    wifiMutex->release(this);
+		    mIsOnline = true;
 		} else if (mGetter->haveDoc()) {
 		    const CouchUtils::Doc &doc = mGetter->getDoc();
-		    bool isValid = true;
-		    if (gettingHeader) {
-		        int i = doc.lookup("msg-id");
-			if (i < 0 || !doc[i].getValue().isStr()) {
-			    isValid = false;
-			} else {
-			    TRACE2("mPrevMsgId: ", mPrevMsgId.c_str());
-			    TRACE2("mInitialMsg: ", (mInitialMsg ? "true" : "false"));
-			    const Str &msgId = doc[i].getValue().getStr();
-			    if (!mInitialMsg && msgId.equals(mPrevMsgId)) {
-			        PH3("Msg ", msgId.c_str(), " has already been processed");
-			        // nothing to do
-			        wifiMutex->release(this);
-			    } else {
-			        // then go get the msg -- don't release the mutex and continue very soon
-			        PH2("Attempting to get message id: ", msgId.c_str());
-				mNewMsgId = msgId;
-				mState = READ_MSG;
-				callMeBackIn_ms = 10l;
-			    }
-			} 
-		    } else {
-		        int i = doc.lookup("prev-msg-id");
-			int j = doc.lookup("payload");
-			if (i < 0 || !doc[i].getValue().isStr() ||
-			    j < 0 || !doc[j].getValue().isStr()) {
-			    isValid = false;
-			} else {
-			    const Str &prevMsgId = doc[i].getValue().getStr();
-			    bool isOriginalMsg = prevMsgId.equals("0");
-			    if (isOriginalMsg || prevMsgId.equals(mPrevMsgId)) {
-			        mPayload = doc[j].getValue().getStr();
-			        // good!  this means I have the next message that the system should process
-			        PH2("Have the next message to process: ", mPayload.c_str());
-				mHavePayload = true;
-				mState = READ_HEADER;
-				mInitialMsg = false;
-				wifiMutex->release(this);
-			    } else {
-			        mNewMsgId = prevMsgId;
-			        // then I should look further back in the history;
-			        PH2("There's an older message; getting: ", mNewMsgId.c_str());
-				mState = READ_MSG;
-				callMeBackIn_ms = 10l;
-			    }
-			}
-		    }
+		    mIsOnline = true;
+		    bool isValid = processDoc(doc, gettingHeader, &callMeBackIn_ms);
 		    if (!isValid) {
 		        PH("Improper HeaderMsg found; ignoring");
 			PH2("doc: ", mGetter->getHeaderConsumer().getResponse().c_str());
-			wifiMutex->release(this);
 		    }
 		} else if (mGetter->isTimeout()) {
 		    PH("AppChannel::getterLoop timed out; retrying again in 5s");
 		    retry = true;
+		    mIsOnline = false;
+		    mOfflineTime = now;
 		} else if (mGetter->isError()) {
+		    mIsOnline = false;
+		    mOfflineTime = now;
 		    if (er == HttpOp::IssueOpFailed) {
 		        PH("AppChannel::getterLoop timed out while trying to open HTTP connection");
 		    } else {	    
@@ -256,18 +280,21 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 		    }
 		    retry = true;
 		} else {
+		    mIsOnline = false;
+		    mOfflineTime = now;
 		    FAIL("AppChannel::getterLoop failed for unknown reason");
+		    retry = true;
 		}
 		if (retry) {
 		    TRACE("setting up for a retry");
 		    callMeBackIn_ms = 5000l;
-		    wifiMutex->release(this);
 		    mRetryCnt++;
 		} else {
 		    mRetryCnt = 0;
 		}
 		delete mGetter;
 		mGetter = NULL;
+		wifiMutex->release(this);
 	    } else {
 	        //TRACE2("getter asked to be called again in (ms) ", callMeBackIn_ms);
 	    }

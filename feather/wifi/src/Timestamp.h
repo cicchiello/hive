@@ -3,6 +3,9 @@
 
 class Str;
 
+class Mutex;
+
+
 #include <TimeProvider.h>
 
 
@@ -13,7 +16,7 @@ class Timestamp : public TimeProvider {
     ~Timestamp();
 
     // returns true when it has the time; false to be called back later
-    bool loop(unsigned long now);
+    bool loop(unsigned long now, Mutex *wifi);
     
     const char *getName() const {return "timestamp";}
     // since there can be only one

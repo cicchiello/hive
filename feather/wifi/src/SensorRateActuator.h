@@ -14,6 +14,8 @@ class SensorRateActuator : public ActuatorBase, public RateProvider {
     
     void scheduleNextAction(unsigned long now);
 
+    bool isMyMsg(const char *msg) const;
+    
     int secondsBetweenSamples() const {return mSeconds;}
     
     void processResult(ActuatorBase::Getter *getter);

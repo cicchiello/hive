@@ -25,6 +25,8 @@ class StepperActuator : public ActuatorBase {
     void processResult(ActuatorBase::Getter *getter);
     void processResult(unsigned long now, const char *msg);
 
+    bool isMyMsg(const char *msg) const;
+    
     PulseGenConsumer *getPulseGenConsumer();
     
  protected:

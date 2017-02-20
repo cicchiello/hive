@@ -18,7 +18,6 @@ class SensorBase : public Sensor {
 	       unsigned long now);
     ~SensorBase();
 
-    bool isItTimeYet(unsigned long now);
     bool loop(unsigned long now, Mutex *wifi);
 
     virtual bool sensorSample(Str *value) = 0;
@@ -32,14 +31,14 @@ class SensorBase : public Sensor {
     unsigned long getNextPostTime() const;
     void setNextPostTime(unsigned long n);
     
-    // helper function
-    static void setNextTime(unsigned long now, unsigned long *t);
-
     bool postImplementation(unsigned long now, Mutex *wifi);
     
     virtual bool processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms);
     
  private:
+    SensorBase(const SensorBase &); // intentionally unimplemented
+    const SensorBase &operator=(const SensorBase &o); // intentionallly unimplemented
+    
     unsigned long mNextSampleTime, mNextPostTime;
 
     Str *mValueStr;

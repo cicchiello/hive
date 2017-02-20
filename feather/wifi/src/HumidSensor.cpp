@@ -19,12 +19,6 @@
 
 #include <DHT.h>
 
-static void setNextTime(unsigned long now, unsigned long *t)
-{
-    *t = now + 29000l /*rateProvider.secondsBetweenSamples()*1000l*/;
-    // offset the sample times so that it doesn't come too close to TempSensor's    
-}
-
 
 HumidSensor::HumidSensor(const HiveConfig &config,
 			 const char *name,
@@ -33,8 +27,6 @@ HumidSensor::HumidSensor(const HiveConfig &config,
 			 unsigned long now)
   : SensorBase(config, name, rateProvider, timeProvider, now), mHumidStr(new Str("NAN"))
 {
-    setNextTime(now, &mNextSampleTime);
-    setNextTime(now, &mNextPostTime);
 }
 
 

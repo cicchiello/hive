@@ -15,6 +15,7 @@ PlatformUtils PlatformUtils::s_singleton;
 
 /* STATIC */
 const char *PlatformUtils::s_traceStr = NULL;
+unsigned long PlatformUtils::s_traceTime = 0;
 
 
 void WDT_TRACE(const char *msg) {PlatformUtils::s_traceStr = msg;}

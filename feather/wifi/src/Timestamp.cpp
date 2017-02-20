@@ -9,7 +9,10 @@
 
 #include <Trace.h>
 
+#include <hive_platform.h>
 #include <str.h>
+
+#include <Mutex.h>
 
 #include <MyWiFi.h>
 #include <wifiutils.h>
@@ -85,13 +88,13 @@ Timestamp::~Timestamp()
 }
 
 
-bool Timestamp::loop(unsigned long now)
+bool Timestamp::loop(unsigned long now, Mutex *wifi)
 {
     TF("Timestamp::loop");
     bool callMeBack = true;
     if (mNextAttempt == 0) {
         mNextAttempt = now + 1000l; // delay for 1s before trying to use the wifi
-    } else if (now > mNextAttempt && !mHaveTimestamp) {
+    } else if (now > mNextAttempt && !mHaveTimestamp && wifi->own(this)) {
         if (mGetter == NULL) {
 	    TF("Timestamp::loop; creating RTCGetter");
 	    Str url;
@@ -108,13 +111,18 @@ bool Timestamp::loop(unsigned long now)
 				    mDbHost->c_str(), mDbPort, mIsSSL,
 				    url.c_str(), mDbUser->c_str(), mDbPswd->c_str());
 	} else {
-	    TF("Timestamp::loop; processing getter events");
 	    unsigned long callMeBackIn_ms = 0;
+	    HivePlatform::nonConstSingleton()->clearWDT();
+	    HivePlatform::singleton()->markWDT("Timestamp::loop; calling getter::event");
 	    HttpOp::EventResult er = mGetter->event(now, &callMeBackIn_ms);
+	    HivePlatform::singleton()->markWDT("processing event result");
 	    if (!mGetter->processEventResult(er)) {
+	        HivePlatform::singleton()->markWDT("done processing getter events (1)");
 	        //TRACE("done");
 		bool retry = false;
 		if (mGetter->hasTimestamp()) {
+		    HivePlatform::singleton()->markWDT("have Timestamp");
+		    TF("Timestamp::loop; hasTimestamp");
 		    Str timestampStr = mGetter->getTimestamp();
 		    TRACE2("TimestampStr: ", timestampStr.c_str());
 		    bool stat = RTCConversions::cvtToTimestamp(timestampStr.c_str(), &mTimestamp);
@@ -128,6 +136,7 @@ bool Timestamp::loop(unsigned long now)
 			retry = true;
 		    }
 		} else {
+		    HivePlatform::singleton()->markWDT("Timestamp lookup failed");
 		    PL("Timestamp lookup failed; retrying again in 5s");
 		    retry = true;
 		}
@@ -139,6 +148,7 @@ bool Timestamp::loop(unsigned long now)
 		}
 		delete mGetter;
 		mGetter = NULL;
+		wifi->release(this);
 	    } else {
 	        //TRACE2("getter asked to be called again in (ms) ", callMeBackIn_ms);
 	    }
