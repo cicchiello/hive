@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
-//#define HEADLESS
-//#define NDEBUG
+#define HEADLESS
+#define NDEBUG
 
 #include <Trace.h>
 
@@ -16,7 +16,6 @@
 #include <SensorRateActuator.h>
 #include <TempSensor.h>
 #include <HumidSensor.h>
-#include <Timestamp.h>
 #include <StepperMonitor.h>
 #include <StepperActuator.h>
 #include <AudioUpload.h>
@@ -33,8 +32,7 @@
 #define CONFIG_FILENAME         "/CONFIG.CFG"
 
 #define INIT_SENSORS            0
-#define ACQUIRE_TIMESTAMP       1
-#define SENSOR_SAMPLE           (ACQUIRE_TIMESTAMP+1)
+#define SENSOR_SAMPLE           (INIT_SENSORS+1)
 #define LOOP                    SENSOR_SAMPLE
 
 #define BEECNT_PLOAD_PIN        10
@@ -52,8 +50,6 @@ static Provision *s_provisioner = NULL;
 static Indicator *s_indicator = NULL;
 static AppChannel *s_appChannel = NULL;
 static int s_currSensor = 0;
-static Timestamp *s_timestamp = NULL;
-//static Listener *s_listener = NULL;
 static class Sensor *s_sensors[MAX_SENSORS];
 static class Actuator *s_actuators[Actuator::MAX_ACTUATORS];
 
@@ -114,7 +110,6 @@ void setup(void)
 */
 /**************************************************************************/
 
-static StepperActuator *motor0, *motor1, *motor2;
 #define ADCPIN A2
 #define BIASPIN A0
 
@@ -142,7 +137,7 @@ void loop(void)
     case INIT_SENSORS: {
         TF("::loop; INIT_SENSORS");
         TRACE("Initializing sensors and actuators");
-	s_mainState = ACQUIRE_TIMESTAMP;
+	s_mainState = SENSOR_SAMPLE;
 
 	for (int i = 0; i < MAX_SENSORS; i++) {
 	    s_sensors[i] = NULL;
@@ -151,30 +146,25 @@ void loop(void)
 	    s_actuators[i] = NULL;
 	}
 
-	s_timestamp = new Timestamp(CNF.getSSID(), CNF.getPSWD(),
-				    CNF.getDbHost(), CNF.getDbPort(),
-				    CNF.isSSL(), CNF.getDbUser(), CNF.getDbPswd());
-	DL("Creating sensors and actuators");
-
 	int actuatorIndex = 0, sensorIndex = 0;
 
 	// register sensors and actuators
 	SensorRateActuator *rate = new SensorRateActuator(CNF, "sample-rate", now);
 	s_actuators[actuatorIndex++] = rate;
 
-	s_sensors[sensorIndex++] = new HeartBeat(CNF, "heartbeat", *rate, *s_timestamp, now);
-	s_sensors[sensorIndex++] = new TempSensor(CNF, "temp", *rate, *s_timestamp, now);
-	s_sensors[sensorIndex++] = new HumidSensor(CNF, "humid", *rate, *s_timestamp, now);
+	s_sensors[sensorIndex++] = new HeartBeat(CNF, "heartbeat", *rate, *s_appChannel, now);
+	s_sensors[sensorIndex++] = new TempSensor(CNF, "temp", *rate, *s_appChannel, now);
+	s_sensors[sensorIndex++] = new HumidSensor(CNF, "humid", *rate, *s_appChannel, now);
 	StepperActuator *motor0 = new StepperActuator(CNF, *rate, "motor0-target", now, 0x60, 1);
-	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor0", *rate, *s_timestamp, now, *motor0);
+	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor0", *rate, *s_appChannel, now, *motor0);
 	s_actuators[actuatorIndex++] = motor0;
 	StepperActuator *motor1 = new StepperActuator(CNF, *rate, "motor1-target", now, 0x60, 2);
-	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor1", *rate, *s_timestamp, now, *motor1);
+	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor1", *rate, *s_appChannel, now, *motor1);
 	s_actuators[actuatorIndex++] = motor1;
 	StepperActuator *motor2 = new StepperActuator(CNF, *rate, "motor2-target", now, 0x61, 2);
-	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor2", *rate, *s_timestamp, now, *motor2);
+	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor2", *rate, *s_appChannel, now, *motor2);
 	s_actuators[actuatorIndex++] = motor2;
-//	BeeCounter *beecnt = new BeeCounter(CNF, "beecnt", *rate, *s_timestamp, now, 
+//	BeeCounter *beecnt = new BeeCounter(CNF, "beecnt", *rate, *s_appChannel, now, 
 //					    BEECNT_PLOAD_PIN, BEECNT_CLOCK_PIN, BEECNT_DATA_PIN);
 //	s_sensors[sensorIndex++] = beecnt;
 
@@ -205,35 +195,6 @@ void loop(void)
     }
       break;
 
-    case ACQUIRE_TIMESTAMP: {
-        TF("::loop; AQUIRE_TIMESTAMP");
-        assert(s_timestamp, "s_timestamp");
-	
-        if (!s_timestamp->haveTimestamp()) {
-	    bool haveTimestamp = s_timestamp->loop(now, &sWifiMutex);
-	    if (haveTimestamp) {
-	        assert(s_timestamp->haveTimestamp(), "s_timestamp->haveTimestamp()");
-		TRACE2("timestamp aquired at (ms): ", now);
-		TRACE2("Timestamp: ", s_timestamp->markTimestamp());
-		s_mainState = LOOP;
-	    }
-	}
-    }
-      break;
-      
-#ifdef bar      
-    case CHECK_RX: {
-        TF("::loop; CHECK_RX");
-	HivePlatform::nonConstSingleton()->clearWDT();
-	
-	if (s_timestamp->haveTimestamp()) {
-	    if (s_appChannel->loop(now, &sWifiMutex)) {
-	        if (s_appChannel->haveMessage()) {
-		    TRACE("Received a message from the App");
-		    Str payload;
-		    s_appChannel->consumePayload(&payload);
-		    TRACE2("payload: ", payload.c_str());
-		    processMsg(payload.c_str(), now);
 #ifdef foo		    
 		    if (payload.equals("motors")) {
 		        motor0->processResult(now, "foo");
@@ -272,34 +233,18 @@ void loop(void)
 			}
 		    }
 #endif
-		}
-	    }
-	    
-	    s_mainState = SENSOR_SAMPLE;
-	} else {
-	    bool haveTimestamp = s_timestamp->loop(now);
-	    if (haveTimestamp) {
-		TRACE2("timestamp aquired at (ms): ", now);
-	        TRACE2("Timestamp: ", s_timestamp->markTimestamp());
-	        s_mainState = LOOP;
-	    }
-	    
-	    if (s_heartbeat->isItTimeYet(now)) 
-	        s_heartbeat->loop(now, &sWifiMutex);
-	}
-    }
-      break;
-#endif
       
     case SENSOR_SAMPLE: {
         TF("::loop; SENSOR_SAMPLE");
-	assert(s_timestamp->haveTimestamp(), "s_timestamp->haveTimestamp()");
+	assert(s_appChannel->haveTimestamp(), "s_appChannel->haveTimestamp()");
 
 	int sensorIndex = 0;
 	while (s_sensors[sensorIndex]) {
 	    HivePlatform::nonConstSingleton()->clearWDT();
-	    if (s_sensors[sensorIndex]->isItTimeYet(now))
+	    if (s_sensors[sensorIndex]->isItTimeYet(now)) {
 	        s_sensors[sensorIndex]->loop(now, &sWifiMutex);
+		rxLoop(now); // consider rx after every operation to ensure responsiveness from app
+	    }
 
 	    ++sensorIndex;
 	}
@@ -334,54 +279,18 @@ void processMsg(const char *msg, unsigned long now)
     TF("::processMsg");
     TRACE2("Msg to process: ", msg);
 
+    assert(s_appChannel, "s_appChannel");
+    assert(s_appChannel->haveTimestamp(), "s_appChannel->haveTimestamp()");
+    
     int whichActuator = 0;
-    if (s_timestamp && s_timestamp->haveTimestamp()) {
-        while (s_actuators[whichActuator]) {
-	    if (s_actuators[whichActuator]->isMyMsg(msg)) {
-	        Actuator::activate(s_actuators[whichActuator]);
-	    }
-	    whichActuator++;
+    while (s_actuators[whichActuator]) {
+        if (s_actuators[whichActuator]->isMyMsg(msg)) {
+	    TRACE2("Activating actuator: ", s_actuators[whichActuator]->getName());
+	    Actuator::activate(s_actuators[whichActuator]);
+	    s_actuators[whichActuator]->processMsg(now, msg);
 	}
+	whichActuator++;
     }
-
-#ifdef foo    
-    if (payload.equals("motors")) {
-		        motor0->processResult(now, "foo");
-			motor1->processResult(now, "foo");
-			motor2->processResult(now, "foo");
-		    } else if (payload.equals("listen")) {
-			bool stat = s_listener->record(10500, "/LISTEN.WAV", true);
-			assert(stat, "Couldn't start recording");
-			TRACE2("Listening... ", millis());
-
-			bool done = false;
-			while (!done) {
-			  HivePlatform::nonConstSingleton()->clearWDT();
-			  bool success = s_listener->loop(true);
-			  if (s_listener->isDone()) {
-			    if (s_listener->hasError()) {
-			      TRACE2("Failed: ", s_listener->getErrmsg());
-			    } else {
-			      TRACE("Done: success! "); 
-			    }
-			    done = true;
-			  }
-			}
-		    } else if (payload.equals("upload")) {
-		        AudioUpload uploader(CNF, "audio-capture", "listen.wav", "audio/wav",
-					     "/LISTEN.WAV", *s_rate, *s_timestamp, now);
-			bool done = false;
-			while (!done) {
-			    HivePlatform::nonConstSingleton()->clearWDT();
-			    if (uploader.isItTimeYet(millis())) {
-			        //TRACE("calling uploader's loop");
-			        bool callItBack = uploader.loop(millis(), &sWifiMutex);
-				done = !callItBack;
-				//TRACE2("uploader returned: ", (done ? "true":"false"));
-			    }
-			}
-		    }
-#endif
 }
 
 
@@ -430,12 +339,7 @@ void rxLoop(unsigned long now)
 	    s_isOnline = true;
 	    s_hasBeenOnline = true;
 	} else if (s_isOnline && !s_appChannel->isOnline()) {
-//	    PH2("Detected AppChannel offline at: ", now);
-//	    s_indicator->setFlashMode(Indicator::Provisioning);
 	    s_isOnline = false;
-//	    s_provisioner->forcedStart();
-//	    delete s_appChannel;
-//	    s_appChannel = NULL;
 	} else if (!s_isOnline &&
 		   (now > s_appChannel->getOfflineTime() + 120*1000l) &&
 		   sWifiMutex.isAvailable()) {

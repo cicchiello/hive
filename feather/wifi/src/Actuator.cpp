@@ -12,7 +12,6 @@
 #include <str.h>
 #include <strutils.h>
 
-#include <hive_platform.h>
 
 
 /* STATIC */
@@ -25,18 +24,28 @@ int Actuator::sNumActiveActuators = 0;
 /* STATIC */
 void Actuator::activate(Actuator *actuator)
 {
+    TF("Actuator::activate");
     assert(!actuator->mIsActive, "!actuator->mIsActive");
     actuator->mIsActive = true;
     sActiveActuators[sNumActiveActuators++] = actuator;
+    TRACE2("Activated: ", actuator->getName());
+    TRACE3("there are now ", sNumActiveActuators, " active actuators");
 }
 
 void Actuator::deactivate(int index)
 {
-    Actuator *oneToDeactiveate = sActiveActuators[index];
+    TF("Actuator::deactivate");
+    assert(index >= 0, "invalid index supplied to deactivate");
+    assert(index < sNumActiveActuators, "deactiving an actuators that isn't on the actived list");
+    assert(sActiveActuators[index]->mIsActive, "deactivating an actuator that isn't active");
+    
+    Actuator *oneToDeactivate = sActiveActuators[index];
+    assert(oneToDeactivate, "oneToDeactivate is NULL");
     for (int i = index; i < sNumActiveActuators-1; i++)
         sActiveActuators[i] = sActiveActuators[i+1];
 
     sActiveActuators[--sNumActiveActuators] = NULL;
+    oneToDeactivate->mIsActive = false;
 }
 
 

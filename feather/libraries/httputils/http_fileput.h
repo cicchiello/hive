@@ -42,6 +42,7 @@ class HttpFilePut : private HttpCouchGet {
     class SdFat *m_sd;
     class SdFile *m_f;
     int m_writtenCnt;
+    bool mRetryFlush;
 };
 
 #endif

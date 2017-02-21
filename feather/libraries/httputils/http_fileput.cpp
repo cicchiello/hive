@@ -20,7 +20,7 @@ HttpFilePut::HttpFilePut(const char *ssid, const char *ssidPswd,
 			 const char *dbUser, const char *dbPswd,
 			 bool isSSL, const char *filename, const char *contentType)
   : HttpCouchGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
-    m_filename(filename), m_contentType(contentType)
+    m_filename(filename), m_contentType(contentType), mRetryFlush(false)
 {
     TF("HttpBinaryPut::HttpBinaryPut");
 
@@ -122,7 +122,7 @@ HttpFilePut::EventResult HttpFilePut::event(unsigned long now, unsigned long *ca
     switch (opState) {
     case ISSUE_OP: {
         TRACE("ISSUE_OP");
-	
+
 	sendPUT(getContext().getClient(), getContentLength());
 	
 	bool done = true; // most paths are terminal -- so make the exceptions be explicit
@@ -140,7 +140,7 @@ HttpFilePut::EventResult HttpFilePut::event(unsigned long now, unsigned long *ca
 
 		    sendPUT(getContext().getClient(), m_f->fileSize());
 		    
-		    setOpState(CHUNKING);
+		    setOpState(ISSUE_OP_FLUSH);
 		    getHeaderConsumer().setTimeout(20000); // 20s
 
 		    *callMeBackIn_ms = 1l;
@@ -152,11 +152,17 @@ HttpFilePut::EventResult HttpFilePut::event(unsigned long now, unsigned long *ca
 	} else {
 	    TRACE("SDUtils::initSd failed");
 	}
+	
 	if (done) {
+	    int remaining;
+	    getContext().getClient().flushOut(&remaining);
+	    
 	    setOpState(DISCONNECTING);
 	    setFinalResult(IssueOpFailed);
+	    
 	    delete m_f;
 	    delete m_sd;
+	    
 	    m_f = NULL;
 	    m_sd = NULL;
 	}
@@ -164,27 +170,37 @@ HttpFilePut::EventResult HttpFilePut::event(unsigned long now, unsigned long *ca
     }
       break;
     case CHUNKING: {
-        char buf[512];
-	int numread = m_f->read(buf, 512);
-	if (numread > 0) {
-	    m_writtenCnt += getContext().getClient().write(buf, numread);
+        if (mRetryFlush) {
+	    int remaining;
+	    getContext().getClient().flushOut(&remaining);
+	    mRetryFlush = remaining > 0;
 	} else {
-	    TRACE("Nothing read!?!?!");
-	}
-	if (numread < 512) {
-	    TRACE3("Done writing; wrote ", m_writtenCnt, " bytes");
-	    setOpState(CONSUME_RESPONSE);
-	    if (m_writtenCnt != m_f->fileSize()) {
-	        TRACE("m_writtenCnt doesn't match m_f->fileSize()");
-		TRACE2("m_writtenCnt == ", m_writtenCnt);
-		TRACE2("m_f->fileSize() == ", m_f->fileSize());
+	    char buf[512];
+	    int numread = m_f->read(buf, 512);
+	    if (numread > 0) {
+	        m_writtenCnt += getContext().getClient().write(buf, numread);
+	    
+		int remaining;
+		getContext().getClient().flushOut(&remaining);
+		mRetryFlush = remaining > 0;
+	    } else {
+	        TRACE("Nothing read!?!?!");
 	    }
-            assert(m_writtenCnt == m_f->fileSize(), "m_writtenCnt == m_f->fileSize()");
-	    m_f->close();
-	    delete m_f;
-	    delete m_sd;
-	    m_f = NULL;
-	    m_sd = NULL;
+	    if (numread < 512) {
+	        TRACE3("Done writing; wrote ", m_writtenCnt, " bytes");
+		setOpState(CONSUME_RESPONSE);
+		if (m_writtenCnt != m_f->fileSize()) {
+		    TRACE("m_writtenCnt doesn't match m_f->fileSize()");
+		    TRACE2("m_writtenCnt == ", m_writtenCnt);
+		    TRACE2("m_f->fileSize() == ", m_f->fileSize());
+		}
+		assert(m_writtenCnt == m_f->fileSize(), "m_writtenCnt == m_f->fileSize()");
+		m_f->close();
+		delete m_f;
+		delete m_sd;
+		m_f = NULL;
+		m_sd = NULL;
+	    }
 	}
 	*callMeBackIn_ms = 10l;
 	return CallMeBack;

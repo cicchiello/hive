@@ -395,7 +395,11 @@ const char *PlatformUtils::resetCause()
         return "System Reset Request:";
     } else if (rcause & PM_RCAUSE_BOD33) {
         return "Brown Out 33 Detector Reset";
-    } else {
+    } else if (rcause & PM_RCAUSE_BOD12) {
+        return "Brown Out 12 Detector Reset";
+    } else if (rcause & PM_RCAUSE_WDT) {
+        return "Watchdog Reset";
+  } else {
         s_holder = "Unknown reason: 0x";
 	char buf[4];
 	itoa(rcause, buf, 16);

@@ -16,16 +16,12 @@ class HumidSensor : public SensorBase {
 		unsigned long now);
     ~HumidSensor();
 
-    bool isItTimeYet(unsigned long now);
-    
     bool sensorSample(Str *value);
     
  private:
     const char *className() const {return "HumidSensor";}
     
     Str *mHumidStr;
-
-    unsigned long mNextSampleTime, mNextPostTime;
 };
 
 #endif

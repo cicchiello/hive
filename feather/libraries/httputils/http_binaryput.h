@@ -38,6 +38,7 @@ class HttpBinaryPut : public HttpCouchGet {
     
     int m_writtenCnt;
     HttpDataProvider *m_provider;
+    bool mRetryFlush;
 };
 
 #endif

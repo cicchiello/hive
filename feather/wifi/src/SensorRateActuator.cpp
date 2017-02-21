@@ -112,7 +112,12 @@ void SensorRateActuator::processResult(ActuatorBase::Getter *baseGetter)
 
 
 SensorRateActuator::SensorRateActuator(const HiveConfig &config, const char *name, unsigned long now)
-  : ActuatorBase(config, *this, name, now), mSeconds(5*60)
+  : ActuatorBase(config, *this, name, now),
+#ifndef NDEBUG    
+    mSeconds(30l)
+#else    
+    mSeconds(5*60)
+#endif  
 {
 }
 
@@ -123,3 +128,7 @@ bool SensorRateActuator::isMyMsg(const char *msg) const
     return strncmp(msg, getName(), strlen(getName())) == 0;
 }
 
+void SensorRateActuator::processMsg(unsigned long now, const char *msg)
+{
+  assert(false, "unimplemented");
+}

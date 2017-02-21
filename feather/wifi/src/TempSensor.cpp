@@ -85,10 +85,5 @@ bool TempSensor::sensorSample(Str *value)
 }
 
 
-bool TempSensor::isItTimeYet(unsigned long now)
-{
-    return (now >= mNextSampleTime) || (now >= mNextPostTime);
-}
-
 
 

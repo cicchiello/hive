@@ -19,7 +19,7 @@
 #include <str.h>
 
 
-#define DELTA (getRateProvider().seconsBetweenSamples()*1000l)
+#define DELTA (getRateProvider().secondsBetweenSamples()*1000l)
 //#define DELTA (30000l)
 
 
@@ -100,17 +100,14 @@ bool SensorBase::postImplementation(unsigned long now, Mutex *wifi)
 					mConfig.getDbUser(), mConfig.getDbPswd(), 
 					mConfig.isSSL());
 	} else {
-	    TRACE("processing event");
 	    HivePlatform::nonConstSingleton()->clearWDT();
 	    HivePlatform::singleton()->markWDT("processing events");
 	    HttpCouchPost::EventResult er = mPoster->event(now, &callMeBackIn_ms);
-	    TRACE2("event result: ", er);
 	    if (!mPoster->processEventResult(er)) {
-	        TRACE("done");
 		if (mPoster->getHeaderConsumer().hasOk()) {
 		    callMeBack = processResult(mPoster->getCouchConsumer(), &callMeBackIn_ms);
 		} else {
-		    TRACE("POST failed; retrying again in 5s");
+		    PH("POST failed; retrying again in 5s");
 		    callMeBackIn_ms = 5000l;
 		}
 		delete mPoster;
@@ -128,7 +125,7 @@ bool SensorBase::postImplementation(unsigned long now, Mutex *wifi)
 bool SensorBase::loop(unsigned long now, Mutex *wifi)
 {
     TF("SensorBase::loop");
-
+    
     if (now > mNextSampleTime) {
         sensorSample(mValueStr);
         TRACE4("sampled sensor ", getName(), ": ", mValueStr->c_str());
@@ -138,6 +135,7 @@ bool SensorBase::loop(unsigned long now, Mutex *wifi)
     const char *value = NULL;
     bool callMeBack = true; // normally want to be called back -- at some later pre-determined time
     if ((now >= mNextPostTime) && (strcmp(mValueStr->c_str(),"NAN")!=0)) {
+        TRACE2("calling postImplementation for: ", getName());
         // let the postImplementation say whether we're totally done or not
         callMeBack = postImplementation(now, wifi);
     }

@@ -19,8 +19,6 @@ class TempSensor : public SensorBase {
     bool hasTemp() const {return mHasTemp;}
     double getTemp() const {return mT;}
     
-    bool isItTimeYet(unsigned long now);
-
     bool sensorSample(Str *value);
     
  private:
@@ -30,8 +28,6 @@ class TempSensor : public SensorBase {
     double mT;
     bool mHasTemp;
 
-    unsigned long mNextSampleTime, mNextPostTime;
-    
     friend class HumidSensor;
     static class DHT &getDht();
 };

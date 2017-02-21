@@ -47,7 +47,7 @@ HttpBinaryPut::HttpBinaryPut(const char *ssid, const char *ssidPswd,
 			     const char *dbUser, const char *dbPswd, 
 			     bool isSSL, HttpDataProvider *provider, const char *contentType)
   : HttpCouchGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
-    m_provider(provider), m_contentType(contentType), m_writtenCnt(0)
+    m_provider(provider), m_contentType(contentType), m_writtenCnt(0), mRetryFlush(false)
 {
    TF("HttpBinaryPut::HttpBinaryPut");
    TRACE2("Using ssid: ",ssid);
@@ -132,7 +132,7 @@ HttpBinaryPut::EventResult HttpBinaryPut::event(unsigned long now, unsigned long
         TF("HttpBinaryPut::event; ISSUE_OP");
 
 	sendPUT(getContext().getClient(), m_provider->getSize());
-	setOpState(CHUNKING);
+	setOpState(ISSUE_OP_FLUSH);
 	m_provider->start();
 	getHeaderConsumer().setTimeout(20000); // 20s
 	
@@ -140,48 +140,66 @@ HttpBinaryPut::EventResult HttpBinaryPut::event(unsigned long now, unsigned long
 	return CallMeBack;
     }
       break;
+      
+    case ISSUE_OP_FLUSH: {
+        EventResult er = HttpCouchGet::event(now, callMeBackIn_ms);
+	if (opState != ISSUE_OP_FLUSH)
+	    setOpState(CHUNKING);
+    }
+      break;
+      
     case CHUNKING: {
         TF("HttpBinaryPut::event; CHUNKING");
-	if (m_provider->isDone()) {
-	    TRACE3("Done writing; wrote: ", m_writtenCnt, " bytes");
-	    setOpState(CONSUME_RESPONSE);
-	    if (m_writtenCnt != m_provider->getSize()) {
-	        TRACE("m_writtenCnt doesn't match m_provider->getSize()");
-		TRACE2("m_writtenCnt == ", m_writtenCnt);
-		TRACE2("m_provider->getSize() == ", m_provider->getSize());
-	    }
-	    assert(m_writtenCnt == m_provider->getSize(), "m_writtenCnt == m_provider->getSize()");
-	    m_provider->close();
+        if (mRetryFlush) {
+	    int remaining;
+	    getContext().getClient().flushOut(&remaining);
+	    mRetryFlush = remaining > 0;
 	} else {
-	    unsigned char *buf = 0;
-	    int sz = m_provider->takeIfAvailable(&buf);
-	    if (sz > 0) {
-	        unsigned long b = micros();
-		TRACE2("Sending a chunk of size ", sz);
-		getContext().getClient().write(buf, sz);
+	    if (m_provider->isDone()) {
+	        TRACE3("Done writing; wrote: ", m_writtenCnt, " bytes");
+		setOpState(CONSUME_RESPONSE);
+		if (m_writtenCnt != m_provider->getSize()) {
+		    TRACE("m_writtenCnt doesn't match m_provider->getSize()");
+		    TRACE2("m_writtenCnt == ", m_writtenCnt);
+		    TRACE2("m_provider->getSize() == ", m_provider->getSize());
+		}
+		assert(m_writtenCnt == m_provider->getSize(), "m_writtenCnt == m_provider->getSize()");
+		m_provider->close();
+	    } else {
+	        unsigned char *buf = 0;
+		int sz = m_provider->takeIfAvailable(&buf);
+		if (sz > 0) {
+		    unsigned long b = micros();
+		    TRACE2("Sending a chunk of size ", sz);
+		    getContext().getClient().write(buf, sz);
+
+		    int remaining;
+		    getContext().getClient().flushOut(&remaining);
+		    mRetryFlush = remaining > 0;
 
 #ifndef HEADLESS
 #ifndef NDEBUG
-		TRACE("Sent the following chunk: ");
-		for (int ii = 0; ii < sz; ii++) {
-		    _TAG("TRACE"); _TAG(tscope.getFunc()); _TAG(__FILE__); _TAG(__LINE__);
-		    Serial.println((int) buf[ii], HEX);
-		}
+		    TRACE("Sent the following chunk: ");
+		    for (int ii = 0; ii < sz; ii++) {
+		        _TAG("TRACE"); _TAG(tscope.getFunc()); _TAG(__FILE__); _TAG(__LINE__);
+			Serial.println((int) buf[ii], HEX);
+		    }
 		    
 #endif
 #endif
 
-		m_provider->giveBack(buf);
-		m_writtenCnt += sz;
+		    m_provider->giveBack(buf);
+		    m_writtenCnt += sz;
 
 #ifdef ENABLE_TRACKING		
-		unsigned long n = micros();
-		tracker[trackerCnt].endTime = n;
-		tracker[trackerCnt++].writeDelta = n - b;
+		    unsigned long n = micros();
+		    tracker[trackerCnt].endTime = n;
+		    tracker[trackerCnt++].writeDelta = n - b;
 #endif		
 
-	    } else {
-	        TRACE("Nothing available");
+		} else {
+		    TRACE("Nothing available");
+		}
 	    }
 	}
 

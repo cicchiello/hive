@@ -11,8 +11,8 @@ class Indicator {
     static const int LED_PIN = 13;
     static const unsigned long LED_NORMAL_TOGGLE_RATE_MS = 1000l;    // toggle LED once per second
     static const unsigned long LED_NORMAL_ON_TIME_MS = 50l;          // 1/20 on vs off
-    static const unsigned long LED_TRYING_TOGGLE_RATE_MS = 100l;     // toggle LED fast
-    static const unsigned long LED_TRYING_ON_TIME_MS = 50l;          // 1/1 on vs off
+    static const unsigned long LED_TRYING_TOGGLE_RATE_MS = 200l;     // toggle LED fast
+    static const unsigned long LED_TRYING_ON_TIME_MS = 100l;         // 1/1 on vs off
     static const unsigned long LED_PROVISION_TOGGLE_RATE_MS = 3000l; // toggle LED once per 3 seconds
     static const unsigned long LED_PROVISION_ON_TIME_MS = 1500l;     // 1/1 on vs off
     static const unsigned long LED_ERROR_TOGGLE_RATE_MS = 500l;      // toggle LED twice per second

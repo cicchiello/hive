@@ -43,7 +43,9 @@
 #      define FAIL() 
 #   endif
 
-#   define assert(t,msg)
+#   ifndef assert
+#      define assert(t,msg)
+#   endif
 
 #else
 
@@ -56,7 +58,9 @@
 #   define DHL(msg) PHL(msg)
 #   define DL(msg) PL(msg)
 
-#   define assert(t,msg) if (!(t)) {D(__FILE__); D("; line "); D(__LINE__); D("; "); DL(msg); FAIL();}
+#   ifndef assert
+#      define assert(t,msg) if (!(t)) {D(__FILE__); D("; line "); D(__LINE__); D("; "); DL(msg); FAIL();}
+#   endif
 
 #endif
 

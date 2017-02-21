@@ -24,12 +24,16 @@ class Actuator {
     ~Actuator();
 
     virtual bool isMyMsg(const char *msg) const = 0;
+    virtual void processMsg(unsigned long now, const char *msg) = 0;
     
     virtual bool loop(unsigned long now, Mutex *wifi) = 0;
 
     virtual const char *getName() const;
     
  protected:
+    unsigned long getNextActionTime() const {return mNextActionTime;}
+    void setNextActionTime(unsigned long t) {mNextActionTime = t;}
+    
     virtual const char *className() const = 0;
     
     Str TAG(const char *memberfunc, const char *msg) const;

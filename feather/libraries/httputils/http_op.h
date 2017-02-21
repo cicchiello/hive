@@ -2,12 +2,10 @@
 #define http_op_h
 
 #include <http_respconsumer.h>
-#include <WiFiClient.h>
 
 #include <str.h>
 
 class IPAddress;
-
 
 class HttpOp {
  public:
@@ -23,7 +21,8 @@ class HttpOp {
        DNS_WAITING,
        HTTP_INIT, 
        HTTP_WAITING, 
-       ISSUE_OP, 
+       ISSUE_OP,
+       ISSUE_OP_FLUSH,
        CHUNKING,
        CONSUME_RESPONSE,
        DISCONNECTING,

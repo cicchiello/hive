@@ -15,6 +15,7 @@ class SensorRateActuator : public ActuatorBase, public RateProvider {
     void scheduleNextAction(unsigned long now);
 
     bool isMyMsg(const char *msg) const;
+    void processMsg(unsigned long now, const char *msg);
     
     int secondsBetweenSamples() const {return mSeconds;}
     

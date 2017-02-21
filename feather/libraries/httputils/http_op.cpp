@@ -29,6 +29,7 @@ const int HttpOp::MaxRetries = 5;
 const long HttpOp::RetryDelay_ms = 3000l;
 
 
+
 class MyMap {
 private:
   Str keys[10];
@@ -385,6 +386,14 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
     case CHUNKING: 
         TRACE("ERROR: derived class should handle the ISSUE_OP and CHUNKING states");
 	return UnknownFailure;
+    case ISSUE_OP_FLUSH: {
+        int remaining;
+        if (getContext().getClient().flushOut(&remaining) && (remaining == 0)) {
+	    setOpState(CONSUME_RESPONSE);
+	}
+	return CallMeBack;
+    }
+      break;
     case CONSUME_RESPONSE: {
         TF("HttpOp::event; CONSUME_RESPONSE");
         //TRACE2("CONSUME_RESPONSE ", now);

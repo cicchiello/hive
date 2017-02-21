@@ -139,9 +139,8 @@ HttpGet::EventResult HttpGet::event(unsigned long now, unsigned long *callMeBack
     switch (opState) {
     case ISSUE_OP: {
         TRACE("ISSUE_OP");
-        WiFiClient &client = getContext().getClient();
-	sendGET(client);
-	setOpState(CONSUME_RESPONSE);
+	sendGET(getContext().getClient());
+	setOpState(ISSUE_OP_FLUSH);
 	*callMeBackIn_ms = 10l;
 	return CallMeBack;
     }

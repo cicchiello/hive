@@ -74,18 +74,17 @@ HttpOp::EventResult HttpCouchPost::event(unsigned long now, unsigned long *callM
     switch (opState) {
     case ISSUE_OP: {
         TRACE("ISSUE_OP");
-        WiFiClient &client = getContext().getClient();
 	
 	Str str;
 	CouchUtils::toString(m_content, &str);
 	    
-	sendPOST(client, str.len());
+	sendPOST(getContext().getClient(), str.len());
 	if (str.len() > 0) {
-	    sendDoc(client, str.c_str());
-	    client.flush();
+	    sendDoc(getContext().getClient(), str.c_str());
 	}
 	    
-	setOpState(CONSUME_RESPONSE);
+	setOpState(ISSUE_OP_FLUSH);
+	
 	*callMeBackIn_ms = 10l;
 	return CallMeBack;
     }

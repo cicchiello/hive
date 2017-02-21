@@ -9,8 +9,6 @@
 
 #include <platformutils.h>
 
-#include <MyWiFi.h>
-
 
 #define nibHigh(b) (((b)&0xf0)>>4)
 #define nibLow(b) ((b)&0x0f)
@@ -25,7 +23,8 @@
 static MyWiFi myWiFi;
 WiFiClass &WiFi = myWiFi;
 
-WiFiClient client;
+BufferedWiFiClient client;
+
 
 // Or just use hardware SPI (SCK/MOSI/MISO) and defaults, SS -> #10, INT -> #7, RST -> #5, EN -> 3-5V
 //Adafruit_WINC1500 WiFi;
@@ -34,6 +33,33 @@ WiFiClient client;
 // there can only be one WifiUtils::Context at a time in order to ensure proper connect/disconnect
 // sequencing -- so assert it with code
 static WifiUtils::Context *theSingleContext = NULL;
+
+
+BufferedWiFiClient::BufferedWiFiClient()
+  : mLoc(0)
+{
+    memset(mBuf, 0, BUFSZ);
+}
+
+size_t BufferedWiFiClient::write(const uint8_t *buf, size_t size)
+{
+    assert(mLoc+size<BUFSZ, "buffer exceeded");
+    memcpy(mBuf+mLoc, buf, size);
+    mLoc += size;
+    return size;
+}
+
+bool BufferedWiFiClient::flushOut(int *remaining)
+{
+    bool r = flushNoBlock((const uint8_t*) mBuf, mLoc, remaining);
+    if (r) {
+        mLoc = 0;
+	memset(mBuf, 0, mLoc);
+    }
+    return r;
+}
+
+						 
 
 WifiUtils::Context::Context()
 {
@@ -91,7 +117,7 @@ Adafruit_WINC1500 & WifiUtils::Context::getWifi() const
 
 
 /* STATIC */
-Adafruit_WINC1500Client &WifiUtils::Context::getClient() const
+BufferedWiFiClient &WifiUtils::Context::getClient() const
 {
     return client;
 }

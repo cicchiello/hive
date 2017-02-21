@@ -72,14 +72,11 @@ HttpPut::EventResult HttpPut::event(unsigned long now, unsigned long *callMeBack
     switch (opState) {
     case ISSUE_OP: {
         TRACE("ISSUE_OP");
-        WiFiClient &client = getContext().getClient();
-        sendPUT(client);
+        sendPUT(getContext().getClient());
 	if (m_doc.len() > 0) {
-	    sendDoc(client, m_doc.c_str());
-	    client.flush();
+	    sendDoc(getContext().getClient(), m_doc.c_str());
 	}
-	    
-	setOpState(CONSUME_RESPONSE);
+	setOpState(ISSUE_OP_FLUSH);
 	*callMeBackIn_ms = 10l;
 	return CallMeBack;
     }

@@ -9,7 +9,7 @@ DFAMILY=samd21
 TESTBINS=$(addsuffix .t.bin,$(TESTS))
 TESTOBJS=$(addsuffix .t.o,$(TESTS))
 LOCALOBJS= \
-        Timestamp.o Sensor.o Actuator.o Heartbeat.o \
+        Sensor.o Actuator.o Heartbeat.o \
 	hive_platform.o Trace.o \
 	SensorRateActuator.o TempSensor.o HumidSensor.o \
 	ConfigReader.o ConfigWriter.o hiveconfig.o \

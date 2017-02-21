@@ -3,7 +3,7 @@
 #include <Arduino.h>
 
 
-#define HEADLESS
+//#define HEADLESS
 #define NDEBUG
 #include <strutils.h>
 
@@ -99,7 +99,7 @@ bool Timestamp::loop(unsigned long now, Mutex *wifi)
 	    TF("Timestamp::loop; creating RTCGetter");
 	    Str url;
 	    CouchUtils::toURL(TimestampDb, TimestampDocId, &url);
-	    //TRACE2("creating getter with url: ", url.c_str());
+	    TRACE2("creating getter with url: ", url.c_str());
 	    //TRACE2("thru wifi: ", mSsid->c_str());
 	    //TRACE2("with pswd: ", mPswd->c_str());
 	    //TRACE2("to host: ", mDbHost->c_str());
@@ -127,7 +127,7 @@ bool Timestamp::loop(unsigned long now, Mutex *wifi)
 		    TRACE2("TimestampStr: ", timestampStr.c_str());
 		    bool stat = RTCConversions::cvtToTimestamp(timestampStr.c_str(), &mTimestamp);
 		    if (stat) {
-		        TRACE2("Timestamp: ", mTimestamp);
+		        PH2("Timestamp: ", mTimestamp);
 			mSecondsAtMark = (millis()+500)/1000;
 			mHaveTimestamp = true;
 			callMeBack = false;

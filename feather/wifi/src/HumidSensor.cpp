@@ -65,8 +65,3 @@ bool HumidSensor::sensorSample(Str *value)
 }
 
 
-bool HumidSensor::isItTimeYet(unsigned long now)
-{
-    return (now >= mNextSampleTime) || (now >= mNextPostTime);
-}
-

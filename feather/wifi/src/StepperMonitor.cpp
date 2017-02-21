@@ -8,6 +8,8 @@
 
 #include <Trace.h>
 
+#include <str.h>
+
 #include <StepperActuator.h>
 
 

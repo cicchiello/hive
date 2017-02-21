@@ -17,6 +17,7 @@
 #include <MyWiFi.h>
 #include <wifiutils.h>
 
+#include <rtcconversions.h>
 #include <http_couchget.h>
 
 #include <sdutils.h>
@@ -29,13 +30,14 @@
 #define READ_MSG         3
 #define DONE             4
 
+static const char *DateTag = "Date: ";
 
 #define FREQ 5000l
 
 
 AppChannel::AppChannel(const HiveConfig &config, unsigned long now)
   : mNextAttempt(0), mState(LOAD_PREV_MSG_ID), mConfig(config),
-    mInitialMsg(false), mHavePayload(false), mIsOnline(false),
+    mInitialMsg(false), mHavePayload(false), mIsOnline(false), mHaveTimestamp(false),
     mPrevMsgId("undefined"), mNewMsgId(), mPayload(),
     mGetter(NULL), mOfflineTime(now)
 {
@@ -169,11 +171,11 @@ bool AppChannel::processDoc(const CouchUtils::Doc &doc,
 	    TRACE2("mInitialMsg: ", (mInitialMsg ? "true" : "false"));
 	    const Str &msgId = doc[i].getValue().getStr();
 	    if (!mInitialMsg && msgId.equals(mPrevMsgId)) {
-	        PH3("Msg ", msgId.c_str(), " has already been processed");
+	        TRACE3("Msg ", msgId.c_str(), " has already been processed");
 		// nothing to do
 	    } else {
 	        // then go get the msg -- don't release the mutex and continue very soon
-	        PH2("Attempting to get message id: ", msgId.c_str());
+	        TRACE2("Attempting to get message id: ", msgId.c_str());
 		mNewMsgId = msgId;
 		mState = READ_MSG;
 		*callMeBackIn_ms = 10l;
@@ -208,6 +210,46 @@ bool AppChannel::processDoc(const CouchUtils::Doc &doc,
 }
 
 
+class AppChannelGetter : public HttpCouchGet {
+public:
+    AppChannelGetter(const char *ssid, const char *pswd, const char *dbHost, int dbPort, bool isSSL,
+		     const char *url, const char *dbUser, const char *dbPswd)
+      : HttpCouchGet(ssid, pswd, dbHost, dbPort, url, dbUser, dbPswd, isSSL)
+    {
+        TF("AppChannelGetter::AppChannelGetter");
+    }
+ 
+    void resetForRetry()
+    {
+        TF("AppChannelGetter::resetForRetry");
+	HttpCouchGet::resetForRetry();
+    }
+  
+    Str getTimestamp() const {
+        TF("AppChannelGetter::getTimestamp");
+        const char *dateStr = strstr(m_consumer.getResponse().c_str(), DateTag);
+	if (dateStr != NULL) {
+	    dateStr += strlen(DateTag);
+	    Str date;
+	    while (*dateStr != 13) date.add(*dateStr++);
+	    TRACE2("Received timestamp: ", date.c_str());
+	    return date;
+	} else {
+	    return Str("unknown");
+	}
+    }
+
+    bool hasTimestamp() const {
+        TF("AppChannelGetter::hasTimestamp");
+	TRACE2("consumer response: ", m_consumer.getResponse().c_str());
+        const char *dateStr = strstr(m_consumer.getResponse().c_str(), DateTag);
+	return dateStr != NULL;
+    }
+};
+
+
+
+
 bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHeader)
 {
     TF("AppChannel::getterLoop");
@@ -237,10 +279,9 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 	    TRACE2("using ssl? ", (mConfig.isSSL() ? "yes" : "no"));
 	    TRACE2("with db-user: ", mConfig.getDbUser());
 	    TRACE2("with db-pswd: ", mConfig.getDbPswd());
-	    mGetter = new HttpCouchGet(mConfig.getSSID(), mConfig.getPSWD(),
-				       mConfig.getDbHost(), mConfig.getDbPort(), url.c_str(),
-				       mConfig.getDbUser(), mConfig.getDbPswd(), 
-				       mConfig.isSSL());
+	    mGetter = new AppChannelGetter(mConfig.getSSID(), mConfig.getPSWD(),
+					   mConfig.getDbHost(), mConfig.getDbPort(), mConfig.isSSL(),
+					   url.c_str(), mConfig.getDbUser(), mConfig.getDbPswd());
 	} else {
 	    HivePlatform::nonConstSingleton()->clearWDT();
 	    HivePlatform::singleton()->markWDT("AppChannel::loop; calling getter::event");
@@ -248,17 +289,29 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 	    HivePlatform::singleton()->markWDT("AppChannel::loop; processing event result");
 	    if (!mGetter->processEventResult(er)) {
 	        HivePlatform::singleton()->markWDT("AppChannel::loop; done processing event result");
-	        //TRACE("done");
 		bool retry = false;
+		if (!mHaveTimestamp && mGetter->hasTimestamp()) {
+		    HivePlatform::singleton()->markWDT("have Timestamp");
+		    TF("hasTimestamp");
+		    Str timestampStr = mGetter->getTimestamp();
+		    TRACE2("timestampStr: ", timestampStr.c_str());
+		    bool stat = RTCConversions::cvtToTimestamp(timestampStr.c_str(), &mTimestamp);
+		    if (stat) {
+		        PH2("Timestamp: ", mTimestamp);
+			mSecondsAtMark = (millis()+500)/1000;
+			mHaveTimestamp = true;
+		    } else {
+		        PL("Conversion to unix timestamp failed; retrying on next AppChannel access");
+		    }
+		}
 		callMeBackIn_ms = FREQ - ((now=millis())-mStartTime); // most cases should schedule a callback in FREQ
 		if (mGetter->hasNotFound()) {
 		    PH2("object not found, so nothing to do @ ", now);
 		    // nothing to do
 		    mIsOnline = true;
 		} else if (mGetter->haveDoc()) {
-		    const CouchUtils::Doc &doc = mGetter->getDoc();
 		    mIsOnline = true;
-		    bool isValid = processDoc(doc, gettingHeader, &callMeBackIn_ms);
+		    bool isValid = processDoc(mGetter->getDoc(), gettingHeader, &callMeBackIn_ms);
 		    if (!isValid) {
 		        PH("Improper HeaderMsg found; ignoring");
 			PH2("doc: ", mGetter->getHeaderConsumer().getResponse().c_str());
@@ -282,7 +335,7 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 		} else {
 		    mIsOnline = false;
 		    mOfflineTime = now;
-		    FAIL("AppChannel::getterLoop failed for unknown reason");
+		    PH("AppChannel::getterLoop failed for unknown reason; retrying again in 5s");
 		    retry = true;
 		}
 		if (retry) {
@@ -373,5 +426,17 @@ void AppChannel::consumePayload(Str *result)
     mPrevMsgId = mNewMsgId;
     mHavePayload = false;
     mPayload = "";
+}
+
+
+void AppChannel::toString(unsigned long now, Str *str) const
+{
+    unsigned long secondsSinceBoot = (now+500)/1000;
+    unsigned long secondsSinceMark = secondsSinceBoot - secondsAtMark();
+    unsigned long secondsSinceEpoch = secondsSinceMark + mTimestamp;
+    char timestampStr[16];
+    sprintf(timestampStr, "%lu", secondsSinceEpoch);
+
+    *str = timestampStr;
 }
 
