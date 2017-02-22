@@ -13,6 +13,7 @@
 
 #include <Provision.h>
 #include <hiveconfig.h>
+#include <docwriter.h>
 #include <SensorRateActuator.h>
 #include <TempSensor.h>
 #include <HumidSensor.h>
@@ -56,6 +57,26 @@ static class Actuator *s_actuators[Actuator::MAX_ACTUATORS];
 #define CNF s_provisioner->getConfig()
 
 
+
+class HiveConfigPersister : public HiveConfig::UpdateFunctor {
+private:
+    const char *mFilename;
+public:
+    HiveConfigPersister(const char *filename) : mFilename(filename) {}
+    void onUpdate(const HiveConfig &c);
+};
+
+void HiveConfigPersister::onUpdate(const HiveConfig &c) {
+    if (s_provisioner && (&c == &s_provisioner->getConfig())) {
+        DocWriter writer(mFilename, c.getDoc());
+	while (writer.loop()) {}
+	assert(writer.isDone(), "Couldn't write updated config to file");
+	assert(!writer.hasError(), "Couldn't write updated config to file");
+    }
+}
+  
+
+  
 /**************************************************************************/
 /*!
     @brief  Sets up the HW (this function is called automatically on startup)
@@ -93,13 +114,16 @@ void setup(void)
     HivePlatform::nonConstSingleton()->startWDT();
   
     s_provisioner = new Provision(ResetCause, VERSION, CONFIG_FILENAME, millis());
+    
+    // setup callback to persist hive config changes
+    s_provisioner->getConfig().onUpdate(new HiveConfigPersister(CONFIG_FILENAME));
 
     s_indicator = new Indicator(millis());
     s_indicator->setFlashMode(Indicator::TryingToConnect);
     
     CHKPT("setup done");
     PL("Setup done...");
-    
+
     pinMode(10, OUTPUT);  // set the SPI_CS pin as output
 }
 
@@ -149,7 +173,7 @@ void loop(void)
 	int actuatorIndex = 0, sensorIndex = 0;
 
 	// register sensors and actuators
-	SensorRateActuator *rate = new SensorRateActuator(CNF, "sample-rate", now);
+	SensorRateActuator *rate = new SensorRateActuator(&s_provisioner->getConfig(), "sample-rate", now);
 	s_actuators[actuatorIndex++] = rate;
 
 	s_sensors[sensorIndex++] = new HeartBeat(CNF, "heartbeat", *rate, *s_appChannel, now);

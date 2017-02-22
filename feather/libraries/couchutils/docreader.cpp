@@ -1,4 +1,4 @@
-#include <ConfigReader.h>
+#include <docreader.h>
 
 #define NDEBUG
 #include <strutils.h>
@@ -13,16 +13,16 @@
 
 
 
-ConfigReader::ConfigReader(const char *filename)
-  : mConfig(), mErrMsg(new Str("no error")), mFilename(new Str(filename)),
-    mHasConfig(false), mIsDone(false)
+DocReader::DocReader(const char *filename)
+  : mDoc(), mErrMsg(new Str("no error")), mFilename(new Str(filename)),
+    mHasDoc(false), mIsDone(false)
 {
-    TF("ConfigReader::ConfigReader");
-    TRACE("initializing ConfigReader");
+    TF("DocReader::DocReader");
+    TRACE("initializing DocReader");
 }
 
 
-ConfigReader::~ConfigReader()
+DocReader::~DocReader()
 {
     delete mErrMsg;
     delete mFilename;
@@ -64,12 +64,12 @@ static bool loadFile(const char *filename, Str *contents, Str *errMsg)
 }
 
 
-bool ConfigReader::loop() {
-    TF("ConfigReader::loop");
+bool DocReader::loop() {
+    TF("DocReader::loop");
 
     if (!mIsDone) {
         mIsDone = true;
-	mHasConfig = false;
+	mHasDoc = false;
 
 	SdFat sd;
 	SDUtils::initSd(sd);
@@ -98,8 +98,8 @@ bool ConfigReader::loop() {
 	    return false;
 	}
 
-	mConfig = doc;
-	mHasConfig = true;
+	mDoc = doc;
+	mHasDoc = true;
     }
     
     return false;

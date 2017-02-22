@@ -7,7 +7,8 @@ class HiveConfig {
  public:
     // constucts a default config
     HiveConfig(const char *resetCause, const char *versionId);
-
+    ~HiveConfig();
+    
     void setDefault();
 
     // returns true if the resulting config is valid; otherwise it leaves this config unchanged
@@ -49,11 +50,25 @@ class HiveConfig {
     const char *getResetCause() const {return mRCause.c_str();}
     const char *getVersionId() const {return mVersionId.c_str();}
 
+    bool addProperty(const char *name, const char *value);
+    const char *getProperty(const char *name) const;
+
+    class UpdateFunctor {
+    public:
+      virtual ~UpdateFunctor() {}
+      virtual void onUpdate(const HiveConfig &) = 0;
+    };
+
+    // takes ownership of supplied functor, and gives up ownership of the returned functor
+    UpdateFunctor *onUpdate(UpdateFunctor *f);
+    
     static bool docIsValidForConfig(const CouchUtils::Doc &d);
     
  private:
     CouchUtils::Doc mDoc;
     Str mRCause, mVersionId;
+
+    static UpdateFunctor *mUpdateFunctor;
 };
 
 #endif

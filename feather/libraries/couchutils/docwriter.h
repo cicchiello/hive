@@ -1,12 +1,12 @@
-#ifndef config_writer_h
-#define config_writer_h
+#ifndef doc_writer_h
+#define doc_writer_h
 
 #include <couchutils.h>
 
-class ConfigWriter {
+class DocWriter {
   public:
-    ConfigWriter(const char *filename, const CouchUtils::Doc &config);
-    ~ConfigWriter();
+    DocWriter(const char *filename, const CouchUtils::Doc &doc);
+    ~DocWriter();
 
     // returns true on success
     bool setup() {}
@@ -20,12 +20,13 @@ class ConfigWriter {
     bool isDone() const {return mIsDone;}
     bool hasError() const {return !mSuccess;}
 
-    const CouchUtils::Doc &getConfig() {return mConfig;}
+    const CouchUtils::Doc &getDoc() {return mDoc;}
     
  private:
-    ConfigWriter(const ConfigWriter &); // unimplemented
+    DocWriter(const DocWriter &); // unimplemented
+    DocWriter &operator=(const DocWriter &); // unimplemented
     
-    const CouchUtils::Doc mConfig;
+    const CouchUtils::Doc mDoc;
     Str *mErrMsg, *mFilename;
     bool mIsDone, mSuccess;
 };

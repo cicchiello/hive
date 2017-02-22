@@ -1,31 +1,29 @@
 #ifndef sensorrate_h
 #define sensorrate_h
 
-#include <ActuatorBase.h>
+#include <Actuator.h>
 #include <RateProvider.h>
 
+class HiveConfig;
 
-class SensorRateActuator : public ActuatorBase, public RateProvider {
+class SensorRateActuator : public Actuator, public RateProvider {
  public:
-    SensorRateActuator(const HiveConfig &config, const char *sensorName, unsigned long now);
+    SensorRateActuator(HiveConfig *config, const char *sensorName, unsigned long now);
     ~SensorRateActuator() {}
-
-    Getter *createGetter() const;
-    
-    void scheduleNextAction(unsigned long now);
 
     bool isMyMsg(const char *msg) const;
     void processMsg(unsigned long now, const char *msg);
     
-    int secondsBetweenSamples() const {return mSeconds;}
+    int secondsBetweenSamples() const;
     
-    void processResult(ActuatorBase::Getter *getter);
+    bool loop(unsigned long now, Mutex *wifi);
     
  protected:
     virtual const char *className() const {return "SensorRateActuator";}
 
  private:
     int mSeconds;
+    HiveConfig &mConfig;
 };
 
 

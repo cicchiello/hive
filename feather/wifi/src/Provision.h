@@ -19,6 +19,7 @@ class Provision {
     bool isStarted() const;
     
     const HiveConfig &getConfig() const;
+    HiveConfig &getConfig();
     
  private:
     const char *className() const {return "Provision";}

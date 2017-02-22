@@ -11,18 +11,33 @@
 #include <strutils.h>
 #include <couchutils.h>
 
+
+/* STATIC */
+HiveConfig::UpdateFunctor *HiveConfig::mUpdateFunctor = NULL;
+
+
 HiveConfig::HiveConfig(const char *resetCause, const char *versionId)
   : mDoc(), mRCause(resetCause), mVersionId(versionId)
 {
     TF("HiveConfig::HiveConfig");
-    TRACE("entry");
     setDefault();
+}
+
+
+HiveConfig::~HiveConfig()
+{
+    delete mUpdateFunctor;
 }
 
 
 bool HiveConfig::setDoc(const CouchUtils::Doc &doc)
 {
     mDoc = doc;
+
+    if (mUpdateFunctor != NULL) {
+        mUpdateFunctor->onUpdate(*this);
+    }
+    
     return isValid();
 }
 
@@ -141,3 +156,51 @@ const char *HiveConfig::getHiveId() const
 {
     return PlatformUtils::singleton().serialNumber();
 }
+
+
+bool HiveConfig::addProperty(const char *name, const char *value)
+{
+    TF("HiveConfig::addProperty");
+    int index = mDoc.lookup(name);
+    if (index >= 0) {
+        if (mDoc[index].getValue().equals(value))
+	    return false;
+	
+	CouchUtils::Doc newDoc;
+	for (int i = 0; i < mDoc.getSz(); i++) {
+	    newDoc.addNameValue(i==index ?
+				new CouchUtils::NameValuePair(name,value) :
+				new CouchUtils::NameValuePair(mDoc[i]));
+	}
+	setDoc(newDoc);
+    } else {
+        CouchUtils::Doc newDoc = mDoc;
+	newDoc.addNameValue(new CouchUtils::NameValuePair(name, value));
+	setDoc(newDoc);
+    }
+
+    Str dump;
+    TRACE2("Just updated config: ", CouchUtils::toString(mDoc, &dump));
+    
+    return true;
+}
+
+
+const char *HiveConfig::getProperty(const char *name) const
+{
+    int index = mDoc.lookup(name);
+    if (index >= 0 && mDoc[index].getValue().isStr())
+        return mDoc[index].getValue().getStr().c_str();
+
+    return NULL;
+}
+
+
+HiveConfig::UpdateFunctor *HiveConfig::onUpdate(HiveConfig::UpdateFunctor *functor)
+{
+    UpdateFunctor *prev = mUpdateFunctor;
+    mUpdateFunctor = functor;
+    return prev;
+}
+
+

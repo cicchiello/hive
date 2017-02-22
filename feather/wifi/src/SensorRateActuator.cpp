@@ -10,109 +10,16 @@
 
 #include <RateProvider.h>
 #include <hiveconfig.h>
+
 #include <str.h>
+#include <strutils.h>
 
 
-
-class SensorRateGetter : public ActuatorBase::Getter {
-private:
-    bool mHasRate, mIsError, mIsParsed;
-    int mRate;
-  
-public:
-    SensorRateGetter(const char *ssid, const char *pswd, const char *dbHost, int dbPort, bool isSSL,
-		     const char *url, const char *dbuser, const char *dbpswd)
-      : ActuatorBase::Getter(ssid, pswd, dbHost, dbPort, url, dbuser, dbpswd, isSSL),
-	mHasRate(false), mIsError(false), mIsParsed(false)
-    {
-        TF("SensorRateGetter::SensorRateGetter");
-	TRACE("entry");
-    }
-    ~SensorRateGetter() {}
-
-    bool isError() const
-    {
-      TF("SensorRateGetter::isError");
-      TRACE2("mIsError: ", mIsError);
-      return mIsError || ActuatorBase::Getter::isError();
-    }
-  
-    int getRate() const {
-        TF("SensorRateGetter::getRate");
-        assert(mHasRate, "mHasRate");
-	return mRate;
-    }
-
-    bool hasResult() const {return hasRate();}
-  
-    bool hasRate() const {
-        TF("SensorRateGetter::hasRate");
-	TRACE2("mHasRate: ", mHasRate);
-	
-        if (mIsParsed)
-	    return mHasRate;
-	
-	TRACE("parsing");
-	SensorRateGetter *nonConstThis = (SensorRateGetter*)this;
-	nonConstThis->mIsParsed = true;
-
-	const Str *vstr = getSingleValue();
-	if (vstr != NULL) {
-	    nonConstThis->mRate = atoi(vstr->c_str());
-	    nonConstThis->mHasRate = true;
-	    nonConstThis->mIsError = false;
-	    return true;
-	}
-	return false;
-    }
-
-    static const char *ClassName() {return "SensorRateGetter";}
-  
-    const char *className() const;
-};
-
-const char *SensorRateGetter::className() const
-{
-    return SensorRateGetter::ClassName();
-}
+#define SENSOR_RATE_PROPNAME "sensor-rate-seconds"
 
 
-ActuatorBase::Getter *SensorRateActuator::createGetter() const
-{
-    TF("StepperActuator::createGetter");
-    TRACE("creating getter");
-
-    // curl -X GET 'http://jfcenterprises.cloudant.com/hive-sensor-log/_design/SensorLog/_view/by-hive-sensor?endkey=%5B%22F0-17-66-FC-5E-A1%22,%22sample-rate%22,%2200000000%22%5D&startkey=%5B%22F0-17-66-FC-5E-A1%22,%22sensor-rate%22,%2299999999%22%5D&descending=true&limit=1'
-	  
-    Str encodedUrl;
-    buildStandardSensorEncodedUrl(getName(), &encodedUrl);
-
-    Str url;
-    CouchUtils::toURL(getConfig().getLogDbName(), encodedUrl.c_str(), &url);
-    TRACE2("URL: ", url.c_str());
-	
-    return new SensorRateGetter(getConfig().getSSID(), getConfig().getPSWD(),
-				getConfig().getDbHost(), getConfig().getDbPort(), getConfig().isSSL(),
-				url.c_str(), getConfig().getDbUser(), getConfig().getDbPswd());
-}
-
-
-void SensorRateActuator::processResult(ActuatorBase::Getter *baseGetter)
-{
-    TF("SensorRateActuator::processResult");
-    
-    if (baseGetter->className() == SensorRateGetter::ClassName()) {
-        SensorRateGetter *getter = (SensorRateGetter*) baseGetter;
-        PH2("hasRate(): ", getter->hasRate());
-	mSeconds = getter->getRate();
-    } else {
-        ERR("class cast exception");
-    }
-}
-
-
-SensorRateActuator::SensorRateActuator(const HiveConfig &config, const char *name, unsigned long now)
-  : ActuatorBase(config, *this, name, now),
+SensorRateActuator::SensorRateActuator(HiveConfig *config, const char *name, unsigned long now)
+  : Actuator(name, now), mConfig(*config),
 #ifndef NDEBUG    
     mSeconds(30l)
 #else    
@@ -122,13 +29,67 @@ SensorRateActuator::SensorRateActuator(const HiveConfig &config, const char *nam
 }
 
 
-bool SensorRateActuator::isMyMsg(const char *msg) const
+bool SensorRateActuator::loop(unsigned long now, Mutex *wifi)
 {
-    assert(false, "unimplemented");
-    return strncmp(msg, getName(), strlen(getName())) == 0;
+    return false;
 }
+
+
+int SensorRateActuator::secondsBetweenSamples() const
+{
+    TF("SensorRateActuator::secondsBetweenSamples");
+    
+    const char *value = mConfig.getProperty(SENSOR_RATE_PROPNAME);
+    if (value == NULL) 
+        return mSeconds;
+
+    int s = StringUtils::isNumber(value) ? atoi(value) : mSeconds;
+    TRACE2("Reporting secondsBetweenSamples of: ", s);
+    return s;
+}
+
 
 void SensorRateActuator::processMsg(unsigned long now, const char *msg)
 {
-  assert(false, "unimplemented");
+    static const char *InvalidMsg = "invalid msg; did isMyMsg return true?";
+    
+    TF("SensorRateActuator::processMsg");
+
+    const char *name = getName();
+    int namelen = strlen(name);
+    assert2(strncmp(msg, name, namelen) == 0, InvalidMsg, msg);
+    
+    msg += namelen;
+    const char *token = "|";
+    int tokenlen = 1;
+    assert2(strncmp(msg, token, tokenlen) == 0, InvalidMsg, msg);
+    msg += tokenlen;
+    assert2(StringUtils::isNumber(msg), InvalidMsg, msg);
+
+    int seconds = atoi(msg);
+    Str secondsStr;
+    secondsStr.append(seconds);
+    PH4("setting HiveConfig property ", SENSOR_RATE_PROPNAME, " to ", secondsStr.c_str());
+    mConfig.addProperty(SENSOR_RATE_PROPNAME, secondsStr.c_str());
+}
+
+
+bool SensorRateActuator::isMyMsg(const char *msg) const
+{
+    TF("StepperActuator::isMyMsg");
+    const char *name = getName();
+    TRACE2("isMyMsg for motor: ", name);
+    TRACE2("Considering msg: ", msg);
+    
+    if (strncmp(msg, name, strlen(name)) == 0) {
+        msg += strlen(name);
+	const char *token = "|";
+	bool r = (strncmp(msg, token, strlen(token)) == 0) && StringUtils::isNumber(msg+strlen(token));
+	if (r) {
+	    TRACE("it's mine!");
+	}
+	return r;
+    } else {
+        return false;
+    }
 }

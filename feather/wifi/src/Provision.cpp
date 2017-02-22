@@ -10,8 +10,7 @@
 #include <wifiutils.h>
 
 #include <hiveconfig.h>
-#include <ConfigReader.h>
-#include <ConfigWriter.h>
+#include <docreader.h>
 #include <couchutils.h>
 #include <Mutex.h>
 #include <hive_platform.h>
@@ -48,7 +47,7 @@ class ProvisionImp {
     int mWebStatus;
     bool mInvalidInput, mHasConfig, mIsStarted, mSaved;
     Str mInvalidFieldname;
-    ConfigReader *mConfigReader;
+    DocReader *mConfigReader;
     HiveConfig mConfig;
     Str mConfigFilename, mCurrentLine;
     class WiFiServer *mServer;
@@ -135,7 +134,7 @@ bool ProvisionImp::loadLoop(unsigned long now)
     bool shouldReturn = true; // very few cases shouldn't return, so make true the default
     switch (mMinorState) {
     case INIT: {
-        mConfigReader = new ConfigReader(mConfigFilename.c_str());
+        mConfigReader = new DocReader(mConfigFilename.c_str());
 	mConfigReader->setup();
 	mMinorState = LOADING;
     }
@@ -144,9 +143,9 @@ bool ProvisionImp::loadLoop(unsigned long now)
     case LOADING: {
         bool callConfigReaderAgain = mConfigReader->loop();
 	if (!callConfigReaderAgain) {
-	    if (mConfigReader->hasConfig()) {
-	        if (HiveConfig::docIsValidForConfig(mConfigReader->getConfig())) {
-		    mConfig.setDoc(mConfigReader->getConfig());
+	    if (mConfigReader->hasDoc()) {
+	        if (HiveConfig::docIsValidForConfig(mConfigReader->getDoc())) {
+		    mConfig.setDoc(mConfigReader->getDoc());
 		    
 		    Str dump;
 		    TRACE2("Have a local configuration: ", CouchUtils::toString(mConfig.getDoc(), &dump));
@@ -161,7 +160,7 @@ bool ProvisionImp::loadLoop(unsigned long now)
 		    mConfig.setDefault();
 		}
 	    } else {
-	        assert(mConfigReader->hasConfig(), "Couldn't load config");
+	        assert(mConfigReader->hasDoc(), "Couldn't load config");
 	    }
 	    delete mConfigReader;
 	    mConfigReader = NULL;
@@ -233,6 +232,7 @@ bool Provision::isStarted() const
 
 
 const HiveConfig &Provision::getConfig() const {return mImp->mConfig;}
+HiveConfig &Provision::getConfig() {return mImp->mConfig;}
 
 void Provision::start()
 {
@@ -597,16 +597,12 @@ void ProvisionImp::parseRequest(const Str &line)
 	    mInvalidInput = true;
 	    mInvalidFieldname = "unknown";
 	    mHasConfig = false;
-	} else {
+	}
+
+	if (!mInvalidInput && HiveConfig::docIsValidForConfig(newDoc)) {
 	    mConfig.setDoc(newDoc);
-	    mHasConfig = mConfig.isValid();
-	    if (mHasConfig) {
-	        ConfigWriter writer(mConfigFilename.c_str(), newDoc);
-		TRACE("Writing config out to file...");
-		while (writer.loop()) {
-		    TRACE("Writing config out to file...");
-		}
-	    }
+	    assert(mConfig.isValid(), "config is invalid even after pre-testing for validity");
+	    mHasConfig = true;
 	}
 
 	Str dump;

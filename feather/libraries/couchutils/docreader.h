@@ -1,12 +1,12 @@
-#ifndef config_reader_h
-#define config_reader_h
+#ifndef doc_reader_h
+#define doc_reader_h
 
 #include <couchutils.h>
 
-class ConfigReader {
+class DocReader {
   public:
-    ConfigReader(const char *filename);
-    ~ConfigReader();
+    DocReader(const char *filename);
+    ~DocReader();
 
     // returns true on success
     bool setup() {}
@@ -17,14 +17,14 @@ class ConfigReader {
     // error message iff loop returns false
     const char *errMsg() const {return mErrMsg->c_str();}
 
-    bool hasConfig() const {return mHasConfig;}
+    bool hasDoc() const {return mHasDoc;}
 
-    const CouchUtils::Doc &getConfig() const {return mConfig;}
+    const CouchUtils::Doc &getDoc() const {return mDoc;}
     
  private:
-    CouchUtils::Doc mConfig;
+    CouchUtils::Doc mDoc;
     Str *mErrMsg, *mFilename;
-    bool mHasConfig, mIsDone;
+    bool mHasDoc, mIsDone;
 };
 
 #endif
