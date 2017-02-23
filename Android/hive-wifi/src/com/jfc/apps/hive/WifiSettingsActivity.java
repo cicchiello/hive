@@ -6,6 +6,7 @@ import com.jfc.misc.prop.HiveFactoryResetProperty;
 import com.jfc.misc.prop.IPropertyMgr;
 import com.jfc.misc.prop.NumHivesProperty;
 import com.jfc.misc.prop.PairedHiveProperty;
+import com.jfc.misc.prop.WifiAPProperty;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -20,7 +21,6 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.MenuItem;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.TextView;
 
 public class WifiSettingsActivity extends Activity {
@@ -67,30 +67,50 @@ public class WifiSettingsActivity extends Activity {
         	// consume exception -- can't support normal action bar stuff
         }
 
-        final ActiveHiveProperty activeHive = new ActiveHiveProperty(this, (TextView) findViewById(R.id.active_hive_text), (ImageButton) findViewById(R.id.active_hive_button));
+        final ImageButton apButton = (ImageButton) findViewById(R.id.ap_button);
+//        final ActiveHiveProperty activeHive = new ActiveHiveProperty(this, (TextView) findViewById(R.id.active_hive_text), (ImageButton) findViewById(R.id.active_hive_button));
+//        WifiAPProperty apProperty = new WifiAPProperty(this, (TextView) findViewById(R.id.ap_text), apButton);
         BridgePairingsProperty pairing = new BridgePairingsProperty(this, (TextView) findViewById(R.id.hive_id_text), (ImageButton) findViewById(R.id.hive_pair_button)) {
         	@Override 
         	public void onChange() {
         		Context ctxt = WifiSettingsActivity.this;
-        		if (NumHivesProperty.isNumHivesPropertyDefined(ctxt) && (NumHivesProperty.getNumHivesProperty(ctxt) == 1)) {
-        			activeHive.setActiveHive(PairedHiveProperty.getPairedHiveName(ctxt, 0));
-        		}
+    			switch (NumHivesProperty.getNumHivesProperty(ctxt)) {
+    			case 0:
+//		    		activeHive.setActiveHiveUndefined();
+		            apButton.setEnabled(false);
+		            apButton.setImageResource(R.drawable.ic_rarrow_disabled);
+		    		break;
+    			case 1:
+//    				activeHive.setActiveHiveName(PairedHiveProperty.getPairedHiveName(ctxt, 0));
+    		        apButton.setEnabled(true);
+    		        apButton.setImageResource(R.drawable.ic_rarrow);
+    				break;
+    			default:
+    		        apButton.setEnabled(true);
+    		        apButton.setImageResource(R.drawable.ic_rarrow);
+    				break;
+    			}
         	}
         };
-        mMgrs.add(activeHive);
+//        mMgrs.add(activeHive);
+//        mMgrs.add(apProperty);
         mMgrs.add(pairing);
 
+        boolean isHiveSelected = ActiveHiveProperty.isActiveHivePropertyDefined(this);
+        apButton.setEnabled(isHiveSelected);
+        apButton.setImageResource(isHiveSelected ? R.drawable.ic_rarrow : R.drawable.ic_rarrow_disabled);
+        
         List<HiveFactoryResetProperty.Resetter> resetters = new ArrayList<HiveFactoryResetProperty.Resetter>();
     	resetters.add(new HiveFactoryResetProperty.Resetter() {
     		public void reset(Context ctxt) {
-    			NumHivesProperty.clearNumHivesProperty(ctxt);
+    			NumHivesProperty.setNumHivesProperty(ctxt, 0);
     			ActiveHiveProperty.resetActiveHiveProperty(ctxt);
     			BridgePairingsProperty.resetHiveIdProperty(ctxt);
     		}});
         mMgrs.add(new HiveFactoryResetProperty(this, (ImageButton) findViewById(R.id.wifiResetButton), 
         		R.string.wifi_reset_question, resetters));
 
-        setTitle(getString(R.string.app_name)+": BLE Bridge");
+        setTitle(getString(R.string.app_name)+": WiFi Settings");
     }
 
     @Override

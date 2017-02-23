@@ -9,10 +9,10 @@ import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.AudioSampler;
 import com.jfc.misc.prop.DbCredentialsProperty;
 import com.jfc.misc.prop.LatchProperty;
-import com.jfc.misc.prop.ServoConfigProperty;
 import com.jfc.misc.prop.UptimeProperty;
 import com.jfc.srvc.cloud.PollSensorBackground;
 import com.jfc.util.misc.DbAlertHandler;
+import com.jfc.util.misc.DialogUtils;
 import com.jfc.util.misc.SplashyText;
 
 import android.Manifest;
@@ -46,6 +46,7 @@ public class MainActivity extends Activity {
 	private LatchProperty latch;
 	private UptimeProperty uptime;
 	private AudioSampler audio;
+	private AlertDialog mAlert;
 	private boolean mInitialValuesSet = false;
 	
 	private DbAlertHandler mDbAlert = null;
@@ -89,8 +90,7 @@ public class MainActivity extends Activity {
 		
     	startPolling();
     	
-    	boolean haveActiveHive = ActiveHiveProperty.isActiveHivePropertyDefined(this);
-    	String title = getString(R.string.app_name) + (haveActiveHive ? ": "+ActiveHiveProperty.getActiveHiveProperty(this) : "");
+    	String title = getString(R.string.app_name) + ": "+ActiveHiveProperty.getActiveHiveName(this);
     	setTitle(title);
     	
     }
@@ -109,6 +109,8 @@ public class MainActivity extends Activity {
 	}
 
 	private void setInitialValues() {
+		int hiveIndex = ActiveHiveProperty.getActiveHiveIndex(this);
+		
 		if (DEBUG) {
 			((TextView) findViewById(R.id.cpuTempText)).setText("?");
 			((TextView) findViewById(R.id.cpuTempTimestampText)).setText("?");
@@ -183,11 +185,11 @@ public class MainActivity extends Activity {
 				 BeeCntProperty.isBeeCntPropertyDefined(this), 
 				 BeeCntProperty.getBeeCntDate(this));
 					
-		int hiveIndex = ActiveHiveProperty.getActiveHiveIndex(this);
 		setValue(R.id.hiveUptimeText, R.id.hiveUptimeTimestampText,
 				 "TBD", 
 				 UptimeProperty.isUptimePropertyDefined(this, hiveIndex), 
-				 UptimeProperty.getUptimeProperty(this, hiveIndex));
+				 UptimeProperty.getUptime(this, hiveIndex));
+		UptimeProperty.display(this, R.id.hiveUptimeText, R.id.hiveUptimeTimestampText);
 	}
 
 	private String createQuery(String hiveId, String sensor) {
@@ -289,15 +291,14 @@ public class MainActivity extends Activity {
 							if (mPollCounter.getAndIncrement() >= POLL_RATE) {
 								mPollCounter.set(0);
 								
-								String ActiveHive = ActiveHiveProperty.getActiveHiveProperty(MainActivity.this);
+								String ActiveHive = ActiveHiveProperty.getActiveHiveName(MainActivity.this);
 								final String HiveId = HiveEnv.getHiveAddress(MainActivity.this, ActiveHive);
+								final int hiveIndex = ActiveHiveProperty.getActiveHiveIndex(MainActivity.this);
 								boolean haveHiveId = HiveId != null;
 								
 								if (haveHiveId) {
 									PollSensorBackground.ResultCallback onCompletion;
-									String cloudantUser = DbCredentialsProperty.getCloudantUser(MainActivity.this);
-									String dbName = DbCredentialsProperty.getDbName(MainActivity.this);
-									String dbUrl = DbCredentialsProperty.CouchDbUrl(cloudantUser, dbName);
+									String dbUrl = DbCredentialsProperty.getCouchLogDbUrl(MainActivity.this);
 
 									if (DEBUG) {
 										onCompletion = getSensorOnCompletion("cputemp", R.id.cpuTempText, R.id.cpuTempTimestampText, new OnSaveValue() {
@@ -306,7 +307,7 @@ public class MainActivity extends Activity {
 																MCUTempProperty.setMCUTempProperty(MainActivity.this, value, timestamp);
 															}
 														});
-							            new PollSensorBackground(dbUrl, createQuery(HiveId.replace(':', '-'), "cputemp"), onCompletion).execute();
+							            new PollSensorBackground(dbUrl, createQuery(HiveId, "cputemp"), onCompletion).execute();
 									}
 									
 									onCompletion = 
@@ -316,7 +317,7 @@ public class MainActivity extends Activity {
 											        TempProperty.setTempProperty(MainActivity.this, value, timestamp);
 												}
 											});
-						            new PollSensorBackground(dbUrl, createQuery(HiveId.replace(':', '-'), "temp"), onCompletion).execute();
+						            new PollSensorBackground(dbUrl, createQuery(HiveId, "temp"), onCompletion).execute();
 						            
 									onCompletion = 
 											getSensorOnCompletion("humid", R.id.humidText, R.id.humidTimestampText, new OnSaveValue() {
@@ -325,7 +326,7 @@ public class MainActivity extends Activity {
 											        HumidProperty.setHumidProperty(MainActivity.this, value, timestamp);
 												}
 											});
-						            new PollSensorBackground(dbUrl, createQuery(HiveId.replace(':', '-'), "humid"), onCompletion).execute();
+						            new PollSensorBackground(dbUrl, createQuery(HiveId, "humid"), onCompletion).execute();
 						            
 									onCompletion = getSensorOnCompletion("beecnt", R.id.beecntText, R.id.beecntTimestampText, new OnSaveValue() {
 										@Override
@@ -333,7 +334,7 @@ public class MainActivity extends Activity {
 											BeeCntProperty.setBeeCntProperty(MainActivity.this, value, timestamp);
 										}
 									});
-									new PollSensorBackground(dbUrl, createQuery(HiveId.replace(':', '-'), "beecnt"), onCompletion).execute();
+									new PollSensorBackground(dbUrl, createQuery(HiveId, "beecnt"), onCompletion).execute();
 
 									onCompletion = getSensorOnCompletion("latch", R.id.latch_text, R.id.latchTimestampText, new OnSaveValue() {
 										@Override
@@ -341,7 +342,7 @@ public class MainActivity extends Activity {
 											LatchProperty.setLatchProperty(MainActivity.this, value, timestamp);
 										}
 									});
-									new PollSensorBackground(dbUrl, createQuery(HiveId.replace(':', '-'), "latch"), onCompletion).execute();
+									new PollSensorBackground(dbUrl, createQuery(HiveId, "latch"), onCompletion).execute();
 
 									onCompletion = 
 											getMotorOnCompletion(R.id.motor0Text, R.id.motor0TimestampText, new OnSaveValue() {
@@ -350,7 +351,7 @@ public class MainActivity extends Activity {
 													MotorProperty.setMotorProperty(MainActivity.this, 0, value, timestamp);
 												}
 											});
-						            new PollSensorBackground(dbUrl, createQuery(HiveId.replace(':', '-'), "motor0"), onCompletion).execute();
+						            new PollSensorBackground(dbUrl, createQuery(HiveId, "motor0"), onCompletion).execute();
 
 									onCompletion = 
 											getMotorOnCompletion(R.id.motor1Text, R.id.motor1TimestampText, new OnSaveValue() {
@@ -359,7 +360,7 @@ public class MainActivity extends Activity {
 													MotorProperty.setMotorProperty(MainActivity.this, 1, value, timestamp);
 												}
 											});
-						            new PollSensorBackground(dbUrl, createQuery(HiveId.replace(':', '-'), "motor1"), onCompletion).execute();
+						            new PollSensorBackground(dbUrl, createQuery(HiveId, "motor1"), onCompletion).execute();
 						            
 									onCompletion = 
 											getMotorOnCompletion(R.id.motor2Text, R.id.motor2TimestampText, new OnSaveValue() {
@@ -368,9 +369,17 @@ public class MainActivity extends Activity {
 													MotorProperty.setMotorProperty(MainActivity.this, 2, value, timestamp);
 												}
 											});
-						            new PollSensorBackground(dbUrl, createQuery(HiveId.replace(':', '-'), "motor2"), onCompletion).execute();
+						            new PollSensorBackground(dbUrl, createQuery(HiveId, "motor2"), onCompletion).execute();
 						            
-						        	UptimeProperty.display(MainActivity.this, R.id.hiveUptimeText, R.id.hiveUptimeTimestampText);
+									onCompletion = 
+											getSensorOnCompletion("heartbeat", R.id.hiveUptimeText, R.id.hiveUptimeTimestampText, new OnSaveValue() {
+												@Override
+												public void save(Activity activity, String value, long timestamp) {
+													UptimeProperty.setUptimeProperty(MainActivity.this, hiveIndex, Long.parseLong(value), timestamp);
+													UptimeProperty.display(MainActivity.this, R.id.hiveUptimeText, R.id.hiveUptimeTimestampText);
+												}
+											});
+						            new PollSensorBackground(dbUrl, createQuery(HiveId, "heartbeat"), onCompletion).execute();
 								}
 							}
 						}
@@ -395,6 +404,9 @@ public class MainActivity extends Activity {
 		
 		mDbAlert.onPause(this);
 		
+		if (mAlert != null)
+			mAlert.dismiss();
+		
 		if (audio != null) 
 			audio.onPause();
 		
@@ -410,9 +422,21 @@ public class MainActivity extends Activity {
 		
 		startPolling();
 		
-    	boolean haveActiveHive = ActiveHiveProperty.isActiveHivePropertyDefined(this);
-    	String title = getString(R.string.app_name) + (haveActiveHive ? ": "+ActiveHiveProperty.getActiveHiveProperty(this) : "");
+    	String title = getString(R.string.app_name) + ": "+ActiveHiveProperty.getActiveHiveName(this);
     	setTitle(title);
+    	
+    	if (!ActiveHiveProperty.isActiveHivePropertyDefined(this)) {
+    		Runnable onCancel = new Runnable() {
+				@Override
+				public void run() {
+					mAlert.dismiss();
+					mAlert = null;
+					onWifiSettings();
+				}
+			};
+    		mAlert = DialogUtils.createAndShowErrorDialog(this, "You must establish a Hivewiz pairing first", 
+    													  android.R.string.ok, onCancel);
+    	}
 	}
 	
 	@Override

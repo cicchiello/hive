@@ -67,7 +67,7 @@ public class AudioSampler {
 		        recordIv.setOnClickListener(new View.OnClickListener() {
 					@Override
 					public void onClick(View v) {
-						String hiveId = HiveEnv.getHiveAddress(mActivity, ActiveHiveProperty.getActiveHiveProperty(mActivity));
+						String hiveId = HiveEnv.getHiveAddress(mActivity, ActiveHiveProperty.getActiveHiveName(mActivity));
 						String sensor = "mic";
 						String durationMsStr = Integer.toString(1000*10);
 						String msg = "tx|"+hiveId.replace('-', ':')+"|action|"+sensor+"|"+durationMsStr;

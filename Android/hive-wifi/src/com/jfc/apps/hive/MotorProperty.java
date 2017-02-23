@@ -9,7 +9,6 @@ import org.json.JSONObject;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.text.format.DateFormat;
@@ -19,13 +18,13 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
-import com.adobe.xmp.impl.Base64;
 import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.DbCredentialsProperty;
 import com.jfc.misc.prop.StepsPerRevolutionProperty;
 import com.jfc.misc.prop.ThreadsPerMeterProperty;
-import com.jfc.srvc.cloud.PostActuatorBackground;
-import com.jfc.srvc.cloud.PushEmbed;
+import com.jfc.srvc.cloud.CouchGetBackground;
+import com.jfc.srvc.cloud.CouchPostBackground;
+import com.jfc.srvc.cloud.CouchPutBackground;
 import com.jfc.util.misc.SplashyText;
 
 public class MotorProperty {
@@ -61,7 +60,7 @@ public class MotorProperty {
 		this.value = _value;
 		this.timestamp = _timestamp;
 		this.index = _index;
-		this.hiveId = HiveEnv.getHiveAddress(activity, ActiveHiveProperty.getActiveHiveProperty(activity));
+		this.hiveId = HiveEnv.getHiveAddress(activity, ActiveHiveProperty.getActiveHiveName(activity));
 
 		if (isMotorPropertyDefined(activity, index)) {
 			setUndefined();
@@ -80,16 +79,12 @@ public class MotorProperty {
 				builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
 		        	@Override
 		        	public void onClick(DialogInterface dialog, int which) {
-		        		postToDb(((EditText)alert.findViewById(R.id.textValue)).getText().toString());
-						String sensor = "motor"+Integer.toString(index)+"-target";
 						EditText et = (EditText) alert.findViewById(R.id.textValue);
 						String linearDistanceMillimetersStr = et.getText().toString();
 						double linearDistanceMillimeters = Long.parseLong(linearDistanceMillimetersStr);
 						long steps = linearDistanceToSteps(activity, linearDistanceMillimeters/1000.0);
 						
-						String msg = "tx|"+hiveId.replace('-', ':')+"|action|"+sensor+"|"+steps;
-						
-						new PushEmbed(msg);
+		        		postToDb(Long.toString(steps));
 
 		        		alert.dismiss(); 
 		        		alert = null;
@@ -146,57 +141,88 @@ public class MotorProperty {
 		tv.setText(Integer.toString(n));
 		SplashyText.highlightModifiedField(activity, tv);
 	}
+
+	private void createNewMsgDoc(final String channelDocId, final String channelDocRev, String instruction, String prevId) {
+		try {
+			// create a new msg doc
+			final String dbUrl = DbCredentialsProperty.getCouchChannelDbUrl(activity);
+			final String authToken = DbCredentialsProperty.getAuthToken(activity);
+			final String sensor = "motor"+Integer.toString(index)+"-target";
+			String timestamp = Long.toString(System.currentTimeMillis()/1000);
+			String payload = sensor + "|" + instruction;
 	
-	private void postToDb(String valueStr) {
-		String ActiveHive = ActiveHiveProperty.getActiveHiveProperty(activity);
-		String HiveId = HiveEnv.getHiveAddress(activity, ActiveHive);
-		boolean haveHiveId = HiveId != null;
-		
-		if (haveHiveId) {
-			HiveId = HiveId.replace(':', '-');
+			JSONObject msgDoc = new JSONObject();
+			msgDoc.put("prev-msg-id", prevId);
+			msgDoc.put("payload", payload);
+			msgDoc.put("timestamp", timestamp);
 			
-			PostActuatorBackground.ResultCallback onCompletion = new PostActuatorBackground.ResultCallback() {
-				@Override
-		    	public void success(String id, String rev) {
+		    CouchPostBackground.OnCompletion postOnCompletion = new CouchPostBackground.OnCompletion() {
+		    	public void onSuccess(String msgId, String msgRev) {
+		    		try {
+		    			String timestamp = Long.toString(System.currentTimeMillis()/1000);
+					
+						JSONObject newChannelDoc = new JSONObject();
+						if (channelDocRev != null)
+							newChannelDoc.put("_rev", channelDocRev);
+						newChannelDoc.put("msg-id", msgId);
+						newChannelDoc.put("timestamp", timestamp);
+		
+						CouchPutBackground.OnCompletion putOnCompletion = new CouchPutBackground.OnCompletion() {
+					    	public void complete(JSONObject results) {
+					    		Log.i(TAG, "Channel Doc PUT success:  "+results.toString());
+					    	}
+					    	public void failed(String msg) {
+					    		Log.e(TAG, "Channel Doc PUT failed: "+msg);
+					    	}
+						};
+						
+			    	    new CouchPutBackground(dbUrl+"/"+channelDocId, authToken, newChannelDoc.toString(), putOnCompletion).execute();
+					} catch (JSONException je) {
+						Log.e(TAG, je.getMessage());
+					}
+		    	}
+		    	public void onFailure(String msg) {
+		    		Log.e(TAG, "Msg Doc POST failed: "+msg);
+		    	}
+		    };
+		    new CouchPostBackground(dbUrl, authToken, msgDoc.toString(), postOnCompletion).execute();
+		} catch (JSONException je) {
+			Log.e(TAG, je.getMessage());
+		}
+	}
+	
+	
+	private void postToDb(final String instruction) {
+		String ActiveHive = ActiveHiveProperty.getActiveHiveName(activity);
+		String HiveId = HiveEnv.getHiveAddress(activity, ActiveHive);
+		final String dbUrl = DbCredentialsProperty.getCouchChannelDbUrl(activity);
+		String authToken = null;
+		final String channelDocId = HiveId + "-app";
+		
+	    CouchGetBackground.OnCompletion channelDocOnCompletion = new CouchGetBackground.OnCompletion() {
+			@Override
+	    	public void complete(JSONObject currentChannelDoc) {
+				try {
+					String prevMsgId = currentChannelDoc.getString("msg-id");
+					final String currentChannelDocRev = currentChannelDoc.getString("_rev");
+					
+					createNewMsgDoc(channelDocId, currentChannelDocRev, instruction, prevMsgId);
+				} catch (JSONException je) {
+					Log.e(TAG, je.getMessage());
 				}
-				
-				@Override
-				public void error(String msg) {
-					Log.e(TAG, "Error: "+msg);
-				}
-
-				@Override
-				public void serviceUnavailable(String msg) {
-					Log.e(TAG, "Service unavailable: "+msg);
-				}
-			};
-
-			String sensor = "motor"+Integer.toString(index)+"-target";
-			String rangeStartKeyClause = "[\"" + HiveId + "\",\""+sensor+"\",\"99999999\"]";
-			String rangeEndKeyClause = "[\"" +HiveId + "\",\""+sensor+"\",\"00000000\"]";
-			String query = "_design/SensorLog/_view/by-hive-sensor?endKey=" + rangeEndKeyClause + "&startkey=" + rangeStartKeyClause + "&descending=true&limit=1";
-
-			JSONObject doc = new JSONObject();
-			try {
-				doc.put("hiveid", HiveId);
-				doc.put("sensor", sensor);
-				doc.put("timestamp", Long.toString(System.currentTimeMillis()/1000));
-				doc.put("value", valueStr);
-			} catch (JSONException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
 			}
 			
-			String cloudantUser = DbCredentialsProperty.getCloudantUser(activity);
-			String dbName = DbCredentialsProperty.getDbName(activity);
-			String dbUrl = DbCredentialsProperty.CouchDbUrl(cloudantUser, dbName);
-			
-			String dbKey = DbCredentialsProperty.getDbKey(activity);
-			String dbPswd = DbCredentialsProperty.getDbPswd(activity);
-			String authToken = Base64.encode(dbKey+":"+dbPswd);
-			
-			new PostActuatorBackground(dbUrl, authToken, doc, onCompletion).execute();
-		}
+			@Override
+	    	public void failed(String msg) {
+				// probably first time -- so create it
+				Log.i(TAG, "Channel Doc GET failed: "+msg);
+				
+				createNewMsgDoc(channelDocId, null, instruction, "0");
+			}
+	    };
+
+    	final CouchGetBackground getter = new CouchGetBackground(dbUrl+"/"+channelDocId, authToken, channelDocOnCompletion);
+    	getter.execute();
 	}
 	
 	private void setUndefined() {

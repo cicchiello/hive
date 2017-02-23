@@ -100,7 +100,7 @@ public class ServoConfigProperty implements IPropertyMgr {
 		this.mCtxt = activity.getApplicationContext();
 		this.mActivity = activity;
 		this.mTripTempTv = tv;
-		this.mHiveId = HiveEnv.getHiveAddress(activity, ActiveHiveProperty.getActiveHiveProperty(activity));
+		this.mHiveId = HiveEnv.getHiveAddress(activity, ActiveHiveProperty.getActiveHiveName(activity));
 		
 		if (isDefined(activity)) {
 			setTripTemp(getTripTemp(activity));

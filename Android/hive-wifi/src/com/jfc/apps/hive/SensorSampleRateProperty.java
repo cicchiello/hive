@@ -1,8 +1,5 @@
 package com.jfc.apps.hive;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
@@ -10,18 +7,15 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
-import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
-import com.adobe.xmp.impl.Base64;
 import com.jfc.misc.prop.ActiveHiveProperty;
-import com.jfc.misc.prop.DbCredentialsProperty;
 import com.jfc.misc.prop.IPropertyMgr;
-import com.jfc.srvc.cloud.PostActuatorBackground;
+import com.jfc.srvc.cloud.CouchCmdPush;
 import com.jfc.srvc.cloud.PushEmbed;
 import com.jfc.util.misc.DbAlertHandler;
 import com.jfc.util.misc.DialogUtils;
@@ -73,7 +67,7 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 		this.mActivity = activity;
 		this.mSampleRateTv = tv;
 		this.mDbAlert = _dbAlert;
-		this.mHiveId = HiveEnv.getHiveAddress(activity, ActiveHiveProperty.getActiveHiveProperty(activity));
+		this.mHiveId = HiveEnv.getHiveAddress(activity, ActiveHiveProperty.getActiveHiveName(activity));
 		
 		if (isRateDefined(activity)) {
 			setRate(getRate(activity));
@@ -94,9 +88,9 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 		        	@Override
 		        	public void onClick(DialogInterface dialog, int which) {
 		        		final int rateValue = Integer.parseInt(((EditText)mAlert.findViewById(R.id.sampleRateTextValue)).getText().toString());
-		        		final String rateValueStr = Integer.toString(rateValue);
+		        		final String rateValueStr = Integer.toString(rateValue*60);
 		        		
-		        		OnCompletion onCompletion = new OnCompletion() {
+		        		CouchCmdPush.OnCompletion onCompletion = new CouchCmdPush.OnCompletion() {
 							@Override
 							public void success() {
 								mActivity.runOnUiThread(new Runnable() {
@@ -125,7 +119,8 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 							}
 						};
 
-						postToDb(rateValueStr, onCompletion);
+						new CouchCmdPush(mCtxt, "sample-rate", rateValueStr, onCompletion).execute();
+
 						mAlert.dismiss(); 
 						mAlert = null;
 		        	}
@@ -178,60 +173,4 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 		// intentionally unimplemented
 	}
 	
-	interface OnCompletion {
-		public void success();
-		public void error(String msg);
-		public void serviceUnavailable(String msg);
-	}
-	
-	private void postToDb(final String valueStr, final OnCompletion onCompletion) {
-		String ActiveHive = ActiveHiveProperty.getActiveHiveProperty(mCtxt);
-		String HiveId = HiveEnv.getHiveAddress(mCtxt, ActiveHive);
-		boolean haveHiveId = HiveId != null;
-		
-		if (haveHiveId) {
-			HiveId = HiveId.replace(':', '-');
-			
-			PostActuatorBackground.ResultCallback onPostCompletion = new PostActuatorBackground.ResultCallback() {
-				@Override
-		    	public void success(String id, String rev) {
-					onCompletion.success();
-				}
-				
-				@Override
-				public void error(String msg) {
-					onCompletion.error(msg);
-				}
-
-				@Override
-				public void serviceUnavailable(String msg) {
-					onCompletion.serviceUnavailable(msg);
-				}
-			};
-
-			JSONObject doc = new JSONObject();
-			try {
-				doc.put("hiveid", HiveId);
-				doc.put("sensor", "sample-rate");
-				doc.put("timestamp", Long.toString(System.currentTimeMillis()/1000));
-				doc.put("value", valueStr);
-			} catch (JSONException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			
-			String cloudantUser = DbCredentialsProperty.getCloudantUser(mCtxt);
-			String dbName = DbCredentialsProperty.getDbName(mCtxt);
-			String dbUrl = DbCredentialsProperty.CouchDbUrl(cloudantUser, dbName);
-			
-			String dbKey = DbCredentialsProperty.getDbKey(mCtxt);
-			String dbPswd = DbCredentialsProperty.getDbPswd(mCtxt);
-			String authToken = Base64.encode(dbKey+":"+dbPswd);
-			
-			new PostActuatorBackground(dbUrl, authToken, doc, onPostCompletion).execute();
-		} else {
-			onCompletion.equals("HiveId isn't known yet; please pair with a hive first");
-		}
-	}
-
 }

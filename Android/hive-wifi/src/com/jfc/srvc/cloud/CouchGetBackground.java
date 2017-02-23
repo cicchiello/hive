@@ -4,8 +4,7 @@ import android.os.AsyncTask;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -23,27 +22,22 @@ import java.net.UnknownHostException;
  * Created by Joe on 12/12/2016.
  */
 
-public class CouchPostBackground extends AsyncTask<Void,Void,Boolean> {
-    private static final String TAG = CouchPostBackground.class.getName();
+public class CouchGetBackground extends AsyncTask<Void,Void,Boolean> {
+    private static final String TAG = CouchGetBackground.class.getName();
 
-    private String doc, dbUrl, authToken;
-    private String docId, rev;
+    private String dbUrl, authToken;
     private OnCompletion onCompletion;
 
     public interface OnCompletion {
-    	public void onSuccess(String docId, String rev);
-    	public void onFailure(String msg);
+    	public void complete(JSONObject results);
+    	public void failed(String msg);
     };
     
-    public CouchPostBackground(String _dbUrl, String _authToken, String _doc, OnCompletion _onCompletion) {
+    public CouchGetBackground(String _dbUrl, String _authToken, OnCompletion _onCompletion) {
     	dbUrl = _dbUrl;
     	authToken = _authToken;
-        doc = _doc;
         onCompletion = _onCompletion;
     }
-
-    public String getDocId() {return docId;}
-    public String getRev() {return rev;}
 
     @Override
     protected Boolean doInBackground(Void... params) {
@@ -53,21 +47,17 @@ public class CouchPostBackground extends AsyncTask<Void,Void,Boolean> {
         BufferedReader br = null;
         DefaultHttpClient client = null;
         try {
-            HttpPost post= new HttpPost(new URI(urlStub));
-            post.addHeader("Content-Type", "application/json");
-            post.addHeader("Accept", "application/json");
+            HttpGet getter= new HttpGet(new URI(urlStub));
             if (authToken != null)
-                post.addHeader("Authorization", "Basic "+authToken);
-
-            post.setEntity(new StringEntity(doc));
+            	getter.addHeader("Authorization", "Basic "+authToken);
 
             client = new DefaultHttpClient();
-            HttpResponse response = client.execute(post);
+            HttpResponse response = client.execute(getter);
 
             //System.err.println("Response: "+response.getStatusLine());
-            if (response.getStatusLine().getStatusCode() != 201) {
-                System.err.println("CouchDb POST of attachment mapper failed; HTTP error code : " + response.getStatusLine().getStatusCode());
-                onCompletion.onFailure(response.toString());
+            if (response.getStatusLine().getStatusCode() != 200) {
+                System.err.println("CouchDb GET failed; HTTP error code : " + response.getStatusLine().getStatusCode());
+                onCompletion.failed(response.getStatusLine().toString());
                 return false;
             }
 
@@ -78,33 +68,24 @@ public class CouchPostBackground extends AsyncTask<Void,Void,Boolean> {
 
             //System.err.println("Response: "+builder);
 
-            String stat = new JSONObject(new JSONTokener(builder.toString())).getString("ok");
-            if (stat.equalsIgnoreCase("true")) {
-                docId = new JSONObject(new JSONTokener(builder.toString())).getString("id");
-                rev = new JSONObject(new JSONTokener(builder.toString())).getString("rev");
-
-                onCompletion.onSuccess(docId, rev);
-                return true;
-            }
-            
-            onCompletion.onFailure(response.toString());
+            onCompletion.complete(new JSONObject(new JSONTokener(builder.toString())));
         } catch (URISyntaxException e) {
-        	onCompletion.onFailure(e.getMessage());
+        	onCompletion.failed(e.getMessage());
             System.err.println("URISyntaxException: "+e);
         } catch (ClientProtocolException e) {
-        	onCompletion.onFailure(e.getMessage());
+        	onCompletion.failed(e.getMessage());
             System.err.println("ClientProtocolException: "+e);
         } catch (UnknownHostException e) {
-        	onCompletion.onFailure(e.getMessage());
+        	onCompletion.failed(e.getMessage());
         	System.err.println("UnknownHostException: "+e);
         } catch (IOException e) {
-        	onCompletion.onFailure(e.getMessage());
+        	onCompletion.failed(e.getMessage());
             System.err.println("IOException: "+e);
         } catch (JSONException e) {
-        	onCompletion.onFailure(e.getMessage());
+        	onCompletion.failed(e.getMessage());
             System.err.println("JSONException: " + e);
         } catch (Exception e) {
-        	onCompletion.onFailure(e.getMessage());
+        	onCompletion.failed(e.getMessage());
             System.err.println("Exception: " + e);
         } finally {
             try {

@@ -114,6 +114,11 @@
 	    android:layout_height="2dip"
 	    android:background="#888888" />
 
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -129,7 +134,7 @@
 	   		<TextView
 	   		    android:layout_width="wrap_content"
 	   		    android:layout_height="wrap_content"
-	   		    android:text="@string/ble2cld_hives"
+	   		    android:text="@string/paired_hives"
 	   		    android:textAppearance="?android:attr/textAppearanceMedium"
 	   		    android:textStyle="bold" />
 	
@@ -137,7 +142,7 @@
 	   		    android:layout_width="wrap_content"
 	   		    android:layout_height="wrap_content"
 	   		    android:layout_marginLeft="15dip"
-	   		    android:text="@string/ble2cld_hives_desc_hint"
+	   		    android:text="@string/paired_hives_desc_hint"
 	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
 
    		</LinearLayout>
@@ -212,7 +217,7 @@
 	   		<TextView
 	   		    android:layout_width="wrap_content"
 	   		    android:layout_height="wrap_content"
-	   		    android:text="@string/enable_bridge_label"
+	   		    android:text="@string/ap_label"
 	   		    android:textAppearance="?android:attr/textAppearanceMedium"
 	   		    android:textStyle="bold" />
 	
@@ -220,7 +225,7 @@
 	   		    android:layout_width="wrap_content"
 	   		    android:layout_height="wrap_content"
 	   		    android:layout_marginLeft="15dip"
-	   		    android:text="@string/enable_bridge_desc_hint"
+	   		    android:text="@string/ap_desc_hint"
 	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
 
    		</LinearLayout>
@@ -239,14 +244,14 @@
 			    android:text="@string/empty"
 			    android:textAppearance="?android:attr/textAppearanceSmall" />
 
-			<ImageView
-			    android:id="@+id/enable_ble_button"
+	    	<TextView
+			    android:id="@+id/ap_text"
 			    android:layout_width="wrap_content"
 			    android:layout_height="wrap_content"
-			    android:layout_weight="0.01"
-			    android:contentDescription="@string/enable_bridge_label"
-			    android:src="@drawable/toggle_cw" />
-		
+		        android:layout_weight="0.5"
+	        	android:background="#848989"
+		        android:layout_gravity="right"
+			    android:text="@string/hive_id_hint" />
 
 			<TextView
 			    android:layout_width="match_parent"
@@ -264,8 +269,17 @@
 
 	    </LinearLayout>
 	    
+		<ImageButton
+		    android:id="@+id/ap_button"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="right"
+		    android:layout_weight="0.1"
+		    android:src="@drawable/ic_rarrow"
+		    android:text="@string/empty" />
+
 	</LinearLayout>
-	
+
     <View
 	    android:layout_width="fill_parent"
 	    android:layout_height="2dip"
@@ -314,5 +328,5 @@
 	    android:layout_width="fill_parent"
 	    android:layout_height="2dip"
 	    android:background="#888888" />
-
+    
 </LinearLayout>

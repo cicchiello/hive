@@ -1,0 +1,16 @@
+#!/bin/bash
+
+couchHost="http://192.168.1.85:5984"
+db="hive-sensor-log"
+designDoc="_design/SensorLog"
+view="by-hive-sensor"
+listfunc="dumpcsv"
+
+tf=$(mktemp)
+echo curl ${couchHost}/${db}/${designDoc}/_list/${listfunc}/${view} 
+curl ${couchHost}/${db}/${designDoc}/_list/${listfunc}/${view} 2> /dev/null > $tf
+echo "Placing results in file hive_log.csv"
+cp $tf hive_log.csv
+
+
+
