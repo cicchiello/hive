@@ -1,6 +1,8 @@
 #include <adc_bufqueue.h>
 
 #define NDEBUG
+#include <Trace.h>
+
 #include <strutils.h>
 
 #include <platformutils.h>
@@ -10,8 +12,8 @@
 
 static void fail(const char *msg)
 {
-    PF("fail; ");
-    PHL(msg);
+    TF("::fail");
+    PH(msg);
     PlatformUtils::nonConstSingleton().resetToBootloader();
 }
 

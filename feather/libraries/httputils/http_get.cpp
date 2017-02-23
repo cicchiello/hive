@@ -2,6 +2,8 @@
 
 #define HEADLESS
 #define NDEBUG
+#include <Trace.h>
+
 #include <strutils.h>
 
 #include <Trace.h>
@@ -30,7 +32,7 @@ HttpGet::HttpGet(const char *ssid, const char *ssidPswd,
     m_page(page)
 {
     TF("HttpGet::HttpGet (2)");
-    DH(hostip); D(":"); DL(port);
+    TRACE3(hostip, ":", port);
 }
 
 
@@ -69,6 +71,7 @@ bool HttpGet::processEventResult(HttpGet::EventResult r)
         TRACE2("Received an HTTP failure response: ", getHeaderConsumer().getResponse().c_str());
 	break;
     case HttpGet::HTTPSuccessResponse:
+        TRACE("Received an HTTP success response");
         if (!testSuccess()) {
 	    if (getRetryCnt() < MaxRetries) {
 	        TRACE("retry #"); TRACE(getRetryCnt()+1);

@@ -1,10 +1,9 @@
 #include <adcutils.h>
 
-//#define NDEBUG
-#include <strutils.h>
-
+#define NDEBUG
 #include <Trace.h>
 
+#include <strutils.h>
 #include <adc_bufqueue.h>
 #include <platformutils.h>
 
@@ -205,9 +204,8 @@ void ADCUtils::freeBuf(uint16_t *b)
 
 void ADCUtils::stop()
 {
-    PF("ADCUtils::stop; ");
+    TF("ADCUtils::stop");
     if (m_currBuf != NULL) {
-        DHL("ADCUtils::stop");
 	PlatformUtils::nonConstSingleton().stopPulseGenerator(0);
 	ADC->CTRLA.bit.ENABLE = 0x00;
 	ADCsync();

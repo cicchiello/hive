@@ -5,6 +5,8 @@
 #include <sdutils.h>
 
 #define NDEBUG
+#include <Trace.h>
+
 #include <strutils.h>
 
 #include <SdFat.h>
@@ -14,9 +16,9 @@
 #define FILENAME "/TEST.TXT"
 
 bool SDCardRm::setup() {
-    PF("SDCardRm::setup; ");
+    TF("SDCardRm::setup");
     
-    PHL("Initializing SD card...");
+    PH("Initializing SD card...");
 
     SdFat sd;
     return SDUtils::initSd(sd);

@@ -1,6 +1,8 @@
 #include <serial.t.h>
 
 #define NDEBUG
+#include <Trace.h>
+
 #include <strutils.h>
 
 #include <Arduino.h>
@@ -10,10 +12,10 @@
 static bool success = true;
 
 bool SerialTest::setup() {
-    PF("SerialTest::setup; ");
+    TF("SerialTest::setup");
     
     // Print a welcome message
-    PHL("Feather M0 serial# test");
+    PH("Feather M0 serial# test");
     PL();
 
     PH("My serial number string is: ");

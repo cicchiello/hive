@@ -13,6 +13,7 @@
 
 #include <Provision.h>
 #include <hiveconfig.h>
+#include <ConfigUploader.h>
 #include <docwriter.h>
 #include <SensorRateActuator.h>
 #include <TempSensor.h>
@@ -48,6 +49,7 @@ static bool s_hasBeenOnline = false;
 #define MAX_SENSORS 20
 static Mutex sWifiMutex;
 static Provision *s_provisioner = NULL;
+static ConfigUploader *s_configUploader = NULL;
 static Indicator *s_indicator = NULL;
 static AppChannel *s_appChannel = NULL;
 static int s_currSensor = 0;
@@ -58,11 +60,23 @@ static class Actuator *s_actuators[Actuator::MAX_ACTUATORS];
 
 
 
-class HiveConfigPersister : public HiveConfig::UpdateFunctor {
-private:
-    const char *mFilename;
+class HiveConfigFunctor : public HiveConfig::UpdateFunctor {
 public:
+    HiveConfig::UpdateFunctor *mPrev;
+  
+    HiveConfigFunctor() : mPrev(NULL) {}
+    ~HiveConfigFunctor() {delete mPrev;}
+  
+    void setPrevUpdater(HiveConfig::UpdateFunctor *prev) {mPrev = prev;}
+    void onUpdate(const HiveConfig &c) {if (mPrev) mPrev->onUpdate(c);}
+};
+
+class HiveConfigPersister : public HiveConfigFunctor {
+public:
+    const char *mFilename;
+  
     HiveConfigPersister(const char *filename) : mFilename(filename) {}
+  
     void onUpdate(const HiveConfig &c);
 };
 
@@ -73,6 +87,21 @@ void HiveConfigPersister::onUpdate(const HiveConfig &c) {
 	assert(writer.isDone(), "Couldn't write updated config to file");
 	assert(!writer.hasError(), "Couldn't write updated config to file");
     }
+
+    HiveConfigFunctor::onUpdate(c);
+}
+  
+class HiveConfigUploader : public HiveConfigFunctor {
+public:
+    void onUpdate(const HiveConfig &c);
+};
+
+void HiveConfigUploader::onUpdate(const HiveConfig &c) {
+    if (s_provisioner && (&c == &s_provisioner->getConfig())) {
+        s_configUploader->upload();
+    }
+
+    HiveConfigFunctor::onUpdate(c);
 }
   
 
@@ -115,9 +144,6 @@ void setup(void)
   
     s_provisioner = new Provision(ResetCause, VERSION, CONFIG_FILENAME, millis());
     
-    // setup callback to persist hive config changes
-    s_provisioner->getConfig().onUpdate(new HiveConfigPersister(CONFIG_FILENAME));
-
     s_indicator = new Indicator(millis());
     s_indicator->setFlashMode(Indicator::TryingToConnect);
     
@@ -172,10 +198,22 @@ void loop(void)
 
 	int actuatorIndex = 0, sensorIndex = 0;
 
+	// setup callback to persist any future hive config changes (don't set this up earlier, or you'll
+	// save the config to file immediately after reading it from the same file!)
+	HiveConfigPersister *persister = new HiveConfigPersister(CONFIG_FILENAME);
+	persister->setPrevUpdater(CNF.onUpdate(persister));
+
 	// register sensors and actuators
 	SensorRateActuator *rate = new SensorRateActuator(&s_provisioner->getConfig(), "sample-rate", now);
 	s_actuators[actuatorIndex++] = rate;
 
+	s_configUploader = new ConfigUploader(s_provisioner->getConfig(), *rate, *s_appChannel, now);
+	s_sensors[sensorIndex++] = s_configUploader;
+	
+	// setup callback to upload hive config changes
+	HiveConfigUploader *uploader = new HiveConfigUploader();
+	uploader->setPrevUpdater(CNF.onUpdate(uploader));
+	
 	s_sensors[sensorIndex++] = new HeartBeat(CNF, "heartbeat", *rate, *s_appChannel, now);
 	s_sensors[sensorIndex++] = new TempSensor(CNF, "temp", *rate, *s_appChannel, now);
 	s_sensors[sensorIndex++] = new HumidSensor(CNF, "humid", *rate, *s_appChannel, now);
@@ -281,6 +319,7 @@ void loop(void)
 	    for (int actuatorIndex = 0; !setChanged && actuatorIndex < l; actuatorIndex++) {
 		bool callItBack = Actuator::getActiveActuator(actuatorIndex)->loop(now, &sWifiMutex);
 		if (!callItBack) {
+		    TRACE2("Deactivating actuator: ", Actuator::getActiveActuator(actuatorIndex)->getName());
 		    Actuator::deactivate(actuatorIndex);
 		    setChanged = true;
 		}

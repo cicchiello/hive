@@ -12,7 +12,7 @@ LOCALOBJS= \
         Sensor.o Actuator.o Heartbeat.o \
 	hive_platform.o Trace.o \
 	SensorRateActuator.o TempSensor.o HumidSensor.o \
-	hiveconfig.o \
+	hiveconfig.o ConfigUploader.o \
 	SensorBase.o StepperMonitor.o ActuatorBase.o StepperActuator.o \
 	beecnt.o latch.o AudioActuator.o Provision.o Indicator.o \
 	AppChannel.o AudioUpload.o

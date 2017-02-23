@@ -1,6 +1,8 @@
 #include <tests.h>
 
 #define NDEBUG
+#include <Trace.h>
+
 #include <strutils.h>
 
 #include <sdcard_ls.t.h>
@@ -86,8 +88,8 @@ static void wdtEarlyWarningHandler()
     // first, prevent the WDT from doing a full system reset by resetting the timer
     PlatformUtils::nonConstSingleton().clearWDT();
 
-    PL("wdtEarlyWarningHandler; BARK!");
-    PL("");
+    TF("wdtEarlyWarningHandler; BARK!");
+    PH("");
 
     if (PlatformUtils::s_traceStr != NULL) {
         P("WDT Trace message: ");
@@ -223,7 +225,7 @@ Tests::Tests(int selectedTests[])
 
 void Tests::setup()
 {
-    PF("Tests::setup; ");
+    TF("Tests::setup");
     
     // initialize digital pin 13 as an output.
     pinMode(13, OUTPUT);
@@ -252,7 +254,7 @@ static int currTest = 0;
 static Str sCurrTestName;
 void Tests::loop()
 {
-    PF("Tests::loop; ");
+    TF("Tests::loop");
     
     unsigned long now = millis();
     

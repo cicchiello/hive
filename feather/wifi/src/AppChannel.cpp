@@ -232,7 +232,7 @@ public:
 	    dateStr += strlen(DateTag);
 	    Str date;
 	    while (*dateStr != 13) date.add(*dateStr++);
-	    TRACE2("Received timestamp: ", date.c_str());
+	    PH2("Received timestamp: ", date.c_str());
 	    return date;
 	} else {
 	    return Str("unknown");

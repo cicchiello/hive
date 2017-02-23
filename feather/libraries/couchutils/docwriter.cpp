@@ -126,6 +126,7 @@ bool DocWriter::loop() {
 	    return false;
 	}
 
+	PH2("INFO: wrote doc to file: ", mFilename->c_str());
 	mSuccess = true;
     }
     

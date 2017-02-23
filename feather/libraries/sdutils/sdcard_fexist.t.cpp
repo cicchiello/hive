@@ -3,6 +3,8 @@
 #include <sdcard_write.t.h>
 
 #define NDEBUG
+#include <Trace.h>
+
 #include <strutils.h>
 
 #include <sdutils.h>
@@ -13,8 +15,8 @@
 #define FILENAME "TEST.TXT"
 
 bool SDCardFExist::setup() {
-    PF("SDCardFExist::setup; ");
-    PHL("Initializing SD card...");
+    TF("SDCardFExist::setup");
+    PH("Initializing SD card...");
 
     SdFat sd;
     return SDUtils::initSd(sd);
@@ -25,7 +27,7 @@ static unsigned long timeToAct = 100l;
 static bool success = true;
 
 bool SDCardFExist::loop() {
-    PF("SDCardFExist::loo; ");
+    TF("SDCardFExist::loop");
     unsigned long now = millis();
     if (now > timeToAct && !m_didIt) {
 	m_didIt = true;
@@ -45,7 +47,7 @@ bool SDCardFExist::loop() {
 	    
 	    success = sd.exists(FILENAME);
 	    if (!success)
-	        PHL("It still doesn't exist!?!?");
+	        PH("It still doesn't exist!?!?");
 	}
     }
     return success;

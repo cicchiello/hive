@@ -10,7 +10,7 @@
 #include <pulsegen_consumer.h>
 
 
-//#define HEADLESS
+#define HEADLESS
 #define NDEBUG
 
 #include <Trace.h>

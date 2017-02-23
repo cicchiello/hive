@@ -3,6 +3,8 @@
 #include <sdutils.h>
 
 #define NDEBUG
+#include <Trace.h>
+
 #include <strutils.h>
 
 #include <SdFat.h>
@@ -11,8 +13,8 @@
 #define FILENAME "/TEST2.TXT"
 
 bool SDCardWrite2::setup() {
-    PF("SDCardWrite2::setup; ");
-    PHL("Initializing SD card...");
+    TF("SDCardWrite2::setup");
+    PH("Initializing SD card...");
 
     SdFat sd;
     return SDUtils::initSd(sd);
@@ -22,11 +24,11 @@ bool SDCardWrite2::setup() {
 /* STATIC */
 bool SDCardWrite2::makeFile(const char *filename)
 {
-    PF("SDCardWrite2::makeFile; ");
+    TF("SDCardWrite2::makeFile");
     
     SdFile f;
     if (!f.open(filename, O_CREAT | O_WRITE)) {
-        PHL("Couldn't open file");
+        PH("Couldn't open file");
 	return false;
     }
 
@@ -38,7 +40,7 @@ bool SDCardWrite2::makeFile(const char *filename)
     for (int i = 0; i < strlen(line1); i++) {
         int written = f.write(line1[i]);
 	if (written != 1) {
-	    PHL("Failed to write a character to the file");
+	    PH("Failed to write a character to the file");
 	    return false;
 	}
     }
@@ -46,7 +48,7 @@ bool SDCardWrite2::makeFile(const char *filename)
     for (int i = 0; i < strlen(line2); i++) {
         int written = f.write(line2[i]);
 	if (written != 1) {
-	    PHL("Failed to write a character to the file");
+	    PH("Failed to write a character to the file");
 	    return false;
 	}
     }
@@ -54,7 +56,7 @@ bool SDCardWrite2::makeFile(const char *filename)
     for (int i = 0; i < strlen(line3); i++) {
         int written = f.write(line3[i]);
 	if (written != 1) {
-	    PHL("Failed to write a character to the file");
+	    PH("Failed to write a character to the file");
 	    return false;
 	}
     }
@@ -68,7 +70,7 @@ static unsigned long timeToAct = 1000l;
 static bool success = true;
 
 bool SDCardWrite2::loop() {
-    PF("SDCardWrite2::loop; ");
+    TF("SDCardWrite2::loop");
     
     unsigned long now = millis();
     if (now > timeToAct && !m_didIt) {
@@ -85,7 +87,7 @@ bool SDCardWrite2::loop() {
 	}
 
 	if (exists) {
-	    PHL("file that I'm supposed to create already exists and I couldn't delete it");
+	    PH("file that I'm supposed to create already exists and I couldn't delete it");
 	    success = false;
 	    return false;
 	}

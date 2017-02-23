@@ -3,6 +3,8 @@
 #include <http_couchget.h>
 
 #define NDEBUG
+#include <Trace.h>
+
 #include <strutils.h>
 #include <couchutils.h>
 
@@ -32,6 +34,7 @@ HttpGetTest::HttpGetTest()
 
 HttpGetTest::~HttpGetTest()
 {
+    TF("HttpGetTest::~HttpGetTest");
     assert(m_getter == NULL, "m_getter hasn't been deleted");
 }
 

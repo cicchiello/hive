@@ -3,6 +3,8 @@
 #include <Arduino.h>
 
 #define NDEBUG
+#include <Trace.h>
+
 #include <strutils.h>
 
 #include <Trace.h>
@@ -256,9 +258,9 @@ WifiUtils::DisconnectorStatus WifiUtils::disconnector(const WifiUtils::Context &
 						      int *disconnectorState,
 						      unsigned long *callMeBackIn_ms)
 {
-    PF("WifiUtils::disconnector; ");
+    TF("WifiUtils::disconnector");
     if (*disconnectorState == 0) {
-        PHL("Attempting to disconnect;");
+        PH("Attempting to disconnect;");
 	ctxt.getWifi().disconnect();
 	    
 	*disconnectorState = 1;
@@ -271,7 +273,7 @@ WifiUtils::DisconnectorStatus WifiUtils::disconnector(const WifiUtils::Context &
 	case WL_CONNECTION_LOST:
 	case WL_IDLE_STATUS:
 	case WL_DISCONNECTED:
-	    PHL("Disconnected");
+	    PH("Disconnected");
 	    return DisconnectSucceed;
 	case WL_CONNECTED: 
 	case WL_CONNECT_FAILED: 
@@ -313,7 +315,7 @@ void WifiUtils::printWifiStatus() {
     // print local subnet mask
     uint32_t sn = WiFi.subnetMask();
     P("local subnet mask: ");
-    PLC(sn, HEX);
+    Serial.println(sn, HEX);
 }
 
 

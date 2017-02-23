@@ -21,6 +21,7 @@ class HiveConfig {
     bool isValid() const;
 
     static const char *HiveIdProperty;
+    static const char *HiveFirmwareProperty;
     static const char *TimestampProperty;
     static const char *SsidProperty;
     static const char *SsidPswdProperty;

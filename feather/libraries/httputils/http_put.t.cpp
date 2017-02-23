@@ -1,6 +1,8 @@
 #include <http_put.t.h>
 
 #define NDEBUG
+#include <Trace.h>
+
 #include <strutils.h>
 
 #include <http_couchput.h>
@@ -28,6 +30,7 @@ HttpPutTest::HttpPutTest()
 
 HttpPutTest::~HttpPutTest()
 {
+    TF("HttpPutTest::~HttpPutTest");
     assert(m_putter == NULL, "m_putter hasn't been deleted");
 }
 
@@ -43,7 +46,7 @@ bool HttpPutTest::createPutter(const CouchUtils::Doc &originalDoc)
     DL("HttpPutTest::createPutter");
     
 #ifndef NDEBUG    
-    PHL("Here's the doc that I'll be updating:");
+    PH("Here's the doc that I'll be updating:");
     CouchUtils::printDoc(originalDoc);
 #endif
     
@@ -61,7 +64,7 @@ bool HttpPutTest::createPutter(const CouchUtils::Doc &originalDoc)
 //          updateDoc.addNameValue(new CouchUtils::Doc::NameValuePair(originalDoc[att]));
     
 #ifndef NDEBUG
-	PHL("Here's the updated doc:");
+	PH("Here's the updated doc:");
 	CouchUtils::printDoc(updateDoc);
 #endif
 
@@ -73,7 +76,7 @@ bool HttpPutTest::createPutter(const CouchUtils::Doc &originalDoc)
 
 	return m_putter != NULL;
     } else {
-        PHL("Invalid doc encountered:");
+        PH("Invalid doc encountered:");
 	CouchUtils::printDoc(originalDoc);
         return false;
     }
@@ -97,7 +100,7 @@ bool HttpPutTest::createPutter(const CouchUtils::Doc &originalDoc)
 
 
 bool HttpPutTest::loop() {
-    PF("HttpPutTest::loop; ");
+    TF("HttpPutTest::loop");
     unsigned long now = millis();
     if (now > m_timeToAct && !m_didIt) {
         if (m_putter == NULL) {
@@ -109,14 +112,14 @@ bool HttpPutTest::loop() {
 	        m_success = false;
 	        if (m_putter->haveDoc()) {
 		    if (m_putter->getDoc().lookup("ok") >= 0) {
-		        PHL("doc successfully updated!");
+		        PH("doc successfully updated!");
 			m_success = true;
 		    } else {
-		        PHL("Found unexpected information in the doc:");
+		        PH("Found unexpected information in the doc:");
 			CouchUtils::printDoc(m_putter->getDoc());
 		    }
 		} else {
-		    PHL("Found unexpected information in the doc:");
+		    PH("Found unexpected information in the doc:");
 		    PL(m_putter->getHeaderConsumer().getResponse().c_str());
 		}
 		m_didIt = true;

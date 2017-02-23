@@ -1,6 +1,8 @@
 #include <listener_wav.h>
 
 #define NDEBUG
+#include <Trace.h>
+
 #include <strutils.h>
 
 #include <listener.h>
@@ -82,7 +84,7 @@ ListenerWavCreatorImp::ListenerWavCreatorImp(const char *rawFilename, const char
     m_samplesRead(0), m_samplesWritten(0), m_success(true), m_errMsg(NULL),
     m_dcBias(dcBias), m_srcResolution(srcResol), m_targetResolution(tgtResol)
 {
-    PF("ListenerWavCreatorImp::ListenerWavCreatorImp; ");
+    TF("ListenerWavCreatorImp::ListenerWavCreatorImp; ");
     
     assert(s_singleton == NULL, "Singleton assumption violated");
     s_singleton = this;
@@ -182,7 +184,7 @@ ListenerWavCreator *Listener::initWavFileCreator(const char *rawFilename, const 
 bool ListenerWavCreatorImp::writeChunk()
 
 {
-    PF("ListnerWavCreatorImp::writeChunk; ");
+    TF("ListnerWavCreatorImp::writeChunk; ");
     
     //... data samples follow!
     if (m_success) { // as long as no error yet
@@ -202,7 +204,7 @@ bool ListenerWavCreatorImp::writeChunk()
 	    if (m_samplesWritten + samplesRead <= m_samplesToWrite) {
 	        bytesWritten = m_wf.write(buf, bytesRead);
 		if (bytesWritten != bytesRead) 
-		    PHL("Couldn't write the entire buffer to the wav file");
+		    PH("Couldn't write the entire buffer to the wav file");
 		int samplesWritten = bytesWritten/Listener::BYTES_PER_SAMPLE;
 		m_samplesWritten += samplesWritten;
 		m_success &= samplesWritten == samplesRead;
@@ -220,7 +222,7 @@ bool ListenerWavCreatorImp::writeChunk()
 		m_success &= m_samplesWritten == m_samplesRead;
 	    }
 	    if (!m_success) {
-	        PHL("Just detected failure");
+	        PH("Just detected failure");
 	    }
 	} else {
 	    PH(m_samplesRead);
@@ -235,7 +237,7 @@ bool ListenerWavCreatorImp::writeChunk()
 
 ListenerWavCreatorImp::~ListenerWavCreatorImp()
 {
-    PF("ListenerWavCreatorImp::~ListenerWavCreatorImp; ");
+    TF("ListenerWavCreatorImp::~ListenerWavCreatorImp; ");
     
     PH("Wrote ");
     P(m_samplesWritten);

@@ -19,6 +19,8 @@
 #include <str.h>
 
 
+#define FIRST_SAMPLE (15*1000l)
+#define FIRST_POST (30*1000l)
 #define DELTA (getRateProvider().secondsBetweenSamples()*1000l)
 //#define DELTA (30000l)
 
@@ -31,8 +33,8 @@ SensorBase::SensorBase(const HiveConfig &config,
   : Sensor(name, rateProvider, timeProvider, now), mValueStr(new Str("NAN")),
     mPoster(0), mConfig(config)
 {
-    mNextSampleTime = now + DELTA;
-    mNextPostTime = now + DELTA;
+    mNextSampleTime = now + FIRST_SAMPLE;
+    mNextPostTime = now + FIRST_POST;
 }
 
 

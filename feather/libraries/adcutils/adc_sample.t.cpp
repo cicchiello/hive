@@ -28,9 +28,9 @@ ADC_Sample::ADC_Sample()
     m_bufCnt(0), m_bufToPersist(NULL),
     m_state(Uninitialized)
 {
-    PF("ADC_Sample::ADC_Sample; ");
+    TF("ADC_Sample::ADC_Sample; ");
     if (s_instance != NULL) {
-        PHL("implied singleton rules violated");
+        PH("implied singleton rules violated");
 	m_success = false;
 	s_instance->m_success = false;
     } else {
@@ -83,7 +83,7 @@ static void bufferReady(unsigned short *buf)
 
 void ADC_Sample::processBuffer()
 {
-    PF("ADC_Sample::processBuffer; ");
+    TF("ADC_Sample::processBuffer; ");
     
     // have a complete buffer
     m_bufCnt++;

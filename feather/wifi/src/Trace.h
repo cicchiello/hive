@@ -19,6 +19,7 @@
 #define PH(args) do {} while (0)
 #define PH2(arg1,arg2) do {} while (0)
 #define PH3(arg1,arg2,arg3) do {} while (0)
+#define PH4(arg1,arg2,arg3,arg4) do {} while (0)
 #endif
 
 #ifndef NDEBUG

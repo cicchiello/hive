@@ -1,6 +1,8 @@
 #include <http_rawconsumer.h>
 
 #define NDEBUG
+#include <Trace.h>
+
 #include <strutils.h>
 
 #include <MyWiFi.h>

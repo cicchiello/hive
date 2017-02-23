@@ -1,6 +1,8 @@
 #include <adc_buffifo.h>
 
 #define NDEBUG
+#include <Trace.h>
+
 #include <strutils.h>
 
 #include <platformutils.h>
@@ -11,6 +13,7 @@
 ADC_BufFifo::ADC_BufFifo(int numBufs)
   : m_bufs(new uint16_t*[numBufs]), m_i(0), m_numBufs(numBufs), m_pushCnt(0), m_popCnt(0)
 {
+    TF("ADC_BufFifo::ADC_BufFifo");
     for (int i = 0; i < numBufs; i++)
         m_bufs[i] = NULL;
     assert(isEmpty(), "isEmpty test may be broken");
@@ -29,6 +32,8 @@ ADC_BufFifo::~ADC_BufFifo()
 
 void ADC_BufFifo::push(uint16_t *buf)
 {
+    TF("ADC_BufFifo::push");
+    
     m_pushCnt++;
     assert(buf, "buf is NULL");
     assert(m_bufs[m_i] == NULL,

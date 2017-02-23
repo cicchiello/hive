@@ -108,7 +108,7 @@ void fail(const char *errMsg)
 {
     TF("::fail");
     if (s_currListener == NULL) {
-        PHL(errMsg);
+        PH(errMsg);
     } else {
         s_currListener->fail(errMsg);
     }
@@ -312,7 +312,7 @@ bool Listener::loop(bool verbose)
 	break;
     case Capturing: {
         if (now >= m_endTime) {
-	    if (verbose) PHL("Capturing done");
+	    if (verbose) PH("Capturing done");
 	    // we're done recording
 	    ADCUtils::nonConstSingleton().stop();
 	    m_state = CaptureStopped;
@@ -370,7 +370,7 @@ bool Listener::loop(bool verbose)
 		m_state = Done;
 
 		if (verbose) 
-		    PHL("Done");
+		    PH("Done");
 	    }
 	    delete m_wavCreator;
 	    m_wavCreator = NULL;

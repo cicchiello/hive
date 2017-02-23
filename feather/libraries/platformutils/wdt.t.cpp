@@ -1,6 +1,8 @@
 #include <wdt.t.h>
 
 #define NDEBUG
+#include <Trace.h>
+
 #include <strutils.h>
 
 #include <platformutils.h>
@@ -24,12 +26,12 @@ void wdt_earlyWarning()
 
 bool WDTTest::setup()
 {
-    PF("WDTTest::setup; ");
+    TF("WDTTest::setup");
     
     unsigned long now = millis();
     timeToAct += now;
 
-    PHL("Initializing WDT");
+    PH("Initializing WDT");
     s_prevTrigger = PlatformUtils::nonConstSingleton().initWDT(&wdt_earlyWarning);
     
     return success;
@@ -38,7 +40,7 @@ bool WDTTest::setup()
 
 static int allIsWellCnt = 0;
 bool WDTTest::loop() {
-    PF("WDTTest::loop; ");
+    TF("WDTTest::loop");
     unsigned long now = millis();
     if (now > timeToAct && !m_didIt) {
         if (allIsWellCnt < 3) {
@@ -46,7 +48,7 @@ bool WDTTest::loop() {
 	    if (s_earlyWarningTriggered) {
 	        m_didIt = true;
 		PlatformUtils::nonConstSingleton().shutdownWDT(s_prevTrigger);
-		PHL("WDT EarlyWarning triggered before expected");
+		PH("WDT EarlyWarning triggered before expected");
 		return success = false;
 	    }
 	    
@@ -61,10 +63,10 @@ bool WDTTest::loop() {
 	    if (s_earlyWarningTriggered) {
 	        m_didIt = true;
 		PlatformUtils::nonConstSingleton().shutdownWDT(s_prevTrigger);
-		PHL("WDT EarlyWarning triggered before expected");
+		PH("WDT EarlyWarning triggered before expected");
 		return success = false;
 	    } else 
-	        PHL("The WDT Earlywarning did *not* trigger (as it shouldn't have)!");
+	        PH("The WDT Earlywarning did *not* trigger (as it shouldn't have)!");
 	    
 	    allIsWellCnt++;
 	} else {
@@ -84,10 +86,10 @@ bool WDTTest::loop() {
 		
 	    // if the WDT Early Warning has *not* triggered, that's a failure
 	    if (!s_earlyWarningTriggered) {
-	        PHL("WDT EarlyWarning did *not* trigger when expected");
+	        PH("WDT EarlyWarning did *not* trigger when expected");
 		return success = false;
 	    } else 
-	        PHL("The WDT EarlyWarning *did* trigger (as it should have)!");
+	        PH("The WDT EarlyWarning *did* trigger (as it should have)!");
 	}
     }
 
