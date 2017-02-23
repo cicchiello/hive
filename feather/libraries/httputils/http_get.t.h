@@ -7,7 +7,7 @@
 class HttpGetTest : public HttpOpTest {
  public:
     HttpGetTest();
-    HttpGetTest(const char *credentials,
+    HttpGetTest(const char *dbUser, const char *dbPswd,
 		const char *dbHost,
 		int dbPort,
 		bool isSSL);

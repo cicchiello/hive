@@ -1,8 +1,8 @@
 #include <http_couchput.h>
 
 
-//#define HEADLESS
-//#define NDEBUG
+#define HEADLESS
+#define NDEBUG
 #include <strutils.h>
 
 #include <Trace.h>
@@ -11,8 +11,8 @@
 HttpCouchPut::HttpCouchPut(const char *ssid, const char *ssidPswd, 
 			   const char *host, int port, const char *page,
 			   const CouchUtils::Doc &content,
-			   const char *credentials, bool isSSL)
-  : HttpCouchGet(ssid, ssidPswd, host, port, page, credentials, isSSL),
+			   const char *dbUser, const char *dbPswd, bool isSSL)
+  : HttpCouchGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
     m_content(content)
 {
 }
@@ -21,8 +21,8 @@ HttpCouchPut::HttpCouchPut(const char *ssid, const char *ssidPswd,
 HttpCouchPut::HttpCouchPut(const char *ssid, const char *ssidPswd, 
 			   const IPAddress &hostip, int port, const char *page,
 			   const CouchUtils::Doc &content,
-			   const char *credentials, bool isSSL)
-  : HttpCouchGet(ssid, ssidPswd, hostip, port, page, credentials, isSSL),
+			   const char *dbUser, const char *dbPswd, bool isSSL)
+  : HttpCouchGet(ssid, ssidPswd, hostip, port, page, dbUser, dbPswd, isSSL),
     m_content(content)
 {
 }
@@ -74,21 +74,16 @@ HttpOp::EventResult HttpCouchPut::event(unsigned long now, unsigned long *callMe
     switch (opState) {
     case ISSUE_OP: {
         TRACE("ISSUE_OP");
-        WiFiClient &client = getContext().getClient();
 	
 	Str str;
 	CouchUtils::toString(m_content, &str);
 	    
-	Str encodedStr;
-	CouchUtils::urlEncode(str.c_str(), &encodedStr);
-
-	sendPUT(client, encodedStr.len());
+	sendPUT(getContext().getClient(), str.len());
 	if (str.len() > 0) {
-	    sendDoc(client, encodedStr.c_str());
-	    client.flush();
+	  sendDoc(getContext().getClient(), str.c_str());
 	}
 	    
-	setOpState(CONSUME_RESPONSE);
+	setOpState(ISSUE_OP_FLUSH);
 	*callMeBackIn_ms = 10l;
 	return CallMeBack;
     }

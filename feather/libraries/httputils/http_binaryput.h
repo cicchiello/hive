@@ -8,10 +8,12 @@ class HttpDataProvider;
 class HttpBinaryPut : public HttpCouchGet {
  public:
     HttpBinaryPut(const char *ssid, const char *ssidPswd, 
-		  const char *host, int port, const char *page, const char *credentials,
+		  const char *host, int port, const char *page,
+		  const char *dbUser, const char *dbPswd, 
 		  bool isSSL, HttpDataProvider *provider, const char *contentType);
     HttpBinaryPut(const char *ssid, const char *ssidPswd, 
-		  const IPAddress &hostip, int port, const char *page, const char *credentials,
+		  const IPAddress &hostip, int port, const char *page,
+		  const char *dbUser, const char *dbPswd, 
 		  bool isSSL, HttpDataProvider *provider, const char *contentType);
     virtual ~HttpBinaryPut();
 
@@ -36,6 +38,7 @@ class HttpBinaryPut : public HttpCouchGet {
     
     int m_writtenCnt;
     HttpDataProvider *m_provider;
+    bool mRetryFlush;
 };
 
 #endif

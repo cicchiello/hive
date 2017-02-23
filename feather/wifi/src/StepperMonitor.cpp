@@ -8,6 +8,8 @@
 
 #include <Trace.h>
 
+#include <str.h>
+
 #include <StepperActuator.h>
 
 
@@ -28,13 +30,6 @@ StepperMonitor::StepperMonitor(const HiveConfig &config,
 StepperMonitor::~StepperMonitor()
 {
     TF("StepperMonitor::~StepperMonitor");
-}
-
-
-const void *StepperMonitor::getSemaphore() const
-{
-    TF("StepperMonitor::getSemaphore");
-    return getName();
 }
 
 

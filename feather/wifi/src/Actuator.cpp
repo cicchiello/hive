@@ -12,11 +12,46 @@
 #include <str.h>
 #include <strutils.h>
 
-#include <hive_platform.h>
+
+
+/* STATIC */
+Actuator *Actuator::sActiveActuators[Actuator::MAX_ACTUATORS];
+
+/* STATIC */
+int Actuator::sNumActiveActuators = 0;
+
+
+/* STATIC */
+void Actuator::activate(Actuator *actuator)
+{
+    TF("Actuator::activate");
+    assert(!actuator->mIsActive, "!actuator->mIsActive");
+    actuator->mIsActive = true;
+    sActiveActuators[sNumActiveActuators++] = actuator;
+    TRACE2("Activated: ", actuator->getName());
+    TRACE3("there are now ", sNumActiveActuators, " active actuators");
+}
+
+void Actuator::deactivate(int index)
+{
+    TF("Actuator::deactivate");
+    assert(index >= 0, "invalid index supplied to deactivate");
+    assert(index < sNumActiveActuators, "deactiving an actuators that isn't on the actived list");
+    assert(sActiveActuators[index]->mIsActive, "deactivating an actuator that isn't active");
+    
+    Actuator *oneToDeactivate = sActiveActuators[index];
+    assert(oneToDeactivate, "oneToDeactivate is NULL");
+    for (int i = index; i < sNumActiveActuators-1; i++)
+        sActiveActuators[i] = sActiveActuators[i+1];
+
+    sActiveActuators[--sNumActiveActuators] = NULL;
+    oneToDeactivate->mIsActive = false;
+}
+
 
 
 Actuator::Actuator(const char *name, unsigned long now)
-  : mName(new Str(name))
+  : mName(new Str(name)), mIsActive(false)
 {
     // schedule first sample time
     mNextActionTime = now + 5*1000;
@@ -31,11 +66,6 @@ Actuator::~Actuator()
 const char *Actuator::getName() const
 {
     return mName->c_str();
-}
-
-bool Actuator::isItTimeYet(unsigned long now) const
-{
-    return now >= mNextActionTime;
 }
 
 

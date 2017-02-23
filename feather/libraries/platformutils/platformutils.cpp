@@ -15,11 +15,12 @@ PlatformUtils PlatformUtils::s_singleton;
 
 /* STATIC */
 const char *PlatformUtils::s_traceStr = NULL;
+unsigned long PlatformUtils::s_traceTime = 0;
 
 
 void WDT_TRACE(const char *msg) {PlatformUtils::s_traceStr = msg;}
 
-// buf must be 17 bytes
+// buf must be 33 bytes
 static const char *serialId(char *buf)
 {
     volatile uint8_t *p1 = (volatile uint8_t *)0x0080A00C;
@@ -49,9 +50,10 @@ static const char *serialId(char *buf)
 const char *PlatformUtils::serialNumber() const
 {
     static bool s_serialInitialized = false;
-    static char s_serialBuf[17];
+    static char s_serialBuf[33];
     if (!s_serialInitialized) {
         serialId(s_serialBuf);
+	s_serialBuf[32] = 0;
     }
 
     return s_serialBuf;
@@ -293,6 +295,12 @@ void PlatformUtils::resetToBootloader()
 }
 
 
+void PlatformUtils::reset()
+{
+    NVIC_SystemReset();
+}
+
+
 
 static __inline__ void WDTsync() __attribute__((always_inline, unused));
 static void WDTsync() {
@@ -387,7 +395,11 @@ const char *PlatformUtils::resetCause()
         return "System Reset Request:";
     } else if (rcause & PM_RCAUSE_BOD33) {
         return "Brown Out 33 Detector Reset";
-    } else {
+    } else if (rcause & PM_RCAUSE_BOD12) {
+        return "Brown Out 12 Detector Reset";
+    } else if (rcause & PM_RCAUSE_WDT) {
+        return "Watchdog Reset";
+  } else {
         s_holder = "Unknown reason: 0x";
 	char buf[4];
 	itoa(rcause, buf, 16);

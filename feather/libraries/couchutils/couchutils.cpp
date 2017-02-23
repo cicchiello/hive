@@ -80,6 +80,27 @@ CouchUtils::Doc &CouchUtils::Doc::operator=(const CouchUtils::Doc &o)
 }
 
 
+bool CouchUtils::Doc::equals(const CouchUtils::Doc &other) const
+{
+    if (this == &other)
+        return true;
+
+    if (getSz() != other.getSz())
+        return false;
+    
+    for (int i = 0; i < getSz(); i++) {
+        const NameValuePair &nv = (*this)[i];
+	const NameValuePair &onv = other[i];
+	if (!nv.getName().equals(onv.getName()))
+	    return false;
+	if (!nv.getValue().equals(onv.getValue()))
+	    return false;
+    }
+
+    return true;
+}
+
+
 void CouchUtils::Doc::clear()
 {
     for (int i = 0; i < numNVs; i++) {
@@ -94,6 +115,22 @@ void CouchUtils::Doc::clear()
 CouchUtils::Item::Item(const CouchUtils::Item &o)
   : _str(o._str), _arr(o._arr ? new Arr(*o._arr) : 0), _doc(o._doc ? new Doc(*o._doc) : 0)
 {
+}
+
+
+bool CouchUtils::Item::equals(const CouchUtils::Item &other) const
+{
+    if (this == &other)
+        return true;
+
+    if (isDoc() && other.isDoc()) {
+        return getDoc().equals(other.getDoc());
+    } else if (isArr() && other.isArr()) {
+        return getArr().equals(other.getArr());
+    } else if (isStr() && other.isStr()) {
+        return getStr().equals(other.getStr());
+    } else
+        return false;
 }
 
 
@@ -129,6 +166,21 @@ CouchUtils::Arr::Arr(const CouchUtils::Arr &o)
     for (int i = 0; i < _sz; i++) {
         _arr[i] = o._arr[i];
     }
+}
+
+
+bool CouchUtils::Arr::equals(const CouchUtils::Arr &other) const
+{
+    if (this == &other)
+        return true;
+
+    if (getSz() == other.getSz()) {
+        for (int i = 0; i < getSz(); i++) {
+	    if (!(*this)[i].equals(other[i]))
+	        return false;
+	}
+	return true;
+    } else return false;
 }
 
 
@@ -486,6 +538,15 @@ const char *CouchUtils::toString(const CouchUtils::Doc &doc, Str *buf)
 	    strcat(strcat(strcat(strcat(strcat(nonConstBuf, "\""), name.c_str()), "\":"), nested.c_str()), "");
 	    if (i+1 < doc.getSz()) 
 	        strcat(nonConstBuf, ",");
+	} else if (doc[i].getValue().isArr()) {
+	    Str nested;
+	    toString(doc[i].getValue().getArr(), &nested);
+	    requiredLen += nested.len()+4;
+	    buf->expand(requiredLen);
+	    char *nonConstBuf = (char*) buf->c_str();
+	    strcat(strcat(strcat(strcat(strcat(nonConstBuf, "\""), name.c_str()), "\":"), nested.c_str()), "");
+	    if (i+1 < doc.getSz()) 
+	        strcat(nonConstBuf, ",");
 	} else {
 	    const Str &value = doc[i].getValue().getStr();
 	    requiredLen += value.len()+4;
@@ -498,4 +559,46 @@ const char *CouchUtils::toString(const CouchUtils::Doc &doc, Str *buf)
     }
     char *nonConstBuf = (char*) buf->c_str();
     return strcat(nonConstBuf, "}");
+}
+
+
+const char *CouchUtils::toString(const CouchUtils::Arr &arr, Str *buf)
+{
+    buf->expand(2);
+
+    buf->add('[');
+    buf->set(0, 1);
+    for (int i = 0; i < arr.getSz(); i++) {
+        const Item &item = arr[i];
+	int requiredLen = buf->len()+1;
+	if (item.isDoc()) {
+	    Str nested;
+	    toString(item.getDoc(), &nested);
+	    requiredLen += nested.len()+2;
+	    buf->expand(requiredLen);
+	    char *nonConstBuf = (char*) buf->c_str();
+	    strcat(nonConstBuf, nested.c_str());
+	    if (i+1 < arr.getSz()) 
+	        strcat(nonConstBuf, ",");
+	} else if (item.isArr()) {
+	    Str nested;
+	    toString(item.getArr(), &nested);
+	    requiredLen += nested.len()+2;
+	    buf->expand(requiredLen);
+	    char *nonConstBuf = (char*) buf->c_str();
+	    strcat(nonConstBuf, nested.c_str());
+	    if (i+1 < arr.getSz()) 
+	        strcat(nonConstBuf, ",");
+	} else {
+	    const Str &value = item.getStr();
+	    requiredLen += value.len()+2;
+	    buf->expand(requiredLen);
+	    char *nonConstBuf = (char*) buf->c_str();
+	    strcat(nonConstBuf, value.c_str());
+	    if (i+1 < arr.getSz()) 
+	        strcat(nonConstBuf, ",");
+	}
+    }
+    char *nonConstBuf = (char*) buf->c_str();
+    return strcat(nonConstBuf, "]");
 }

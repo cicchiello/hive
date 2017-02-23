@@ -2,19 +2,26 @@
 
 #include <Arduino.h>
 
-//#define HEADLESS
-//#define NDEBUG
+#define HEADLESS
+#define NDEBUG
+
 #include <Trace.h>
 
 #include <strutils.h>
 
-#include <wifiutils.h>
-
 #include <MyWiFi.h>
 
 #include <wifiutils.h>
+#include <base64.h>
 
 #include <hive_platform.h>
+
+
+#undef min
+#undef max
+#include <string>
+#include <map>
+#include <utility>
 
 /* STATIC */
 const char *HttpOp::TAGHTTP11 = "HTTP/1.1";
@@ -22,22 +29,63 @@ const int HttpOp::MaxRetries = 5;
 const long HttpOp::RetryDelay_ms = 3000l;
 
 
+
+class MyMap {
+private:
+  Str keys[10];
+  IPAddress values[10];
+  int num;
+  
+public:
+  MyMap() : num(0) {}
+  bool isFull() {return (num == 10);}
+  void add(const Str& key, const IPAddress &value) {
+    keys[num] = key;
+    values[num++] = value;
+  }
+  bool contains(const Str &key) const {
+    for (int i = 0; i < num; i++)
+      if (keys[i].equals(key))
+	return true;
+    return false;
+  }
+  const IPAddress &getValue(const Str &key) const {
+    for (int i = 0; i < num; i++)
+      if (keys[i].equals(key))
+	return values[i];
+    return IPAddress();
+  }
+};
+
+typedef MyMap MapType;
+static MapType sDnsResolutions;
+
+
 HttpOp::HttpOp(const char *ssid, const char *pswd, 
 	       const IPAddress &hostip, int port,
-	       const char *credentials, bool isSSL)
-  : m_ssid(ssid), m_pswd(pswd), mSpecifiedHostName((char*)0), m_port(port), m_credentials(credentials),
-    mSpecifiedHostIP(hostip), m_isSSL(isSSL), m_retries(0), m_opState(WIFI_INIT), mWifiConnectState(0)
+	       const char *dbUser, const char *dbPswd,
+	       bool isSSL)
+  : m_ssid(ssid), m_pswd(pswd), mSpecifiedHostname((char*)0), m_port(port), m_dbuser(dbUser), m_dbpswd(dbPswd),
+    mSpecifiedHostIP(hostip), m_isSSL(isSSL)
 {
     init();
 }
 
 
 HttpOp::HttpOp(const char *ssid, const char *pswd, 
-	       const char *hostname, int port, const char *credentials, bool isSSL)
-  : m_ssid(ssid), m_pswd(pswd), mSpecifiedHostName(hostname), m_port(port), m_credentials(credentials),
-    mSpecifiedHostIP(), m_isSSL(isSSL), m_retries(0), m_opState(WIFI_INIT), mWifiConnectState(0)
+	       const char *hostname, int port,
+	       const char *dbUser, const char *dbPswd,
+	       bool isSSL)
+  : m_ssid(ssid), m_pswd(pswd), mSpecifiedHostname(hostname), m_port(port), m_dbuser(dbUser), m_dbpswd(dbPswd),
+    mSpecifiedHostIP(), m_isSSL(isSSL)
 {
     init();
+}
+
+
+HttpOp::~HttpOp()
+{
+    getContext().getWifi().end();
 }
 
 
@@ -58,8 +106,10 @@ void HttpOp::init()
 	FAIL();
     }
 
-    m_disconnectCnt = 0;
+    mDnsCnt = mHttpConnectCnt = mWifiConnectState = m_retries = m_disconnectCnt = 0;
+    mWifiWaitStart = mDnsWaitStart = mHttpWaitStart = 0;
     m_finalResult = UnknownFailure;
+    m_opState = WIFI_INIT;
 }
 
 
@@ -91,6 +141,7 @@ HttpOp::ConnectStat HttpOp::httpConnectInit(const IPAddress &host, const char *h
     TRACE2("m_port: ", m_port);
     TRACE2("m_isSSL: ", (m_isSSL ? "true" : "false"));
     TRACE2("host: ", IPtoString(host).c_str());
+    TRACE2("hostname: ", hostname);
     
     WiFiClient::ConnectStat s = m_ctxt.getClient().connectNoWait(host, m_port,
 								 m_isSSL ? SOCKET_FLAGS_SSL : 0,
@@ -131,28 +182,35 @@ void HttpOp::httpConnectCancel()
 
 void HttpOp::sendHost(class Stream &s) const
 {
+    TF("HttpOp::sendHost");
     assert(getContext().getClient().connected(), "Client isn't connected !?!? (1)");
 
     P("Host: ");
     s.print("Host: ");
     
-    if (mSpecifiedHostName.len() == 0) {
+    if (mSpecifiedHostname.len() == 0) {
         P(mSpecifiedHostIP);
         s.print(mSpecifiedHostIP);
     } else {
-        P(mSpecifiedHostName.c_str());
-        s.print(mSpecifiedHostName.c_str());
+        P(mSpecifiedHostname.c_str());
+        s.print(mSpecifiedHostname.c_str());
     }
     assert(getContext().getClient().connected(), "Client isn't connected !?!? (2)");
     P(":");
     s.print(":");
     PL(m_port);
     s.println(m_port);
-    if (m_credentials.len() > 0) {
+    if (m_dbuser.len() > 0) {
+	Str creds;
+	creds.append(m_dbuser).append(":").append(m_dbpswd);
+	
+	Str encoded;
+	base64_encode(&encoded, creds.c_str(), creds.len());
+
         P("Authorization: Basic ");
-	PL(m_credentials.c_str());
-        s.print("Authorization: Basic ");
-	s.println(m_credentials.c_str());
+	PL(encoded.c_str());
+	s.print("Authorization: Basic ");
+	s.println(encoded.c_str());
     }
     assert(getContext().getClient().connected(), "Client isn't connected !?!? (3)");
 }
@@ -185,8 +243,21 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 	    TRACE2("GATEWAY: ", IPtoString(m_ctxt.getWifi().gatewayIP()).c_str());
 	    TRACE2("SUBNET: ", IPtoString(m_ctxt.getWifi().subnetMask()).c_str());
 	    TRACE2("DNS: ", IPtoString(m_ctxt.getWifi().dnsIP()).c_str());
-	    TRACE(mSpecifiedHostName.len() == 0 ? "Skipping DNSlookup" : "Performing DNS lookup");
-	    setOpState(mSpecifiedHostName.len() == 0 ? HTTP_INIT : DNS_INIT);
+	    TRACE2("URL: ", mSpecifiedHostname.c_str());
+	    if (mSpecifiedHostname.len() == 0) {
+	        TRACE("Skipping DNS lookup because an IP address was supplied");
+		setOpState(HTTP_INIT);
+	    } else {
+	        if (sDnsResolutions.contains(mSpecifiedHostname)) {
+		    const IPAddress &ip = sDnsResolutions.getValue(mSpecifiedHostname);
+		    TRACE2("reusing previously resolved IP: ", IPtoString(ip).c_str());
+		    mResolvedHostIP = ip;
+		    setOpState(HTTP_INIT);
+		} else {
+		    TRACE("Performing DNS lookup");
+		    setOpState(DNS_INIT);
+		}
+	    }
 	    *callMeBackIn_ms = 10l;
 	    return CallMeBack;
 	}
@@ -211,17 +282,19 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 	break;
     case DNS_INIT:
     case DNS_WAITING: {
-        TF("HttpOp::event; DNS_INIT");
+        TF("HttpOp::event; DNS_INIT || DNS_WAITING");
         TRACE(m_opState == DNS_INIT ? "DNS_INIT" : "DNS_WAITING");
 	MyWiFi &w = m_ctxt.getWifi();
 	MyWiFi::DNS_State dnsState; 
 	if (m_opState == DNS_INIT) {
-	    TRACE2("resolving mSpecifiedHostName: ", mSpecifiedHostName.c_str());
-	    mDnsCnt = 41; // 20x500ms == 20s
-	    dnsState = w.dnsNoWait(mSpecifiedHostName.c_str(), mResolvedHostIP);
+	    TF("HttpOp::event; DNS_INIT");
+	    TRACE2("resolving mSpecifiedHostname: ", mSpecifiedHostname.c_str());
+	    mDnsCnt = 41; // 40x500ms == 20s
+	    dnsState = w.dnsNoWait(mSpecifiedHostname.c_str(), mResolvedHostIP);
 	    mDnsWaitStart = now;
 	    setOpState(DNS_WAITING);
 	} else {
+	    TF("HttpOp::event; DNS_WAITING");
 	    dnsState = w.dnsCheck(mResolvedHostIP);
 	}
 	
@@ -232,6 +305,8 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 	    // have ipAddress
 	    Str ip;
 	    TRACE2("Have IP Address after waiting (ms) ", (now-mDnsWaitStart));
+	    if (!sDnsResolutions.isFull())
+	        sDnsResolutions.add(mSpecifiedHostname, mResolvedHostIP);
 	    TRACE2("IP: ", IPtoString(mResolvedHostIP).c_str());
 	    setOpState(HTTP_INIT);
 	}
@@ -264,17 +339,18 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
         ConnectStat stat;
         if (m_opState == HTTP_INIT) {
 	    TRACE("HTTP_INIT");
-	    mHttpConnectCnt = 100; //100*100ms == 20s
-	    stat = httpConnectInit(mResolvedHostIP, mSpecifiedHostName.c_str());
+	    mHttpConnectCnt = 100; //100*100ms == 10s
+	    stat = httpConnectInit(mResolvedHostIP, mSpecifiedHostname.c_str());
 	    mHttpWaitStart = now;
 	    setOpState(HTTP_WAITING);
 	} else {
-	    //TRACE("HTTP_WAITING");
+	    TRACE("HTTP_WAITING");
 	    stat = httpConnectCheck();
 	}
 	switch (stat) {
 	case WORKING: {
 	    TF("HttpOp::event; HTTP_INIT; WORKING");
+	    TRACE("WORKING");
 	    *callMeBackIn_ms = 100l;
 	    if (--mHttpConnectCnt == 0) {
 	        TRACE2("HTTP_WAITING timeout after (ms) ", (now-mHttpWaitStart));
@@ -288,6 +364,7 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 	    break;
 	case CONNECTED: {
 	    TF("HttpOp::event; HTTP_INIT; CONNECTED");
+	    TRACE("CONNECTED");
 	    setOpState(ISSUE_OP);
 	    *callMeBackIn_ms = 10l;
 	}
@@ -309,15 +386,27 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
     case CHUNKING: 
         TRACE("ERROR: derived class should handle the ISSUE_OP and CHUNKING states");
 	return UnknownFailure;
+    case ISSUE_OP_FLUSH: {
+        int remaining;
+        if (getContext().getClient().flushOut(&remaining) && (remaining == 0)) {
+	    setOpState(CONSUME_RESPONSE);
+	}
+	return CallMeBack;
+    }
+      break;
     case CONSUME_RESPONSE: {
         TF("HttpOp::event; CONSUME_RESPONSE");
         //TRACE2("CONSUME_RESPONSE ", now);
         if (!getResponseConsumer().consume(now)) {
-	    bool isError = getResponseConsumer().isError();
 	    m_finalResult = HTTPSuccessResponse; // start optimistically
-	    TRACE("http operation done: ");
-	    if (isError) {
-	        TRACE2("Errmsg from response consumer: ", getResponseConsumer().getErrmsg().c_str());
+	    if (!getResponseConsumer().isError()) {
+	      TRACE("http operation done: ");
+	    } else {
+	        if (getResponseConsumer().isTimeout()) {
+		    TRACE("TIMEOUT from response consumer");
+		} else {
+		    TRACE2("Errmsg from response consumer: ", getResponseConsumer().getErrmsg().c_str());
+		}
 		m_finalResult = HTTPFailureResponse;
 	        if (getRetryCnt() < MaxRetries) {
 		    TRACE2("retry #",(getRetryCnt()+1));
@@ -329,7 +418,7 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 	    }
 	    setOpState(DISCONNECTING);
 	}
-	*callMeBackIn_ms = 10l;
+	*callMeBackIn_ms = 50l;
 	return CallMeBack;
     }
     case DISCONNECTING: {

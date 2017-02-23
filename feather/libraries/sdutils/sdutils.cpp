@@ -4,7 +4,7 @@
 
 #include <wiring_private.h> // pinPeripheral function
 
-//#define NDEBUG
+#define NDEBUG
 #include <strutils.h>
 
 /* STATIC */

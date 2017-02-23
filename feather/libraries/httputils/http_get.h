@@ -9,10 +9,12 @@ class HttpGet : public HttpOp {
  public:
    HttpGet(const char *ssid, const char *ssidPswd, 
 	   const char *host, int port, const char *page,
-	   const char *credentials, bool isSSL = false);
+	   const char *dbUser, const char *dbPswd,
+	   bool isSSL = false);
    HttpGet(const char *ssid, const char *ssidPswd, 
 	   const IPAddress &hostip, int port, const char *page,
-	   const char *credentials, bool isSSL = false);
+	   const char *dbUser, const char *dbPswd,
+	   bool isSSL = false);
 
    virtual ~HttpGet() {}
 
@@ -29,6 +31,8 @@ class HttpGet : public HttpOp {
    // returns true on success
    virtual bool testSuccess() const {return true;}
 
+   virtual bool leaveOpen() const {return false;}
+   
    virtual void sendGET(class Stream &) const;
    virtual void sendPage(class Stream &) const;
 

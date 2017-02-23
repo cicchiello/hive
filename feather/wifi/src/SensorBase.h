@@ -7,6 +7,7 @@
 class Str;
 class Mutex;
 class HiveConfig;
+class HttpCouchConsumer;
 
 
 class SensorBase : public Sensor {
@@ -17,23 +18,26 @@ class SensorBase : public Sensor {
 	       unsigned long now);
     ~SensorBase();
 
-    bool isItTimeYet(unsigned long now);
     bool loop(unsigned long now, Mutex *wifi);
 
     virtual bool sensorSample(Str *value) = 0;
 
  protected:
+    const HiveConfig &getConfig() const {return mConfig;}
+    
     unsigned long getNextSampleTime() const;
     void setNextSampleTime(unsigned long n);
     
     unsigned long getNextPostTime() const;
     void setNextPostTime(unsigned long n);
     
+    bool postImplementation(unsigned long now, Mutex *wifi);
+    
+    virtual bool processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms);
+    
  private:
-    virtual const void *getSemaphore() const = 0;
-
-    // helper function
-    static void setNextTime(unsigned long now, unsigned long *t);
+    SensorBase(const SensorBase &); // intentionally unimplemented
+    const SensorBase &operator=(const SensorBase &o); // intentionallly unimplemented
     
     unsigned long mNextSampleTime, mNextPostTime;
 

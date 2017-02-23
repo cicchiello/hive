@@ -9,11 +9,11 @@ class HttpCouchPut : private HttpCouchGet {
    HttpCouchPut(const char *ssid, const char *ssidPswd, 
 		const char *host, int port, const char *page,
 		const CouchUtils::Doc &content,
-		const char *credentials, bool isSSL = false);
+		const char *dbUser, const char *dbPswd, bool isSSL = false);
    HttpCouchPut(const char *ssid, const char *ssidPswd, 
 		const IPAddress &hostip, int port, const char *page,
 		const CouchUtils::Doc &content,
-		const char *credentials, bool isSSL = false);
+		const char *dbUser, const char *dbPswd, bool isSSL = false);
    ~HttpCouchPut() {}
 
    using HttpCouchGet::EventResult;

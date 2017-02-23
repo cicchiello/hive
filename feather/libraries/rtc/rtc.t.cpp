@@ -30,9 +30,9 @@ private:
 
 public:
     RTCTestGetter(RTCTest *test,
-		  const char *url, const char *credentials)
+		  const char *url, const char *dbUser, const char *dbPswd)
       : HttpCouchGet(test->ssid, test->pass, HttpOpTest::sslDbHost, HttpOpTest::sslDbPort,
-		     url, credentials, true),
+		     url, dbUser, dbPswd, true),
 	m_test(test)
     {
         TF("RTCTestGetter::RTCTestGetter");
@@ -77,7 +77,8 @@ bool RTCTest::loop()
 	    TRACE("creating getter");
 	    Str url;
 	    CouchUtils::toURL(TimestampDb, TimestampDocId, &url);
-	    m_getter = m_rtcGetter = new RTCTestGetter(this, url.c_str(), HttpOpTest::sslDbCredentials);
+	    m_getter = m_rtcGetter = new RTCTestGetter(this, url.c_str(),
+						       HttpOpTest::sslDbUser, HttpOpTest::sslDbPswd);
 	} else {
 	    TRACE("processing event");
 	    unsigned long callMeBackIn_ms = 0;

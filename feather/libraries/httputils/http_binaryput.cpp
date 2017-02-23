@@ -2,7 +2,8 @@
 
 #include <wifiutils.h>
 
-//#define NDEBUG
+#define HEADLESS
+#define NDEBUG
 #include <strutils.h>
 
 #include <Trace.h>
@@ -14,6 +15,8 @@
 #include <platformutils.h>
 
 
+//#define ENABLE_TRACKING
+#ifdef ENABLE_TRACKING
 struct Tracker {
   unsigned long writeDelta;
   unsigned long endTime;
@@ -36,14 +39,15 @@ void dumpStats()
     P("avg delta: "); PL(totalDelta/trackerCnt);
     trackerCnt = 0;
 }
-
+#endif
 
 
 HttpBinaryPut::HttpBinaryPut(const char *ssid, const char *ssidPswd, 
-			     const char *host, int port, const char *page, const char *credentials,
+			     const char *host, int port, const char *page,
+			     const char *dbUser, const char *dbPswd, 
 			     bool isSSL, HttpDataProvider *provider, const char *contentType)
-  : HttpCouchGet(ssid, ssidPswd, host, port, page, credentials, isSSL),
-    m_provider(provider), m_contentType(contentType), m_writtenCnt(0)
+  : HttpCouchGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
+    m_provider(provider), m_contentType(contentType), m_writtenCnt(0), mRetryFlush(false)
 {
    TF("HttpBinaryPut::HttpBinaryPut");
    TRACE2("Using ssid: ",ssid);
@@ -55,9 +59,10 @@ HttpBinaryPut::HttpBinaryPut(const char *ssid, const char *ssidPswd,
 }
 
 HttpBinaryPut::HttpBinaryPut(const char *ssid, const char *ssidPswd, 
-			     const IPAddress &hostip, int port, const char *page, const char *credentials,
+			     const IPAddress &hostip, int port, const char *page,
+			     const char *dbUser, const char *dbPswd, 
 			     bool isSSL, HttpDataProvider *provider, const char *contentType)
-  : HttpCouchGet(ssid, ssidPswd, hostip, port, page, credentials, isSSL),
+  : HttpCouchGet(ssid, ssidPswd, hostip, port, page, dbUser, dbPswd, isSSL),
     m_provider(provider), m_contentType(contentType), m_writtenCnt(0)
 {
    TF("HttpBinaryPut::HttpBinaryPut");
@@ -124,10 +129,10 @@ HttpBinaryPut::EventResult HttpBinaryPut::event(unsigned long now, unsigned long
     OpState opState = getOpState();
     switch (opState) {
     case ISSUE_OP: {
-        TRACE("ISSUE_OP");
+        TF("HttpBinaryPut::event; ISSUE_OP");
 
 	sendPUT(getContext().getClient(), m_provider->getSize());
-	setOpState(CHUNKING);
+	setOpState(ISSUE_OP_FLUSH);
 	m_provider->start();
 	getHeaderConsumer().setTimeout(20000); // 20s
 	
@@ -135,18 +140,21 @@ HttpBinaryPut::EventResult HttpBinaryPut::event(unsigned long now, unsigned long
 	return CallMeBack;
     }
       break;
+      
+    case ISSUE_OP_FLUSH: {
+        EventResult er = HttpCouchGet::event(now, callMeBackIn_ms);
+	if (opState != ISSUE_OP_FLUSH)
+	    setOpState(CHUNKING);
+    }
+      break;
+      
     case CHUNKING: {
-        unsigned char *buf = 0;
-	int sz = m_provider->takeIfAvailable(&buf);
-	while (sz > 0) {
-	    unsigned long b = micros();
-	    getContext().getClient().write(buf, sz);
-	    m_provider->giveBack(buf);
-	    m_writtenCnt += sz;
-	    unsigned long n = micros();
-	    tracker[trackerCnt].endTime = n;
-	    tracker[trackerCnt++].writeDelta = n - b;
-
+        TF("HttpBinaryPut::event; CHUNKING");
+        if (mRetryFlush) {
+	    int remaining;
+	    getContext().getClient().flushOut(&remaining);
+	    mRetryFlush = remaining > 0;
+	} else {
 	    if (m_provider->isDone()) {
 	        TRACE3("Done writing; wrote: ", m_writtenCnt, " bytes");
 		setOpState(CONSUME_RESPONSE);
@@ -157,18 +165,50 @@ HttpBinaryPut::EventResult HttpBinaryPut::event(unsigned long now, unsigned long
 		}
 		assert(m_writtenCnt == m_provider->getSize(), "m_writtenCnt == m_provider->getSize()");
 		m_provider->close();
-		sz = 0;
 	    } else {
-	        PlatformUtils::nonConstSingleton().clearWDT();
-	        sz = m_provider->takeIfAvailable(&buf);
+	        unsigned char *buf = 0;
+		int sz = m_provider->takeIfAvailable(&buf);
+		if (sz > 0) {
+		    unsigned long b = micros();
+		    TRACE2("Sending a chunk of size ", sz);
+		    getContext().getClient().write(buf, sz);
+
+		    int remaining;
+		    getContext().getClient().flushOut(&remaining);
+		    mRetryFlush = remaining > 0;
+
+#ifndef HEADLESS
+#ifndef NDEBUG
+		    TRACE("Sent the following chunk: ");
+		    for (int ii = 0; ii < sz; ii++) {
+		        _TAG("TRACE"); _TAG(tscope.getFunc()); _TAG(__FILE__); _TAG(__LINE__);
+			Serial.println((int) buf[ii], HEX);
+		    }
+		    
+#endif
+#endif
+
+		    m_provider->giveBack(buf);
+		    m_writtenCnt += sz;
+
+#ifdef ENABLE_TRACKING		
+		    unsigned long n = micros();
+		    tracker[trackerCnt].endTime = n;
+		    tracker[trackerCnt++].writeDelta = n - b;
+#endif		
+
+		} else {
+		    TRACE("Nothing available");
+		}
 	    }
 	}
-      
+
 	*callMeBackIn_ms = 1l;
 	return CallMeBack;
     }
       break;
     default:
+        TF("HttpBinaryPut::event; default");
         return this->HttpCouchGet::event(now, callMeBackIn_ms);
     }
 }

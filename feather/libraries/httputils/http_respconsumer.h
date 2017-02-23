@@ -18,6 +18,8 @@ class HttpResponseConsumer {
 
   virtual bool isError() const = 0;
   virtual const Str &getErrmsg() const = 0;
+  
+  virtual bool isTimeout() const = 0;
 
   unsigned long getTimeout() const {return m_timeout;}
   void setTimeout(unsigned long ms) {m_timeout = ms;}

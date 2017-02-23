@@ -1,5 +1,6 @@
-#include <ConfigWriter.h>
+#include <docwriter.h>
 
+#define HEADLESS
 #define NDEBUG
 #include <strutils.h>
 
@@ -13,21 +14,21 @@
 
 
 
-ConfigWriter::ConfigWriter(const char *filename, const CouchUtils::Doc &config)
-  : mConfig(config), mIsDone(false)
+DocWriter::DocWriter(const char *filename, const CouchUtils::Doc &config)
+  : mDoc(config), mIsDone(false)
     //  ,mErrMsg(new Str("no error")), mFilename(new Str(filename))
 {
-    TF("ConfigWriter::ConfigWriter");
+    TF("DocWriter::DocWriter");
     TRACE("trace");
     mErrMsg = new Str("no error");
     TRACE("trace");
     mFilename = new Str(filename);
-    TRACE("initializing ConfigWriter; doc: ");
-    //CouchUtils::printDoc(mConfig);
+    TRACE("initializing DocWriter; doc: ");
+    //CouchUtils::printDoc(mDoc);
 }
 
 
-ConfigWriter::~ConfigWriter()
+DocWriter::~DocWriter()
 {
     delete mErrMsg;
     delete mFilename;
@@ -95,12 +96,10 @@ static bool writeFile(const char *filename, const CouchUtils::Doc &contents, Str
 }
 
 
-bool ConfigWriter::loop() {
-    TF("ConfigWriter::loop");
+bool DocWriter::loop() {
+    TF("DocWriter::loop");
 
     if (!mIsDone) {
-TRACE("doc: ");	
-CouchUtils::printDoc(mConfig);
         mIsDone = true;
 	mSuccess = false;
     
@@ -122,13 +121,11 @@ CouchUtils::printDoc(mConfig);
 	}
 	
 	Str rawContents;
-	if (!writeFile(mFilename->c_str(), mConfig, mErrMsg)) {
+	if (!writeFile(mFilename->c_str(), mDoc, mErrMsg)) {
 	    // errMsg set within writeFile
 	    return false;
 	}
 
-TRACE("doc: ");	
-CouchUtils::printDoc(mConfig);
 	mSuccess = true;
     }
     

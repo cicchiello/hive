@@ -2,19 +2,20 @@ ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 APP=hive
 
-TESTS=feather blink beecnt latch audio
+TESTS=feather blink beecnt latch audio couchutils.t Provision.t 
 
 DFAMILY=samd21
 
 TESTBINS=$(addsuffix .t.bin,$(TESTS))
 TESTOBJS=$(addsuffix .t.o,$(TESTS))
 LOCALOBJS= \
-        Timestamp.o Sensor.o Actuator.o Heartbeat.o \
+        Sensor.o Actuator.o Heartbeat.o \
 	hive_platform.o Trace.o \
 	SensorRateActuator.o TempSensor.o HumidSensor.o \
-	ConfigReader.o ConfigWriter.o hiveconfig.o \
+	hiveconfig.o \
 	SensorBase.o StepperMonitor.o ActuatorBase.o StepperActuator.o \
-	beecnt.o latch.o AudioActuator.o sine.o
+	beecnt.o latch.o AudioActuator.o Provision.o Indicator.o \
+	AppChannel.o AudioUpload.o
 
 #	ServoConfigActuator.o \
 

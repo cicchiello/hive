@@ -2,16 +2,15 @@
 #define TempSensor_h
 
 
-#include <Sensor.h>
+#include <SensorBase.h>
 
 class Str;
-class Mutex;
-class HiveConfig;
 
 
-class TempSensor : public Sensor {
+class TempSensor : public SensorBase {
  public:
-    TempSensor(const HiveConfig &config, const char *name,
+    TempSensor(const HiveConfig &config,
+	       const char *name,
 	       const class RateProvider &rateProvider,
 	       const class TimeProvider &timeProvider,
 	       unsigned long now);
@@ -20,9 +19,6 @@ class TempSensor : public Sensor {
     bool hasTemp() const {return mHasTemp;}
     double getTemp() const {return mT;}
     
-    bool isItTimeYet(unsigned long now);
-    bool loop(unsigned long now, Mutex *wifi);
-
     bool sensorSample(Str *value);
     
  private:
@@ -32,11 +28,6 @@ class TempSensor : public Sensor {
     double mT;
     bool mHasTemp;
 
-    unsigned long mNextSampleTime, mNextPostTime;
-    
-    const HiveConfig &mConfig;
-    class HttpCouchPost *mPoster;
-    
     friend class HumidSensor;
     static class DHT &getDht();
 };

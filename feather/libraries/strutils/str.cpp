@@ -132,6 +132,15 @@ void Str::expand(int required)
     }
 }
 
+bool Str::equals(const Str &other) const
+{
+    if (this == &other)
+        return true;
+
+    return strcmp(c_str(), other.c_str()) == 0;
+}
+
+
 Str &Str::operator=(const Str &o)
 {
     assert(!deleted, "!deleted");
@@ -158,3 +167,29 @@ Str &Str::operator=(const char *o)
     return *this;
 }
   
+
+bool Str::endsWith(const char *cmp) const
+{
+    return strcmp(c_str()+len()-strlen(cmp), cmp) == 0;
+}
+
+
+Str Str::tolower() const
+{
+    Str r(*this);
+
+    for (int i = 0; i < r.len(); i++)
+      if ((r.c_str()[i] >= 'A') && (r.c_str()[i] <= 'Z')) {
+	  const char *ptr = r.c_str() + i;
+	  char *nonConstPtr = (char*) ptr;
+	  *nonConstPtr -= 'A' - 'a';
+      }
+
+    return r;
+}
+
+
+bool Str::lessThan(const Str &o) const
+{
+    return strcmp(c_str(), o.c_str()) < 0;
+}

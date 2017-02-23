@@ -177,3 +177,53 @@ Str StringUtils::TAG(const char *func, const char *msg)
     return tag;
 }
 
+
+int StringUtils::ahextoi(const char *hexascii, int len)
+{
+    int r = 0;
+    for (int i = 0; i < len; i++) {
+        unsigned char b = hexascii[i]-'0';
+	if (b > 9 && hexascii[i]>='a' && hexascii[i]<='f')
+	    b = hexascii[i]-'a'+10;
+	if (b > 9 && hexascii[i]>='A' && hexascii[i]<='F')
+	    b = hexascii[i]-'A'+10;
+	r *= 16;
+	r += b;
+    }
+    return r;
+}
+
+
+/* STATIC */
+const char *StringUtils::replace(Str *result, const char *orig, const char *match, const char *repl)
+{
+    const char *src=orig; // points to current loc withini orig
+
+    while (true) {
+        const char *ins = strstr(src, match);
+	if (ins == NULL) {
+	    // no more matches to replace -- just need to copy the remainder of the unaltered src to dst
+	    result->append(src);
+	    return result->c_str();
+	} else {
+	    // copy everything before the match str
+	    for (const char *ptr = src; ptr < ins; ptr++)
+	        result->append(*ptr);
+	    result->append((char)0);   // make sure it's terminated
+	    src += (ins-src) + strlen(match);     // advance src to loc just beyond match str
+	    result->append(repl);
+	}
+    }
+
+    return NULL;
+}
+
+
+bool StringUtils::isNumber(const char *s) {
+  bool foundAtLeastOne = false;
+  while (s && *s && (*s >= '0') && (*s <= '9')) {
+      foundAtLeastOne = true;
+      s++;
+  }
+  return foundAtLeastOne;
+}

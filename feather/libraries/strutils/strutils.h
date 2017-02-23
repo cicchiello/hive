@@ -43,7 +43,9 @@
 #      define FAIL() 
 #   endif
 
-#   define assert(t,msg)
+#   ifndef assert
+#      define assert(t,msg)
+#   endif
 
 #else
 
@@ -56,7 +58,9 @@
 #   define DHL(msg) PHL(msg)
 #   define DL(msg) PL(msg)
 
-#   define assert(t,msg) if (!(t)) {D(__FILE__); D("; line "); D(__LINE__); D("; "); DL(msg); FAIL();}
+#   ifndef assert
+#      define assert(t,msg) if (!(t)) {D(__FILE__); D("; line "); D(__LINE__); D("; "); DL(msg); FAIL();}
+#   endif
 
 #endif
 
@@ -81,9 +85,14 @@ public:
   static void consumeNumber(Str *line);
   
   static void itoahex(char buf[2], char i);
+  static int ahextoi(const char *hexascii, int len);
+
+  static bool isNumber(const char *);
 
   static void urlEncodePrint(Stream &stream, const char *msg);
 
+  static const char *replace(Str *result, const char *orig, const char *match, const char *repl);
+  
   static Str TAG(const char *func, const char *msg);
 };
 

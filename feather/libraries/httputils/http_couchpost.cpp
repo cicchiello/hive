@@ -1,7 +1,7 @@
 #include <http_couchpost.h>
 
 
-//#define HEADLESS
+#define HEADLESS
 #define NDEBUG
 #include <strutils.h>
 
@@ -9,20 +9,20 @@
 
 
 HttpCouchPost::HttpCouchPost(const char *ssid, const char *ssidPswd, 
-			   const char *host, int port, const char *page,
-			   const CouchUtils::Doc &content,
-			   const char *credentials, bool isSSL)
-  : HttpCouchGet(ssid, ssidPswd, host, port, page, credentials, isSSL),
+			     const char *host, int port, const char *page,
+			     const CouchUtils::Doc &content,
+			     const char *dbUser, const char *dbPswd, bool isSSL)
+  : HttpCouchGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
     m_content(content)
 {
 }
 
 
 HttpCouchPost::HttpCouchPost(const char *ssid, const char *ssidPswd, 
-			   const IPAddress &hostip, int port, const char *page,
-			   const CouchUtils::Doc &content,
-			   const char *credentials, bool isSSL)
-  : HttpCouchGet(ssid, ssidPswd, hostip, port, page, credentials, isSSL),
+			     const IPAddress &hostip, int port, const char *page,
+			     const CouchUtils::Doc &content,
+			     const char *dbUser, const char *dbPswd, bool isSSL)
+  : HttpCouchGet(ssid, ssidPswd, hostip, port, page, dbUser, dbPswd, isSSL),
     m_content(content)
 {
 }
@@ -30,6 +30,7 @@ HttpCouchPost::HttpCouchPost(const char *ssid, const char *ssidPswd,
 
 void HttpCouchPost::sendPOST(Stream &s, int contentLength) const
 {
+    TF("HttpCouchPost::sendPOST");
     D("POST ");
     s.print("POST ");
     sendPage(s);
@@ -68,24 +69,22 @@ void HttpCouchPost::sendDoc(Stream &s, const char *doc) const
 HttpOp::EventResult HttpCouchPost::event(unsigned long now, unsigned long *callMeBackIn_ms)
 {
     TF("HttpCouchPost::event");
-    TRACE("entry");
 
     OpState opState = getOpState();
     switch (opState) {
     case ISSUE_OP: {
         TRACE("ISSUE_OP");
-        WiFiClient &client = getContext().getClient();
 	
 	Str str;
 	CouchUtils::toString(m_content, &str);
 	    
-	sendPOST(client, str.len());
+	sendPOST(getContext().getClient(), str.len());
 	if (str.len() > 0) {
-	    sendDoc(client, str.c_str());
-	    client.flush();
+	    sendDoc(getContext().getClient(), str.c_str());
 	}
 	    
-	setOpState(CONSUME_RESPONSE);
+	setOpState(ISSUE_OP_FLUSH);
+	
 	*callMeBackIn_ms = 10l;
 	return CallMeBack;
     }

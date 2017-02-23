@@ -8,8 +8,9 @@
 
 HttpCouchGet::HttpCouchGet(const char *ssid, const char *ssidPswd, 
 			   const char *host, int port, const char *page,
-			   const char *credentials, bool isSSL)
-  : HttpGet(ssid, ssidPswd, host, port, page, credentials, isSSL),
+			   const char *dbUser, const char *dbPswd,
+			   bool isSSL)
+  : HttpGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
     m_consumer(getContext())
 {
     init();
@@ -18,8 +19,9 @@ HttpCouchGet::HttpCouchGet(const char *ssid, const char *ssidPswd,
 
 HttpCouchGet::HttpCouchGet(const char *ssid, const char *ssidPswd, 
 			   const IPAddress &hostip, int port, const char *page,
-			   const char *credentials, bool isSSL)
-  : HttpGet(ssid, ssidPswd, hostip, port, page, credentials, isSSL),
+			   const char *dbUser, const char *dbPswd,
+			   bool isSSL)
+  : HttpGet(ssid, ssidPswd, hostip, port, page, dbUser, dbPswd, isSSL),
     m_consumer(getContext())
 {
     init();
@@ -54,10 +56,14 @@ bool HttpCouchGet::haveDoc() const
     TF("HttpCouchGet::haveDoc");
     TRACE("entry");
     if (!m_parsedDoc) {
-        HttpCouchGet *nonConstThis = (HttpCouchGet*) this;
-	nonConstThis->m_haveDoc = nonConstThis->m_consumer.parseDoc(&nonConstThis->m_doc) != 0;
-	nonConstThis->m_parsedDoc = true;
-	TRACE("parsed");
+
+        if (m_consumer.hasOk()) {
+	    HttpCouchGet *nonConstThis = (HttpCouchGet*) this;
+	    nonConstThis->m_parsedDoc = true;
+	    
+	    nonConstThis->m_haveDoc = nonConstThis->m_consumer.parseDoc(&nonConstThis->m_doc) != 0;
+	    TRACE("parsed");
+	}
     }
     return m_haveDoc;
 }
@@ -66,7 +72,7 @@ bool HttpCouchGet::haveDoc() const
 bool HttpCouchGet::testSuccess() const
 {
     TF("HttpCouchGet::testSuccess");
-    bool r = getHeaderConsumer().hasOk();
+    bool r = getHeaderConsumer().hasOk() || getHeaderConsumer().hasNotFound();
     TRACE(r ? "looks good" : "failed");
     return r;
 }

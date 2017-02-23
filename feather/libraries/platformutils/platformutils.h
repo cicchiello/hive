@@ -13,6 +13,9 @@ class PlatformUtils {
     // full system reset, ensuring that the Feather's bootloader is launched at reset
     void resetToBootloader();
 
+    // full system reset without attempting to re-enter bootloader
+    void reset();
+
     
     void setRTC(const char *timestr);
 
@@ -44,8 +47,10 @@ class PlatformUtils {
     void shutdownWDT(WDT_EarlyWarning_Func replacement);
 
     static const char *s_traceStr;
+    static unsigned long s_traceTime;
     
     void clearWDT();
+    void markWDT(const char *msg, unsigned long now) const;
 
     long getCountdownVal() const;
     void setCountdownVal(long v);
@@ -111,6 +116,13 @@ inline
 void PlatformUtils::setRTC(const char *timestamp)
 {
     m_timestamp = timestamp;
+}
+
+inline
+void PlatformUtils::markWDT(const char *msg, unsigned long now) const
+{
+    s_traceStr = msg;
+    s_traceTime = now;
 }
 
 #endif

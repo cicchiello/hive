@@ -10,7 +10,7 @@ class Str;
 class HttpBinaryPutTest : public HttpPutBaseTest {
   public:
     HttpBinaryPutTest();
-    HttpBinaryPutTest(const char *credentials,
+    HttpBinaryPutTest(const char *dbUser, const char *dbPswd,
 		      const char *dbHost,
 		      int dbPort,
 		      bool isSSL);

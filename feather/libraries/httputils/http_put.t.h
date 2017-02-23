@@ -11,7 +11,7 @@ class HttpCouchGet;
 class HttpPutTest : public HttpPutBaseTest {
   public:
     HttpPutTest();
-    HttpPutTest(const char *credentials,
+    HttpPutTest(const char *dbUser, const char *dbPswd,
 		const char *dbHost,
 		int dbPort,
 		bool isSSL);

@@ -1,10 +1,11 @@
 #include <listener.h>
 
+#define HEADLESS
 #define NDEBUG
-#include <strutils.h>
 
 #include <Trace.h>
 
+#include <strutils.h>
 #include <sdutils.h>
 
 #include <adcutils.h>
@@ -15,14 +16,6 @@ static void fail(const char *errMsg);
 
 #include <SdFat.h>
 
-
-#ifndef NDEBUG
-#define assert(t,msg) if(!(t)) {P(__FILE__); P("; "); P(__LINE__); P("; "); PL(msg); fail(msg);}
-#define failtest(t,msg) assert(t,msg)
-#else
-#define assert(t,msg) {}
-#define failtest(t,msg) if(!(t)) {P(__FILE__); P("; "); P(__LINE__); P("; "); PL(msg); fail(msg);}
-#endif
 
 
 // size of the contiguous raw file
@@ -36,32 +29,55 @@ const char *RAW_FILENAME = "LISTEN.RAW";
 static Listener *s_currListener = NULL;
 
 
-Listener::Listener(int ADCPIN) 
-  : m_sd(NULL), m_file(NULL), m_ADCPIN(ADCPIN), m_errMsg(NULL),
+Listener::Listener(int ADCPIN, int BIASPIN) 
+  : m_sd(NULL), m_file(NULL), m_ADCPIN(ADCPIN), m_BIASPIN(BIASPIN), m_errMsg(NULL),
     m_initializedADC(false), m_wavCreator(NULL), 
-    m_fifo(8), m_min(0x7fff), m_max(-32766), m_avg(0), m_sampleCnt(0), m_skipCnt(0)
+    m_fifo(4), m_min(0x7fff), m_max(-32766), m_avg(0), m_sampleCnt(0), m_skipCnt(0)
 {
+    TF("Listener::Listener");
     assert(s_currListener == NULL, "singleton rule violated for Listener");
     s_currListener = this;
-    
+
+
+    // for SAMD21, A0 is the only pin that can be configured as DAC output
+    assert(m_BIASPIN == A0, "DAC is only supported on A0");
+
+
+    // the following should probably be done only once, when listening is about to start, then disabled
+    // when it stops.  But for now, just do it by virtue of the object being in existence
+    pinMode(A0, OUTPUT);
+
+    DAC->CTRLA.bit.ENABLE = 0x01;     // Enable DAC
+    while (DAC->STATUS.bit.SYNCBUSY == 1)
+        ;
+
+    DAC->DATA.reg = 155; // value chosen to produce 0.5V on a 0->3.3V scale, based on 10bits resolution
 }
 
 Listener::~Listener()
 {
+    TF("Listener::~Listener");
     s_currListener = NULL;
 
     delete m_wavCreator;
+
+    pinMode(A0, INPUT);
+    
+    DAC->CTRLA.bit.ENABLE = 0x001;     // Disable DAC
+    while (DAC->STATUS.bit.SYNCBUSY == 1)
+        ;
 }
 
 
 void Listener::stopRecord() 
 {
+    TF("Listener::stopRecord");
     assert(m_fifo.isEmpty(), "Buffer isn't empty yet");
     if (m_initializedADC)
         ADCUtils::nonConstSingleton().shutdown();
     if (m_sd != NULL) {
         bool stat = m_sd->card()->writeStop();
-	failtest(stat, "writeStop failed");
+	assert(stat, "writeStop failed");
 
 	if (m_file != NULL) {
 	    m_file->close();
@@ -78,7 +94,7 @@ void Listener::stopRecord()
 
 void Listener::fail(const char *errMsg)
 {
-    PL("Failure being reported");
+    TF("Listener::fail");
     m_errMsg = errMsg;
     while (!m_fifo.isEmpty()) {
 	ADCUtils::nonConstSingleton().freeBuf(m_fifo.pop());
@@ -90,7 +106,7 @@ void Listener::fail(const char *errMsg)
 /* STATIC */
 void fail(const char *errMsg)
 {
-    PF("fail; ");
+    TF("::fail");
     if (s_currListener == NULL) {
         PHL(errMsg);
     } else {
@@ -102,7 +118,8 @@ void fail(const char *errMsg)
 
 void persistBuffer(uint16_t *buf)
 {
-    failtest(!s_currListener->m_fifo.isFull(), "Fifo is full!?!?");
+    TF("::persistBuffer");
+    assert(!s_currListener->m_fifo.isFull(), "Fifo is full!?!?");
     assert(buf, "buf is NULL");
     if (s_currListener->m_state != Listener::Capturing) {
         if (s_currListener->m_state == Listener::CaptureStopped) {
@@ -124,7 +141,7 @@ bool Listener::record(unsigned int duration_ms, const char *wavFilename, bool ve
 {
     TF("Listener::record");
     if (verbose) {
-        TRACE2("start time (ms): ", millis());
+        TRACE2("Listener::record ", millis());
     }
     
     m_wavFilename = wavFilename;
@@ -140,43 +157,39 @@ bool Listener::record(unsigned int duration_ms, const char *wavFilename, bool ve
   
     // we'll use the initialization code from the utility libraries
     bool exists = SDUtils::initSd(*m_sd);
-    failtest(exists, "Couldn't initialize sd");
+    assert(exists, "Couldn't initialize sd");
     
     // delete possible existing file
     exists = m_sd->exists(RAW_FILENAME);
     if (exists) {
-        TRACE("Deleting old RAW_FILENAME");
+        PL("Deleting old RAW_FILENAME");
         m_sd->remove(RAW_FILENAME);
 	exists = m_sd->exists(RAW_FILENAME);
-	failtest(!exists, "Couldn't delete old RAW_FILENAME");
+	assert(!exists, "Couldn't delete old RAW_FILENAME");
     }
 
     // creat a contiguous file
     bool stat = m_file->createContiguous(m_sd->vwd(), RAW_FILENAME,
 					 SD_BLOCK_COUNT(m_duration_ms)*SD_BLK_SZ);
-    failtest(stat, "error creating contiguous file");
+    assert(stat, "error creating contiguous file");
 
     // get the location of the file's blocks
     uint32_t bgnBlock, endBlock;
     stat = m_file->contiguousRange(&bgnBlock, &endBlock);
-    failtest(stat, "error getting contiguous range bounds");
+    assert(stat, "error getting contiguous range bounds");
 
     // tell card to setup for multiple block write with pre-erase
     stat = m_sd->card()->erase(bgnBlock, endBlock);
-    failtest(stat, "card.erase failed");
+    assert(stat, "card.erase failed");
 
     if (verbose) {
-        PH("Recording for ");
-	P(m_duration_ms);
-	PL(" ms");
-	PH("Setting up raw file to accommodate ");
-	P(SD_BLOCK_COUNT(m_duration_ms));
-	PL(" SD blocks");
+        TRACE2("Recording for (ms): ", m_duration_ms);
+	TRACE3("Setting up raw file to accommodate ", SD_BLOCK_COUNT(m_duration_ms), " SD blocks");
     }
     
     stat = m_sd->card()->writeStart(bgnBlock, SD_BLOCK_COUNT(m_duration_ms));
-    failtest(stat, "writeStart failed");
-
+    assert(stat, "writeStart failed");
+ 
     // clear the cache and use it as a 512 byte buffer
     m_cache = (uint8_t*)m_sd->vol()->cacheClear();
     m_icache = 0;
@@ -198,6 +211,8 @@ bool Listener::record(unsigned int duration_ms, const char *wavFilename, bool ve
 
 void Listener::writeSD(volatile const uint16_t *buf) 
 {
+    TF("Listener::writeSD");
+    
     //*********************************NOTE**************************************
     // NO SdFile calls are allowed while cache is used for raw writes
     //***************************************************************************
@@ -219,7 +234,7 @@ void Listener::writeSD(volatile const uint16_t *buf)
 	}
 	if (m_icache == SD_BLK_SZ && !hasError()) {
 	    bool stat = m_sd->card()->writeData(m_cache);
-	    failtest(stat, "writeData failed");
+	    assert(stat, "writeData failed");
 	    dataIsQueued = false;
 	    
 	    m_icache = 0;
@@ -234,6 +249,8 @@ void Listener::writeSD(volatile const uint16_t *buf)
 
 void Listener::flushSD() 
 {
+    TF("Listener::flushSD");
+    
     //*********************************NOTE**************************************
     // NO SdFile calls are allowed while cache is used for raw writes
     //***************************************************************************
@@ -254,7 +271,7 @@ void Listener::flushSD()
 	if (m_icache == SD_BLK_SZ && !hasError()) {
 	    PL("Wrote partially empty final block");
 	    bool stat = m_sd->card()->writeData(m_cache);
-	    failtest(stat, "writeData failed");
+	    assert(stat, "writeData failed");
 	    
 	    m_icache = 0;
 	    m_chunkCnt++;
@@ -268,12 +285,14 @@ void Listener::flushSD()
 
 void Listener::processBuffer()
 {
+    TF("Listener::processBuffer");
+    
     // should have a complete buffer in the fifo
     int d;
     assert((d = m_fifo.depth()) >= 0, "always true; just capturing d for later assert");
     uint16_t *buf = m_fifo.pop();
     assert(d-1 == m_fifo.depth(), "re-entrant problem trapped");
-    failtest(buf != NULL, "Received NULL from popFifo");
+    assert(buf != NULL, "Received NULL from popFifo");
     if (m_chunkCnt < SD_BLOCK_COUNT(m_duration_ms)) 
         writeSD(buf);
     else
@@ -284,7 +303,7 @@ void Listener::processBuffer()
 
 bool Listener::loop(bool verbose) 
 {
-    PF("Listener::loop; ");
+    TF("Listener::loop");
     
     unsigned long now = micros();
     switch (m_state) {
@@ -318,18 +337,17 @@ bool Listener::loop(bool verbose)
 	    
 	    if (!hasError()) {
 		if (verbose) {
-		    PH("Generating ");
-		    P(m_wavFilename);
-		    P(" from raw file ");
-		    PL(RAW_FILENAME);
+		    TRACE2("Generating ", m_wavFilename);
+		    TRACE2(" from raw file ", RAW_FILENAME);
 
-		    P("m_chunkCnt: "); PL(m_chunkCnt);
-		    P("Max: "); P(m_max); P(" ; Min: "); P(m_min); PL(" ;");
-		    P("Avg: "); PL(m_avg/m_sampleCnt);
-		    P("# Samples: "); PL(m_sampleCnt);
+		    TRACE2("m_chunkCnt: ", m_chunkCnt);
+		    TRACE2("Max: ", m_max);
+		    TRACE2("Min: ", m_min); 
+		    TRACE2("Avg: ", m_avg/m_sampleCnt);
+		    TRACE2("# Samples: ", m_sampleCnt);
 		}
 
-		failtest(m_chunkCnt == SD_BLOCK_COUNT(m_duration_ms), "Wrong # of buffers were saved");
+		assert(m_chunkCnt == SD_BLOCK_COUNT(m_duration_ms), "Wrong # of buffers were saved");
 		if (!hasError()) {
 		    assert(SAMPLES_PER_CHUNK == 256, "SAMPLES_PER_CHUNK is unexpected value");
                     m_wavCreator = initWavFileCreator(RAW_FILENAME, m_wavFilename,

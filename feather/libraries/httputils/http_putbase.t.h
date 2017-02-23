@@ -8,7 +8,7 @@
 
 class HttpPutBaseTest : public HttpOpTest {
  public:
-  HttpPutBaseTest(const char *credentials,
+  HttpPutBaseTest(const char *dbUser, const char *dbPswd,
 		  const char *dbHost,
 		  int dbPort,
 		  bool isSSL);

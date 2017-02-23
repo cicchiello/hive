@@ -17,6 +17,12 @@
 
 #include <platformutils.h>
 
+#include <sdutils.h>
+
+#include <SdFat.h>
+
+
+#define STACKTRACE_FILENAME "/STACK.LOG"
 
 static HivePlatform *sPlatform = 0;
 static PulseGenConsumer **sConsumers10K = 0;
@@ -63,8 +69,39 @@ const char *HivePlatform::getResetCause() const
 }
 
 
+static void stackDump()
+{
+    if (TraceScope::sCurrScope != NULL) {
+        SdFile f;
+	bool canWrite = true;
+	if (!f.open(STACKTRACE_FILENAME, O_CREAT | O_WRITE)) {
+	    canWrite = false;
+	}
+	
+        PL("FAULT: Stack trace: ");
+	const TraceScope *s = TraceScope::sCurrScope;
+	while (s != NULL) {
+	    PL(s->getFunc());
+	    if (canWrite) {
+	        f.write(s->getFunc(), strlen(s->getFunc()));
+		f.write("\n", 2);
+	    }
+	    s = s->getParent();
+	}
+	if (canWrite) {
+	    f.close();
+	}
+    }
+}
+
+
 void HEADLESS_wdtEarlyWarningHandler()
 {
+    // first, prevent the WDT from doing a full system reset by resetting the timer
+    PlatformUtils::nonConstSingleton().clearWDT();
+
+    stackDump();
+    
     // force an immediate system reset 
     NVIC_SystemReset();
 }
@@ -74,10 +111,7 @@ void DEBUG_wdtEarlyWarningHandler()
     // first, prevent the WDT from doing a full system reset by resetting the timer
     PlatformUtils::nonConstSingleton().clearWDT();
 
-    if (TraceScope::sCurrScope != NULL) {
-        P("wdtEarlyWarningHandler; most recent trace scope: ");
-	PL(TraceScope::sCurrScope->getFunc());
-    }
+    stackDump();
     
     PL("wdtEarlyWarningHandler; BARK!");
     PL("");
@@ -85,6 +119,10 @@ void DEBUG_wdtEarlyWarningHandler()
     if (PlatformUtils::s_traceStr != NULL) {
         P("WDT Trace message: ");
 	PL(PlatformUtils::s_traceStr);
+	P("WDT last mark time: ");
+	PL(PlatformUtils::s_traceTime);
+	P("now: ");
+	PL(millis());
     } else {
         PL("No WDT trace message registered");
     }
@@ -114,11 +152,18 @@ void HivePlatform::clearWDT()
 }
 
 
+void HivePlatform::markWDT(const char *msg) const
+{
+    PlatformUtils::singleton().markWDT(msg, millis());
+}
+
+
 void HivePlatform::trace(const char *msg) 
 {
     WDT_TRACE(msg);
 }
- 
+
+
 void HivePlatform::error(const char *err) 
 {
     WDT_TRACE(err);
@@ -164,8 +209,6 @@ static void notifyConsumers()
 {
     static bool sIsOdd = false;
 
-    HivePlatform::trace("::notifyConsumers; entry");
-    
     unsigned long now = millis();
     int i;
 
@@ -173,17 +216,14 @@ static void notifyConsumers()
         i = 0;
 	while (sConsumers10K[i] != 0) 
 	    sConsumers10K[i++]->pulse(now);
-    HivePlatform::trace("::notifyConsumers; trace 3");
     }
-    HivePlatform::trace("::notifyConsumers; trace 4");
     sIsOdd = !sIsOdd;
 
     i = 0;
     while (sConsumers20K[i] != 0) 
         sConsumers20K[i++]->pulse(now);
-    
-    HivePlatform::trace("::notifyConsumers; exit");
 }
+
 
 void HivePlatform::pulseGen_20K_init()
 {

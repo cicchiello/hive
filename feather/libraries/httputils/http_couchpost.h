@@ -9,16 +9,17 @@ class HttpCouchPost : private HttpCouchGet {
    HttpCouchPost(const char *ssid, const char *ssidPswd, 
 		 const char *host, int port, const char *page,
 		 const CouchUtils::Doc &content,
-		 const char *credentials, bool isSSL = false);
+		 const char *dbUser, const char *dbPswd, bool isSSL = false);
    HttpCouchPost(const char *ssid, const char *ssidPswd, 
 		 const IPAddress &hostip, int port, const char *page,
 		 const CouchUtils::Doc &content,
-		 const char *credentials, bool isSSL = false);
+		 const char *dbUser, const char *dbPswd, bool isSSL = false);
    ~HttpCouchPost() {}
 
    using HttpCouchGet::EventResult;
    
    using HttpCouchGet::getHeaderConsumer;
+   using HttpCouchGet::getCouchConsumer;
    using HttpCouchGet::getDoc;
    using HttpCouchGet::haveDoc;
    using HttpCouchGet::processEventResult;

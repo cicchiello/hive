@@ -12,6 +12,8 @@ class HivePlatform {
     void startWDT();
     void clearWDT();
 
+    void markWDT(const char *msg) const;
+
     static void trace(const char *msg);
     static void error(const char *msg);
 

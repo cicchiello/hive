@@ -2,29 +2,35 @@
 #define StepperActuator_h
 
 
-#include <ActuatorBase.h>
+#include <Actuator.h>
 #include <pulsegen_consumer.h>
 
 class Str;
+class HiveConfig;
+class RateProvider;
 
-
-class StepperActuator : public ActuatorBase {
+class StepperActuator : public Actuator {
  public:
     StepperActuator(const HiveConfig &config,
+		    const RateProvider &rateProvider,
 		    const char *name, unsigned long now,
 		    int address, int port, bool isBackwards=false);
     // ports: 1==M1 & M2; 2==M3 & M4
     
     ~StepperActuator();
 
-    void setNextActionTime(unsigned long now);
-    
     int getLocation() const;
     int getTarget() const;
 
-    void processResult(ActuatorBase::Getter *getter);
+    bool loop(unsigned long now, Mutex *wifi);
+    
+    void processMsg(unsigned long now, const char *msg);
 
+    bool isMyMsg(const char *msg) const;
+    
     PulseGenConsumer *getPulseGenConsumer();
+
+    void scheduleNextStep(unsigned long now) {setNextActionTime(now + mMsPerStep);}
     
  protected:
     virtual const char *className() const {return "StepperActuator";}
@@ -32,9 +38,6 @@ class StepperActuator : public ActuatorBase {
  private:
     friend class StepperActuatorPulseGenConsumer;
     
-    const void *getSemaphore() const;
-    Getter *createGetter() const;
-
     bool isItTimeYetForSelfDrive(unsigned long now);
     void step();
     
@@ -42,9 +45,7 @@ class StepperActuator : public ActuatorBase {
     static bool s_pulseInitialized;
     static void PulseCallback();
     
-    Str *mPrev, *mName;
     int mLoc, mTarget, mMsPerStep;
-    unsigned long mLastSampleTime;
     bool mRunning, mIsBackwards;
     class Adafruit_StepperMotor *m;
     class Adafruit_MotorShield *AFMS;
@@ -59,12 +60,6 @@ inline int StepperActuator::getLocation() const
 inline int StepperActuator::getTarget() const
 {
     return mTarget;
-}
-
-inline
-void StepperActuator::setNextActionTime(unsigned long now)
-{
-    setNextActionTime(now + mMsPerStep);
 }
 
 

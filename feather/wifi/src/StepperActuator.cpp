@@ -24,10 +24,6 @@
 #define RPM 60
 
 
-#define ERROR(msg)     HivePlatform::singleton()->error(msg)
-#define TRACE(msg)     HivePlatform::singleton()->trace(msg)
-
-
 class StepperActuatorPulseGenConsumer : public PulseGenConsumer {
 private:
   StepperActuatorPulseGenConsumer();
@@ -46,6 +42,8 @@ public:
 
 void StepperActuatorPulseGenConsumer::addStepper(StepperActuator *stepper)
 {
+    TF("StepperActuatorPulseGenConsumer::addStepper");
+    
     // put given StepperActuator on the ISR handler list
     // (consider that it might already be there)
     bool found = false;
@@ -53,40 +51,35 @@ void StepperActuatorPulseGenConsumer::addStepper(StepperActuator *stepper)
     while (!found && mSteppers[i]) {
         found = mSteppers[i++] == stepper;
     }
-    if (!found) {
-        D(StringUtils::TAG("StepperActuatorPulseGenConsumer::addStepper",
-			   "adding stepper to list at entry ").c_str());
-	DL(i);
-	mSteppers[i] = stepper;
-    } else {
-        ERROR("StepperActuatorPulseGenConsumer::addStepper; "
-	      "Stepper already on the list!?!?");
-    }
+
+    assert(!found, "Stepper already on the list!?!?");
+
+    TRACE2("adding stepper to list at entry: ", i);
+    mSteppers[i] = stepper;
 }
 
 
 void StepperActuatorPulseGenConsumer::removeStepper(StepperActuator *stepper)
 {
     // remove given StepperActuator from the ISR handler list
+    TF("StepperActuatorPulseGenConsumer::removeStepper");
+    
     int i = 0;
     while ((mSteppers[i] != stepper) && mSteppers[i]) 
         i++;
-    if (mSteppers[i]) {
-        DL(StringUtils::TAG("StepperActuatorPulseGenConsumer::removeStepper",
-			    "Removing stepper from ISR handler list").c_str());
-	int j = 0;
-	while (mSteppers[j])
-	    j++;
-	j--; // went one too far
-	if (i == j) {
-	    mSteppers[i] = NULL;
-	} else {
-	    mSteppers[i] = mSteppers[j];
-	    mSteppers[j] = NULL;
-	}
+    
+    assert(mSteppers[i], "Stepper wasn't found on the ISR handler list!?!?");
+
+    TRACE("Removing stepper from ISR handler list");
+    int j = 0;
+    while (mSteppers[j])
+        j++;
+    j--; // went one too far
+    if (i == j) {
+        mSteppers[i] = NULL;
     } else {
-        ERROR("StepperActuatorPulseGenConsumer::removeStepper; "
-	      "Stepper wasn't found on the ISR handler list!?!?");
+        mSteppers[i] = mSteppers[j];
+	mSteppers[j] = NULL;
     }
 }
 
@@ -108,8 +101,8 @@ StepperActuatorPulseGenConsumer *StepperActuatorPulseGenConsumer::nonConstSingle
 
 void StepperActuatorPulseGenConsumer::pulse(unsigned long now)
 {
-    //DL("StepperPulseCallback; ");
-
+    TF("StepperActuatorPulseGenConsumer::pulse");
+    
     //to see the pulse on the scope, enable "5" as an output and uncomment:
     //const PinDescription &p = g_APinDescription[5];
     //PORT->Group[p.ulPort].OUTTGL.reg = (1ul << p.ulPin) ;
@@ -121,7 +114,7 @@ void StepperActuatorPulseGenConsumer::pulse(unsigned long now)
 	while (!didSomething && mSteppers[i]) {
 	    if (mSteppers[i]->isItTimeYetForSelfDrive(now)) {
 
-	        mSteppers[i]->setNextActionTime(now); // must be done before step!
+	        mSteppers[i]->scheduleNextStep(now); // must be done before step!
 		// (step may remove the stepper from this list we're iterating!)
 		
 	        mSteppers[i]->step();
@@ -144,19 +137,18 @@ PulseGenConsumer *StepperActuator::getPulseGenConsumer()
 }
 
 StepperActuator::StepperActuator(const HiveConfig &config,
+				 const RateProvider &rateProvider,
 				 const char *name,
 				 unsigned long now,
 				 int address, int port,
 				 bool isBackwards)
-  : ActuatorBase(config, name, now), mLoc(0), mTarget(0),
+  : Actuator(name, now), mLoc(0), mTarget(0),
     mRunning(false), mIsBackwards(isBackwards)
 {
     TF("StepperActuator::StepperActuator");
-    TRACE("entry");
     
     AFMS = new Adafruit_MotorShield(address);
     AFMS->begin();
-    mLastSampleTime = now;
     m = AFMS->getStepper(REVSTEPS, port); // 200==steps per revolution; ports 1==M1 & M2, 2==M3 & M4
     m->setSpeed(RPM);
 
@@ -165,8 +157,6 @@ StepperActuator::StepperActuator(const HiveConfig &config,
     D(usPerStep);
     DL(" us");
     mMsPerStep = usPerStep/1000;
-    
-    TRACE("exit");
 }
 
 
@@ -185,6 +175,7 @@ StepperActuator::~StepperActuator()
 void StepperActuator::step()
 {
     TF("StepperActuator::step");
+
     if (mLoc != mTarget) {
         int dir = mLoc < mTarget ?
 			 (mIsBackwards ? BACKWARD : FORWARD) :
@@ -199,14 +190,15 @@ void StepperActuator::step()
 	//PORT->Group[p.ulPort].OUTTGL.reg = (1ul << p.ulPin) ;
 	
 	if (mLoc == mTarget) {
-	    TRACE(TAG("processCommand", "Stopped.").c_str());
+	    PH("Stopped");
+	    
 	    m->release();
 	    mRunning = false;
 
 	    // remove this StepperActuator from the ISR handler list
 	    StepperActuatorPulseGenConsumer::nonConstSingleton()->removeStepper(this);
 
-	    TRACE(TAG("processCommand", "Released the stepper motor").c_str());
+	    TRACE("Released the stepper motor");
 	}
     }
 }
@@ -215,118 +207,77 @@ void StepperActuator::step()
 bool StepperActuator::isItTimeYetForSelfDrive(unsigned long now)
 {
     TF("StepperActuator::isItTimeYetForSelfDrive");
-    if ((now > getNextActionTime()) && (mLoc != mTarget)) {
-        D("StepperActuator::isItTimeYet; missed an appointed visit by ");
-	D(now - getNextActionTime());
-	D(" ms; now == ");
-	DL(now);
+    unsigned long when = getNextActionTime();
+    if ((now > when) && (mLoc != mTarget)) {
+        TRACE4("StepperActuator::isItTimeYetForSelfDrive; missed an appointed visit by ",
+	       now - when, " ms; now == ", now);
     }
     
-    return now >= getNextActionTime();
+    return now >= when;
 }
 
 
-class StepperActuatorGetter : public ActuatorBase::Getter {
-private:
-    bool mHasTarget;
-    int mTarget, mParsed;
-  
-public:
-    StepperActuatorGetter(const char *ssid, const char *pswd, const char *dbHost, int dbPort, bool isSSL,
-			  const char *url, const char *credentials)
-      : ActuatorBase::Getter(ssid, pswd, dbHost, dbPort, url, credentials, isSSL),
-	mHasTarget(false), mTarget(0), mParsed(false)
-    {
-        TF("StepperActuatorGetter::StepperActuatorGetter");
-	TRACE("entry");
-    }
+bool StepperActuator::loop(unsigned long now, Mutex *wifi)
+{
+    return mLoc != mTarget;
+}
 
-    int getTarget() const {return mTarget;}
-  
-    bool hasResult() const {
-        if (mParsed)
-	    return mHasTarget;
 
-	StepperActuatorGetter *nonConstThis = (StepperActuatorGetter*) this;
-	nonConstThis->mParsed = true;
-        CouchUtils::Doc doc;
-	const CouchUtils::Doc *record = getSingleRecord(&doc);
-	if (record != NULL) {
-	    int ival = record->lookup("value");
-	    if ((ival >= 0) &&
-		(*record)[ival].getValue().isArr() &&
-		((*record)[ival].getValue().getArr().getSz()==4)) {
-	        const CouchUtils::Arr &val = (*record)[ival].getValue().getArr();
-		if (!val[3].isDoc() && !val[3].isArr()) {
-		    const Str &locStr = val[3].getStr();
-		    nonConstThis->mTarget = atoi(locStr.c_str());
-		    nonConstThis->mHasTarget = true;
-		}
-	    }
+void StepperActuator::processMsg(unsigned long now, const char *msg)
+{
+    static const char *InvalidMsg = "invalid msg; did isMyMsg return true?";
+    
+    TF("StepperActuator::processMsg");
+
+    const char *name = getName();
+    int namelen = strlen(name);
+    assert2(strncmp(msg, name, namelen) == 0, InvalidMsg, msg);
+    
+    msg += namelen;
+    const char *token = "|";
+    int tokenlen = 1;
+    assert2(strncmp(msg, token, tokenlen) == 0, InvalidMsg, msg);
+    msg += tokenlen;
+    assert2(StringUtils::isNumber(msg), InvalidMsg, msg);
+
+    int newTarget = atoi(msg);
+    if (newTarget != mTarget) {
+        TRACE2("mTarget was: ", mTarget);
+	TRACE2("new target is: ", newTarget);
+
+        mTarget = newTarget;
+        if (mTarget != mLoc) {
+	    PH3("Running for ", (mTarget-mLoc), " steps");
+
+	    // put this StepperActuator on the ISR handler list
+	    // (consider that it might already be there)
+	    StepperActuatorPulseGenConsumer::nonConstSingleton()->addStepper(this);
+
+	    scheduleNextStep(millis());
+	    
+	    mRunning = true;
 	}
-	
-	return mHasTarget;
     }
-
-    static const char *ClassName() {return "StepperActuatorGetter";}
-  
-    const char *className() const;
-};
-
-const char *StepperActuatorGetter::className() const
-{
-    return StepperActuatorGetter::ClassName();
 }
 
 
-const void *StepperActuator::getSemaphore() const
+bool StepperActuator::isMyMsg(const char *msg) const
 {
-    TF("StepperMonitor::getSemaphore");
-    return this;
-}
-
-
-ActuatorBase::Getter *StepperActuator::createGetter() const
-{
-    TF("StepperActuator::createGetter");
-    TRACE("creating getter");
-
-    // curl -X GET 'http://jfcenterprises.cloudant.com/hive-sensor-log/_design/SensorLog/_view/by-hive-sensor?endkey=%5B%22F0-17-66-FC-5E-A1%22,%22sample-rate%22,%2200000000%22%5D&startkey=%5B%22F0-17-66-FC-5E-A1%22,%22sensor-rate%22,%2299999999%22%5D&descending=true&limit=1'
-	  
-    Str url, encodedUrl;
-    url.append(getConfig().getDesignDocId());
-    url.append("/_view/");
-    url.append(getConfig().getSensorByHiveViewName());
-    url.append("?endkey=[\"");
-    url.append(getConfig().getHiveId());
-    url.append("\",\"");
-    url.append(getName());
-    url.append("\",\"00000000\"]&startkey=[\"");
-    url.append(getConfig().getHiveId());
-    url.append("\",\"");
-    url.append(getName());
-    url.append("\",\"99999999\"]&descending=true&limit=1");
-    CouchUtils::urlEncode(url.c_str(), &encodedUrl);
-	
-    url.clear();
-    CouchUtils::toURL(getConfig().getLogDbName(), encodedUrl.c_str(), &url);
-    TRACE2("URL: ", url.c_str());
-	
-    return new StepperActuatorGetter(getConfig().getSSID(), getConfig().getPSWD(),
-				     getConfig().getDbHost(), getConfig().getDbPort(), getConfig().isSSL(),
-				     url.c_str(), getConfig().getDbCredentials());
-}
-
-
-void StepperActuator::processResult(ActuatorBase::Getter *baseGetter)
-{
-    TF("StepperActuator::processResult");
+    TF("StepperActuator::isMyMsg");
+    const char *name = getName();
+    TRACE2("isMyMsg for motor: ", name);
+    TRACE2("Considering msg: ", msg);
     
-    if (baseGetter->className() == StepperActuatorGetter::ClassName()) {
-        StepperActuatorGetter *getter = (StepperActuatorGetter*) baseGetter;
-	mTarget = getter->getTarget();
+    if (strncmp(msg, name, strlen(name)) == 0) {
+        msg += strlen(name);
+	const char *token = "|";
+	bool r = (strncmp(msg, token, strlen(token)) == 0) && StringUtils::isNumber(msg+strlen(token));
+	if (r) {
+	    TRACE("it's mine!");
+	}
+	return r;
     } else {
-        ERROR("class cast exception");
+        return false;
     }
 }
 

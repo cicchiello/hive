@@ -9,7 +9,7 @@
 
 
 HttpSSLGetTest::HttpSSLGetTest()
-  : HttpGetTest(sslDbCredentials, sslDbHost, sslDbPort, true)
+  : HttpGetTest(sslDbUser, sslDbPswd, sslDbHost, sslDbPort, true)
 {
 }
 

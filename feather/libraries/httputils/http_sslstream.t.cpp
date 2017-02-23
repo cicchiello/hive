@@ -6,7 +6,7 @@
 #include <Trace.h>
 
 HttpSSLStreamTest::HttpSSLStreamTest()
-  : HttpStreamTest(sslDbCredentials, sslDbHost, sslDbPort, true)
+  : HttpStreamTest(sslDbUser, sslDbPswd, sslDbHost, sslDbPort, true)
 {
 }
 

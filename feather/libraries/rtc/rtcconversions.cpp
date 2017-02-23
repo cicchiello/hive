@@ -108,7 +108,7 @@ bool RTCConversions::cvtToTimestamp(const char *readable, Timestamp_t *result)
       {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
     bool foundMonth = false;
-    for (int i = 0; foundMonth && (i < 12); i++)
+    for (int i = 0; !foundMonth && (i < 12); i++)
       if (strcmp(month.c_str(), months[i]) == 0) {
 	t.month = i+1;
 	foundMonth = true;
@@ -116,10 +116,10 @@ bool RTCConversions::cvtToTimestamp(const char *readable, Timestamp_t *result)
 
     bool foundWeekday = false;
     const char *days[] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-    for (int i = 0; foundWeekday && (i < 7); i++)
-      if (strcmp(month.c_str(), months[i]) == 0) {
+    for (int i = 0; !foundWeekday && (i < 7); i++)
+      if (strcmp(dayOfWeek.c_str(), days[i]) == 0) {
 	t.weekday = i+1;
-	foundMonth = true;
+	foundWeekday = true;
       }
 
     TRACE2("Year: ", t.year);

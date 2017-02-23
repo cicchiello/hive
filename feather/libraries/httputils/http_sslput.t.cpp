@@ -10,7 +10,7 @@
 
 
 HttpSSLPutTest::HttpSSLPutTest()
-  : HttpPutTest(sslDbCredentials, sslDbHost, sslDbPort, true)
+  : HttpPutTest(sslDbUser, sslDbPswd, sslDbHost, sslDbPort, true)
 {
 }
 

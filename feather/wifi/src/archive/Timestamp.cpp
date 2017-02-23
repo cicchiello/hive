@@ -9,7 +9,13 @@
 
 #include <Trace.h>
 
+#include <hive_platform.h>
 #include <str.h>
+
+#include <Mutex.h>
+
+#include <MyWiFi.h>
+#include <wifiutils.h>
 
 #include <rtcconversions.h>
 #include <http_couchget.h>
@@ -23,8 +29,8 @@ static const char *DateTag = "Date: ";
 class RTCGetter : public HttpCouchGet {
 public:
     RTCGetter(const char *ssid, const char *pswd, const char *dbHost, int dbPort, bool isSSL,
-	      const char *url, const char *credentials)
-      : HttpCouchGet(ssid, pswd, dbHost, dbPort, url, credentials, isSSL)
+	      const char *url, const char *dbUser, const char *dbPswd)
+      : HttpCouchGet(ssid, pswd, dbHost, dbPort, url, dbUser, dbPswd, isSSL)
     {
         TF("RTCGetter::RTCGetter");
 	TRACE("entry");
@@ -63,10 +69,11 @@ public:
 
 
 Timestamp::Timestamp(const char *ssid, const char *pswd, const char *dbHost, const int dbPort, bool isSSL,
-		     const char *dbCredentials)
+		     const char *dbUser, const char *dbPswd)
   : mGetter(NULL),
     mSsid(new Str(ssid)), mPswd(new Str(pswd)), mDbHost(new Str(dbHost)), mDbPort(dbPort), mIsSSL(isSSL),
-    mDbCredentials(new Str(dbCredentials)),
+    mDbUser(new Str(dbUser)),
+    mDbPswd(new Str(dbPswd)),
     mNextAttempt(0), mHaveTimestamp(false)
 {
 }
@@ -76,35 +83,51 @@ Timestamp::~Timestamp()
     delete mSsid;
     delete mPswd;
     delete mDbHost;
-    delete mDbCredentials;
+    delete mDbUser;
+    delete mDbPswd;
 }
 
-bool Timestamp::loop(unsigned long now)
+
+bool Timestamp::loop(unsigned long now, Mutex *wifi)
 {
     TF("Timestamp::loop");
     bool callMeBack = true;
     if (mNextAttempt == 0) {
         mNextAttempt = now + 1000l; // delay for 1s before trying to use the wifi
-    } else if (now > mNextAttempt && !mHaveTimestamp) {
+    } else if (now > mNextAttempt && !mHaveTimestamp && wifi->own(this)) {
         if (mGetter == NULL) {
-	    TRACE("creating getter");
+	    TF("Timestamp::loop; creating RTCGetter");
 	    Str url;
 	    CouchUtils::toURL(TimestampDb, TimestampDocId, &url);
+	    TRACE2("creating getter with url: ", url.c_str());
+	    //TRACE2("thru wifi: ", mSsid->c_str());
+	    //TRACE2("with pswd: ", mPswd->c_str());
+	    //TRACE2("to host: ", mDbHost->c_str());
+	    //TRACE2("port: ", mDbPort);
+	    //TRACE2("using ssl? ", (mIsSSL ? "yes" : "no"));
+	    //TRACE2("with dbuser: ", mDbUser->c_str());
+	    //TRACE2("with dbpswd: ", mDbPswd->c_str());
 	    mGetter = new RTCGetter(mSsid->c_str(), mPswd->c_str(),
 				    mDbHost->c_str(), mDbPort, mIsSSL,
-				    url.c_str(), mDbCredentials->c_str());
+				    url.c_str(), mDbUser->c_str(), mDbPswd->c_str());
 	} else {
 	    unsigned long callMeBackIn_ms = 0;
+	    HivePlatform::nonConstSingleton()->clearWDT();
+	    HivePlatform::singleton()->markWDT("Timestamp::loop; calling getter::event");
 	    HttpOp::EventResult er = mGetter->event(now, &callMeBackIn_ms);
+	    HivePlatform::singleton()->markWDT("processing event result");
 	    if (!mGetter->processEventResult(er)) {
-	        TRACE("done");
+	        HivePlatform::singleton()->markWDT("done processing getter events (1)");
+	        //TRACE("done");
 		bool retry = false;
 		if (mGetter->hasTimestamp()) {
+		    HivePlatform::singleton()->markWDT("have Timestamp");
+		    TF("Timestamp::loop; hasTimestamp");
 		    Str timestampStr = mGetter->getTimestamp();
 		    TRACE2("TimestampStr: ", timestampStr.c_str());
 		    bool stat = RTCConversions::cvtToTimestamp(timestampStr.c_str(), &mTimestamp);
 		    if (stat) {
-		        TRACE2("Timestamp: ", mTimestamp);
+		        PH2("Timestamp: ", mTimestamp);
 			mSecondsAtMark = (millis()+500)/1000;
 			mHaveTimestamp = true;
 			callMeBack = false;
@@ -113,6 +136,7 @@ bool Timestamp::loop(unsigned long now)
 			retry = true;
 		    }
 		} else {
+		    HivePlatform::singleton()->markWDT("Timestamp lookup failed");
 		    PL("Timestamp lookup failed; retrying again in 5s");
 		    retry = true;
 		}
@@ -120,11 +144,13 @@ bool Timestamp::loop(unsigned long now)
 		    TRACE("setting up for a retry");
 		    mTimestamp = 0;
 		    callMeBackIn_ms = 5000l;
+		    mGetter->getContext().getWifi().end();
 		}
 		delete mGetter;
 		mGetter = NULL;
+		wifi->release(this);
 	    } else {
-	        TRACE2("getter asked to be called again in (ms) ", callMeBackIn_ms);
+	        //TRACE2("getter asked to be called again in (ms) ", callMeBackIn_ms);
 	    }
 	    mNextAttempt = now + callMeBackIn_ms;
 	}

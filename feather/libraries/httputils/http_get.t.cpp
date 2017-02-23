@@ -16,16 +16,16 @@ const char *HttpGetTest::expectedContent() const {
 }
 
 
-HttpGetTest::HttpGetTest(const char *credentials,
+HttpGetTest::HttpGetTest(const char *dbUser, const char *dbPswd, 
 			 const char *dbHost,
 			 int dbPort,
 			 bool isSSL)
-  : HttpOpTest(credentials, dbHost, dbPort, isSSL), m_getter(0)
+  : HttpOpTest(dbUser, dbPswd, dbHost, dbPort, isSSL), m_getter(0)
 {
 }
 
 HttpGetTest::HttpGetTest()
-  : HttpOpTest(defaultDbCredentials, defaultDbHost, defaultDbPort, false),
+  : HttpOpTest(defaultDbUser, defaultDbPswd, defaultDbHost, defaultDbPort, false),
     m_getter(0)
 {
 }
@@ -43,7 +43,7 @@ bool HttpGetTest::loop() {
 	    Str url;
 	    CouchUtils::toURL(defaultDbName, defaultDocid, &url);
 	    m_getter = new HttpCouchGet(ssid, pass, getDbHost(), getDbPort(),
-					url.c_str(), getCredentials(), getIsSSL());
+					url.c_str(), getDbUser(), getDbPswd(), getIsSSL());
 	} else {
 	    unsigned long callMeBackIn_ms = 0;
 	    if (!m_getter->processEventResult(m_getter->event(now, &callMeBackIn_ms))) {

@@ -14,6 +14,8 @@ class MyWiFi : public WiFiClass {
 
     void connectionFailed();
 
+    using WiFiClass::startProvision;
+    
 int testHostByName(const char* aHostname, IPAddress& aResult);
     
     enum DNS_State {DNS_FAILED, DNS_RETRY, DNS_SUCCESS};

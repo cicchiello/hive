@@ -4,30 +4,26 @@
 #include <Actuator.h>
 #include <RateProvider.h>
 
-
-class Str;
 class HiveConfig;
 
 class SensorRateActuator : public Actuator, public RateProvider {
  public:
-    SensorRateActuator(const HiveConfig &config, const char *sensorName, unsigned long now);
+    SensorRateActuator(HiveConfig *config, const char *sensorName, unsigned long now);
     ~SensorRateActuator() {}
 
+    bool isMyMsg(const char *msg) const;
+    void processMsg(unsigned long now, const char *msg);
+    
+    int secondsBetweenSamples() const;
+    
     bool loop(unsigned long now, Mutex *wifi);
-
-    bool isItTimeYet(unsigned long now) const {return now >= mNextActionTime;}
-    void scheduleNextAction(unsigned long now);
-
-    int secondsBetweenSamples() const {return mSeconds;}
     
  protected:
     virtual const char *className() const {return "SensorRateActuator";}
 
  private:
     int mSeconds;
-
-    const HiveConfig &mConfig;
-    class SensorRateGetter *mGetter;
+    HiveConfig &mConfig;
 };
 
 

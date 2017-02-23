@@ -17,17 +17,19 @@ const char *HttpPut::DefaultContentType = "application/x-www-form-urlencoded";
 
 
 HttpPut::HttpPut(const char *ssid, const char *ssidPswd, 
-		 const char *host, int port, const char *page, const char *credentials,
+		 const char *host, int port, const char *page, 
+		 const char *dbUser, const char *dbPswd, 
 		 const char *contentType, bool isSSL)
-  : HttpOp(ssid, ssidPswd, host, port, credentials, isSSL),
+  : HttpOp(ssid, ssidPswd, host, port, dbUser, dbPswd, isSSL),
     m_contentType(contentType), m_page(page)
 {
 }
 
 HttpPut::HttpPut(const char *ssid, const char *ssidPswd, 
-		 const IPAddress &hostip, int port, const char *page, const char *credentials,
+		 const IPAddress &hostip, int port, const char *page, 
+		 const char *dbUser, const char *dbPswd, 
 		 const char *contentType, bool isSSL)
-  : HttpOp(ssid, ssidPswd, hostip, port, credentials, isSSL),
+  : HttpOp(ssid, ssidPswd, hostip, port, dbUser, dbPswd, isSSL),
     m_contentType(contentType), m_page(page)
 {
 }
@@ -70,14 +72,11 @@ HttpPut::EventResult HttpPut::event(unsigned long now, unsigned long *callMeBack
     switch (opState) {
     case ISSUE_OP: {
         TRACE("ISSUE_OP");
-        WiFiClient &client = getContext().getClient();
-        sendPUT(client);
+        sendPUT(getContext().getClient());
 	if (m_doc.len() > 0) {
-	    sendDoc(client, m_doc.c_str());
-	    client.flush();
+	    sendDoc(getContext().getClient(), m_doc.c_str());
 	}
-	    
-	setOpState(CONSUME_RESPONSE);
+	setOpState(ISSUE_OP_FLUSH);
 	*callMeBackIn_ms = 10l;
 	return CallMeBack;
     }

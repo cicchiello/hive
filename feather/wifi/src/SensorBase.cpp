@@ -11,12 +11,16 @@
 #include <Mutex.h>
 
 #include <hiveconfig.h>
+#include <hive_platform.h>
 #include <http_couchpost.h>
-
 #include <RateProvider.h>
 #include <TimeProvider.h>
 
 #include <str.h>
+
+
+#define DELTA (getRateProvider().secondsBetweenSamples()*1000l)
+//#define DELTA (30000l)
 
 
 SensorBase::SensorBase(const HiveConfig &config,
@@ -27,8 +31,8 @@ SensorBase::SensorBase(const HiveConfig &config,
   : Sensor(name, rateProvider, timeProvider, now), mValueStr(new Str("NAN")),
     mPoster(0), mConfig(config)
 {
-    setNextTime(now, &mNextSampleTime);
-    setNextTime(now, &mNextPostTime);
+    mNextSampleTime = now + DELTA;
+    mNextPostTime = now + DELTA;
 }
 
 
@@ -38,32 +42,25 @@ SensorBase::~SensorBase()
 }
 
 
-/* STATIC */
-void SensorBase::setNextTime(unsigned long now, unsigned long *t)
+bool SensorBase::processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms)
 {
-    *t = now + 30000l /*rateProvider.secondsBetweenSamples()*1000l*/;
-}
-
-
-bool SensorBase::isItTimeYet(unsigned long now)
-{
-    return (now >= mNextSampleTime) || (now >= mNextPostTime);
-}
-
-
-bool SensorBase::loop(unsigned long now, Mutex *wifi)
-{
-    TF("SensorBase::loop");
-
-    if (now > mNextSampleTime) {
-        sensorSample(mValueStr);
-	setNextTime(now, &mNextSampleTime);
+    TF("SensorBase::processResult");
+    if (consumer.hasOk()) {
+        TRACE("POST succeeded");
+    } else {
+        PH2("fail POST; response: ", consumer.getResponse().c_str());
     }
+    *callMeBackIn_ms = DELTA;
+    return false;
+}
 
-    const char *value = NULL;
-    if ((now >= mNextPostTime) && (strcmp(mValueStr->c_str(),"NAN")!=0) && wifi->own(getSemaphore())) {
-        TRACE("working on posting...");
-	unsigned long callMeBackIn_ms = 10l;
+
+bool SensorBase::postImplementation(unsigned long now, Mutex *wifi)
+{
+    TF("SensorBase::postImplementation");
+    bool callMeBack = true;
+    if (wifi->own(this)) {
+        unsigned long callMeBackIn_ms = 10l;
 	if (mPoster == NULL) {
 	    TRACE("creating poster");
 
@@ -81,38 +78,69 @@ bool SensorBase::loop(unsigned long now, Mutex *wifi)
 							   CouchUtils::Item(timestampStr)));
 	    doc.addNameValue(new CouchUtils::NameValuePair("value",
 							   CouchUtils::Item(*mValueStr)));
-	    CouchUtils::printDoc(doc);
+	    Str dump;
+	    CouchUtils::toString(doc, &dump);
 
 	    Str url("/");
 	    url.append(mConfig.getLogDbName());
 	    
+	    TRACE2("creating POST with url: ", url.c_str());
+	    TRACE2("thru wifi: ", mConfig.getSSID());
+	    TRACE2("with pswd: ", mConfig.getPSWD());
+	    TRACE2("to host: ", mConfig.getDbHost());
+	    TRACE2("port: ", mConfig.getDbPort());
+	    TRACE2("using ssl? ", (mConfig.isSSL() ? "yes" : "no"));
+	    TRACE2("with dbuser: ", mConfig.getDbUser());
+	    TRACE2("with dbpswd: ", mConfig.getDbPswd());
+	    PH2("doc: ", dump.c_str());
+	    
 	    mPoster = new HttpCouchPost(mConfig.getSSID(), mConfig.getPSWD(),
 					mConfig.getDbHost(), mConfig.getDbPort(),
 					url.c_str(), doc,
-					mConfig.getDbCredentials(),
+					mConfig.getDbUser(), mConfig.getDbPswd(), 
 					mConfig.isSSL());
 	} else {
-	    TRACE("processing event");
+	    HivePlatform::nonConstSingleton()->clearWDT();
+	    HivePlatform::singleton()->markWDT("processing events");
 	    HttpCouchPost::EventResult er = mPoster->event(now, &callMeBackIn_ms);
-	    TRACE2("event result: ", er);
 	    if (!mPoster->processEventResult(er)) {
-	        TRACE("done");
 		if (mPoster->getHeaderConsumer().hasOk()) {
-		    TRACE("hasOk");
-		    setNextTime(0, &callMeBackIn_ms);
+		    callMeBack = processResult(mPoster->getCouchConsumer(), &callMeBackIn_ms);
 		} else {
-		    TRACE("POST failed; retrying again in 5s");
+		    PH("POST failed; retrying again in 5s");
 		    callMeBackIn_ms = 5000l;
 		}
 		delete mPoster;
 		mPoster = NULL;
-		wifi->release(getSemaphore());
+		wifi->release(this);
 	    }
 	}
 	mNextPostTime = now + callMeBackIn_ms;
     }
+
+    return callMeBack;
+}
+
+
+bool SensorBase::loop(unsigned long now, Mutex *wifi)
+{
+    TF("SensorBase::loop");
     
-    return true; // always want to be called back eventually; when will be determined by mNextActionTime
+    if (now > mNextSampleTime) {
+        sensorSample(mValueStr);
+        TRACE4("sampled sensor ", getName(), ": ", mValueStr->c_str());
+	mNextSampleTime = now + DELTA;
+    }
+
+    const char *value = NULL;
+    bool callMeBack = true; // normally want to be called back -- at some later pre-determined time
+    if ((now >= mNextPostTime) && (strcmp(mValueStr->c_str(),"NAN")!=0)) {
+        TRACE2("calling postImplementation for: ", getName());
+        // let the postImplementation say whether we're totally done or not
+        callMeBack = postImplementation(now, wifi);
+    }
+    
+    return callMeBack;
 }
 
 

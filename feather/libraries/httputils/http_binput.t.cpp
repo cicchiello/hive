@@ -76,17 +76,17 @@ MyDataProvider::~MyDataProvider()
 }
 
 HttpBinaryPutTest::HttpBinaryPutTest()
-  : HttpPutBaseTest(defaultDbCredentials, defaultDbHost, defaultDbPort, false),
+  : HttpPutBaseTest(defaultDbUser, defaultDbPswd, defaultDbHost, defaultDbPort, false),
     m_putter(0), m_provider(0), mNow(0), mTransferStart(0), mTransferTime(0)
 {
 }
 
 
-HttpBinaryPutTest::HttpBinaryPutTest(const char *credentials,
+HttpBinaryPutTest::HttpBinaryPutTest(const char *dbUser, const char *dbPswd, 
 				     const char *dbHost,
 				     int dbPort,
 				     bool isSSL)
-  : HttpPutBaseTest(credentials, dbHost, dbPort, isSSL),
+  : HttpPutBaseTest(dbUser, dbPswd, dbHost, dbPort, isSSL),
     m_putter(0), m_provider(0), mNow(0), mTransferStart(0), mTransferTime(0)
 {
 }
@@ -126,7 +126,7 @@ bool HttpBinaryPutTest::createPutter(const CouchUtils::Doc &originalDoc)
 	TRACE2("dbHost: ", getDbHost());
 	m_putter = new HttpBinaryPut(ssid, pass,
 				     getDbHost(), getDbPort(),
-				     url.c_str(), getCredentials(), getIsSSL(),
+				     url.c_str(), getDbUser(), getDbPswd(), getIsSSL(),
 				     m_provider, CONTENT_TYPE);
 	m_putter->setRetryCnt(HttpOp::MaxRetries); // so no retries
 	mTransferStart = mNow;

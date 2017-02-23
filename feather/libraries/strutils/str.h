@@ -16,7 +16,9 @@ class Str {
   Str &append(int i);
   Str &append(long l);
   Str &append(unsigned long l);
-  Str &append(char c) {add(c);}
+  Str &append(char c) {add(c); return *this;}
+
+  Str tolower() const;
   
   void add(char c);
   void set(char c, int i);
@@ -24,11 +26,19 @@ class Str {
   
   int capacity() const;
   int len() const;
+  int length() const {return len();}
+
+  bool equals(const Str &other) const;
+  bool lessThan(const Str &other) const;
+  
+  bool endsWith(const char *cmp) const;
   
   void expand(int capacity);
 
   const char *c_str() const;
 
+  Str &operator+=(char c) {return append(c);}
+  
   static int sBytesConsumed;
   
  private:
@@ -41,5 +51,11 @@ inline Str::Str() : buf(0), cap(0), deleted(false) {}
 inline const char *Str::c_str() const {return buf;}
 inline int Str::capacity() const {return cap;}
 inline void Str::set(char c, int i) {buf[i] = c;}
+
+inline
+bool operator<(const Str &l, const Str &r) {
+    return l.lessThan(r);
+}
+
 
 #endif
