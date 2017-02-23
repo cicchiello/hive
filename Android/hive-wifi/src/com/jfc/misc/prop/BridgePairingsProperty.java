@@ -89,11 +89,11 @@ public class BridgePairingsProperty implements IPropertyMgr {
     		String id = PairedHiveProperty.getPairedHiveId(mActivity, i);
     		mExistingPairs.add(new Pair<String,String>(name,id));
     	}
-    	    	
-    	switch(mExistingPairs.size()) {
-    	case 0: displayPairingState("no hives"); break;
-    	case 1: displayPairingState("1 hive"); break;
-    	default: displayPairingState(mExistingPairs.size()+" hives");
+
+    	if (ActiveHiveProperty.isActiveHivePropertyDefined(activity)) {
+    		displayPairingState(ActiveHiveProperty.getActiveHiveName(activity));
+    	} else {
+    		displayPairingState("no pairing");
     	}
     	
     	button.setOnClickListener(new OnClickListener() {
@@ -111,10 +111,10 @@ public class BridgePairingsProperty implements IPropertyMgr {
 		    	AlertDialog.Builder builder = new AlertDialog.Builder(mActivity);
 		        builder.setIcon(R.drawable.ic_hive);
 		        builder.setTitle(R.string.paired_hives);
-		        builder.setPositiveButton(R.string.find, new DialogInterface.OnClickListener() {
+		        builder.setPositiveButton(R.string.findOthers, new DialogInterface.OnClickListener() {
 					@Override
 					public void onClick(DialogInterface dialog, int which) {
-						onFind();
+						onFindOthers();
 					}
 				});
 		        builder.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
@@ -124,33 +124,17 @@ public class BridgePairingsProperty implements IPropertyMgr {
 		            	mAlert = null;
 		            }
 		        });
-		        builder.setNeutralButton(R.string.clear_all, new DialogInterface.OnClickListener() {
-					@Override
-					public void onClick(DialogInterface dialog, int which) {
-		            	mAlert.dismiss();
-		            	mAlert = null;
-		        		Runnable okAction = new Runnable() {
-		    				@Override
-		    				public void run() {
-				            	mAlert.dismiss();
-				            	mAlert = null;
-				            	NumHivesProperty.setNumHivesProperty(mActivity, 0);
-				            	mExistingPairs = new ArrayList<Pair<String,String>>();
-				            	onChange();
-		    				}
-		    			};
-		        		Runnable cancelAction = new Runnable() {
-		    				@Override
-		    				public void run() {
-				            	mAlert.dismiss();
-				            	mAlert = null;
-		    				}
-		    			};
-		            	mAlert = DialogUtils.createAndShowAlertDialog(mActivity, R.string.delete_warning, 
-		            			android.R.string.ok, okAction, android.R.string.cancel, cancelAction);
-					}
-				});
-		        builder.setAdapter(arrayAdapter, null);
+		        builder.setAdapter(arrayAdapter, new DialogInterface.OnClickListener() {
+		            @Override
+		            public void onClick(DialogInterface dialog, int which) {
+		        		mAlert.dismiss();
+		        		mAlert = null;
+		        		
+						ActiveHiveProperty.setActiveHiveProperty(mActivity, mDiscoveredDevices.getItem(which).first);
+						onChange();
+		            }
+		        });
+		        
 		        mAlert = builder.show();
 			}
 		});
@@ -163,7 +147,7 @@ public class BridgePairingsProperty implements IPropertyMgr {
 		mIdTv.setBackgroundColor(0xffff0000); // RED
 	}
 	
-	private void displayPairingState(String msg) {
+	public void displayPairingState(String msg) {
 		mIdTv.setText(msg);
 		mIdTv.setBackgroundColor(grayColor);
 	}
@@ -183,24 +167,10 @@ public class BridgePairingsProperty implements IPropertyMgr {
 		return false;
 	}
 
-	private void nameNewPairing(String defaultName, final String address) {
+	private void nameNewPairing(String defaultName, final String address, final Set<String> takenNames) {
 		final EditText input = new EditText(mActivity);
+		input.setText(defaultName);
 		
-		String baseName = PairedHiveProperty.DEFAULT_PAIRED_HIVE_NAME;
-		int baseNameSuffix = 0;
-		boolean foundLegalName = false;
-		while (!foundLegalName) {
-			foundLegalName = true;
-			for (Pair<String,String> p : mExistingPairs) {
-				if (p.first.equals(baseName)) 
-					foundLegalName = false;
-			}
-			if (!foundLegalName) {
-				baseName = PairedHiveProperty.DEFAULT_PAIRED_HIVE_NAME + Integer.toString(++baseNameSuffix);
-			}
-		}
-		input.setText(baseName);
-
 		AlertDialog.Builder builder = 
 				new AlertDialog.Builder(mActivity)
 					.setIcon(R.drawable.ic_hive)
@@ -210,29 +180,22 @@ public class BridgePairingsProperty implements IPropertyMgr {
 					.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
 	            		public void onClick(DialogInterface dialog, int whichButton) {
 	            			String chosenName = input.getText().toString();
-	            			boolean foundLegalName = true;
-	            			for (Pair<String,String> p : mExistingPairs) {
-	            				if (p.first.equals(chosenName)) 
-	            					foundLegalName = false;
-	            			}
+	            			boolean foundLegalName = !takenNames.contains(chosenName);
+
 	            			mAlert.dismiss();
 	            			mAlert = null;
 	            			
 	            			if (foundLegalName) {
 	            				mExistingPairs.add(new Pair<String,String>(chosenName, address));
-	            				NumHivesProperty.setNumHivesProperty(mActivity, mExistingPairs.size());
-	            				PairedHiveProperty.setPairedHiveId(mActivity, mExistingPairs.size()-1, address);
-	            				PairedHiveProperty.setPairedHiveName(mActivity, mExistingPairs.size()-1, chosenName);
-	            				onChange();
 	            				
-	            		    	switch(mExistingPairs.size()) {
-	            		    	case 0: displayPairingState("no hives"); break;
-	            		    	case 1: 
-	            		    		displayPairingState("1 hive"); 
-	            		    		ActiveHiveProperty.setActiveHiveProperty(mActivity, chosenName);
-	            		    		break;
-	            		    	default: displayPairingState(mExistingPairs.size()+" hives");
-	            		    	}
+	        					int numHives = NumHivesProperty.getNumHivesProperty(mActivity);
+	        					NumHivesProperty.setNumHivesProperty(mActivity, numHives+1);
+	        					PairedHiveProperty.setPairedHiveId(mActivity, numHives, address);
+	        					PairedHiveProperty.setPairedHiveName(mActivity, numHives, chosenName);
+	        					ActiveHiveProperty.setActiveHiveProperty(mActivity, chosenName);
+	        					onChange();
+
+	        					displayPairingState(ActiveHiveProperty.getActiveHiveName(mActivity));
 	            		    	
 	                    		SplashyText.highlightModifiedField(mActivity, mIdTv);
 	            			} else {
@@ -298,7 +261,7 @@ public class BridgePairingsProperty implements IPropertyMgr {
 		
 	}
 	
-    private void onFind() {
+    private void onFindOthers() {
 		final String dbUrl = DbCredentialsProperty.getCouchConfigDbUrl(mActivity);
 		final String authToken = null;
 		
@@ -326,20 +289,15 @@ public class BridgePairingsProperty implements IPropertyMgr {
 								mActivity.runOnUiThread(new Runnable() {
 									@Override
 									public void run() {
-										try {
-											String hiveName = "<unnamed>";
-											if (hiveConfigDoc.has("hive-name"))
-												hiveName = hiveConfigDoc.getString("hive-name");
-											
-											mKnownHiveIds.add(hiveId);
-											mDiscoveredDevices.add(new Pair<String,String>(hiveName,hiveId));
-											mDiscoveredDevices.notifyDataSetChanged();
-										} catch (JSONException je) {
-											Log.e(TAG, "JSONException while trying to get config for: "+hiveId);
-											mKnownHiveIds.add(hiveId);
-											mDiscoveredDevices.add(new Pair<String,String>("<unknown>",hiveId));
-											mDiscoveredDevices.notifyDataSetChanged();
+										String hiveName = "<unnamed>";
+										for( Pair<String,String> p : mExistingPairs) {
+											if (p.second.equals(hiveId)) 
+												hiveName = p.first;
 										}
+										
+										mKnownHiveIds.add(hiveId);
+										mDiscoveredDevices.add(new Pair<String,String>(hiveName,hiveId));
+										mDiscoveredDevices.notifyDataSetChanged();
 									}
 								});
 							}
@@ -388,12 +346,25 @@ public class BridgePairingsProperty implements IPropertyMgr {
         		mAlert.dismiss();
         		mAlert = null;
         		
-        		ActiveHiveProperty.setActiveHiveProperty(mActivity, selection.first);
-        		
-				NumHivesProperty.setNumHivesProperty(mActivity, 1);
-				PairedHiveProperty.setPairedHiveId(mActivity, 0, selection.second);
-				PairedHiveProperty.setPairedHiveName(mActivity, 0, selection.first);
-				onChange();
+        		boolean alreadyInExistingSet = false;
+				Set<String> takenNames = new HashSet<String>();
+        		for( Pair<String,String> p : mExistingPairs) {
+					if (p.second.equals(selection.second)) 
+						alreadyInExistingSet = true;
+					takenNames.add(p.first);
+				}
+
+				if (alreadyInExistingSet) {
+					ActiveHiveProperty.setActiveHiveProperty(mActivity, selection.first);
+					onChange();
+				} else {
+					String proposedName = PairedHiveProperty.DEFAULT_PAIRED_HIVE_NAME;
+					int suffix = 0;
+					while (takenNames.contains(proposedName)) 
+						proposedName = PairedHiveProperty.DEFAULT_PAIRED_HIVE_NAME+Integer.toString(++suffix);
+					
+					nameNewPairing(proposedName, selection.second, takenNames);
+				}
             }
         });
         mAlert = builder.show();

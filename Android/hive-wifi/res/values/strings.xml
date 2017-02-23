@@ -13,7 +13,7 @@
     <string name="active_hive_hint">\?\?\?</string>
    	<string name="active_hive_choice">Choose one Hivewiz</string>
     
-    <string name="paired_hives">My Hivewiz Pairings</string>
+    <string name="paired_hives">Hivewiz Pairing</string>
     <string name="paired_hives_desc_hint">Manage Hivewiz pairings</string>
     <string name="hive_id_hint">some sort of hint</string>
     <string name="hive_id_dialog">not sure what this is!?!?</string>
@@ -92,7 +92,7 @@
 	
 	<string name="clear_all">Unpair All</string>
 	<string name="delete_warning">All pairings will be removed and you will have to rescan.</string>
-	<string name="find">Find&#8230;</string>
+	<string name="findOthers">Find Others&#8230;</string>
 	<string name="choose_name">Choose a name&#8230;</string>
 
 	<string name="threads_per_meter_dialog_title">Threads per Meter</string>

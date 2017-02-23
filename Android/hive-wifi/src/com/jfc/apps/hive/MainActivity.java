@@ -431,7 +431,7 @@ public class MainActivity extends Activity {
 				public void run() {
 					mAlert.dismiss();
 					mAlert = null;
-					onWifiSettings();
+					onSettings();
 				}
 			};
     		mAlert = DialogUtils.createAndShowErrorDialog(this, "You must establish a Hivewiz pairing first", 
@@ -459,10 +459,6 @@ public class MainActivity extends Activity {
 		int id = item.getItemId();
 		if (id == R.id.action_settings) {
 			onSettings();
-			return true;
-		}
-		if (id == R.id.action_wifi_settings) {
-			onWifiSettings();
 			return true;
 		}
 		if (id == R.id.action_motor_settings) {

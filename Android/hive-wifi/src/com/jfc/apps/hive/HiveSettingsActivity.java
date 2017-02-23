@@ -1,6 +1,8 @@
 package com.jfc.apps.hive;
 
 import com.jfc.misc.prop.AcraTestProperty;
+import com.jfc.misc.prop.ActiveHiveProperty;
+import com.jfc.misc.prop.BridgePairingsProperty;
 import com.jfc.misc.prop.DbCredentialsProperty;
 import com.jfc.misc.prop.HiveFactoryResetProperty;
 import com.jfc.misc.prop.IPropertyMgr;
@@ -75,9 +77,23 @@ public class HiveSettingsActivity extends Activity {
         	// consume exception -- can't support normal action bar stuff
         }
         
+        final ImageButton apButton = (ImageButton) findViewById(R.id.ap_button);
+        BridgePairingsProperty pairing = new BridgePairingsProperty(this, (TextView) findViewById(R.id.hive_id_text), (ImageButton) findViewById(R.id.hive_pair_button)) {
+        	@Override 
+        	public void onChange() {
+            	if (ActiveHiveProperty.isActiveHivePropertyDefined(HiveSettingsActivity.this)) {
+            		displayPairingState(ActiveHiveProperty.getActiveHiveName(HiveSettingsActivity.this));
+            	} else {
+            		displayPairingState("no pairing");
+            	}
+        	}
+        };
+        
         mMgrs.add(new DbCredentialsProperty(this, (TextView) findViewById(R.id.db_text), (ImageButton) findViewById(R.id.db_button)));
         mMgrs.add(new SensorSampleRateProperty(this, (TextView) findViewById(R.id.sample_rate_text), (ImageButton) findViewById(R.id.sample_rate_button), mDbAlert));
         mMgrs.add(new ServoConfigProperty(this, (TextView) findViewById(R.id.servo_trip_temp_text), (ImageButton) findViewById(R.id.servo_config_button)));
+        mMgrs.add(pairing);
+
         if (DEBUG) 
         	mMgrs.add(new AcraTestProperty(this, (ImageButton) findViewById(R.id.acraTestButton)));
 
@@ -116,11 +132,7 @@ public class HiveSettingsActivity extends Activity {
     
     
     @Override
-	public void onBackPressed() {
-    	Log.i(TAG, "enterred: onBackPressed");
-		finish();    	
-    	Log.i(TAG, "exitting: onBackPressed");
-    }
+	public void onBackPressed() {finish();}
     
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
@@ -138,10 +150,6 @@ public class HiveSettingsActivity extends Activity {
     		mgr.onPermissionResult(requestCode, permissions, grantResults);
     }
     
-    public void onActivityResult(int requestCode, int resultCode, Intent intent) {
-    	for (IPropertyMgr mgr : mMgrs) 
-    		if (mgr.onActivityResult(requestCode, resultCode, intent)) {
-    		}
-    }
+    public void onActivityResult(int requestCode, int resultCode, Intent intent) {}
     
 }

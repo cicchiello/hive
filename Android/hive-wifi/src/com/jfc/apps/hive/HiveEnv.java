@@ -48,22 +48,24 @@ public class HiveEnv {
 	}
 
 	public static void couchGetConfig(Context ctxt, final CouchGetConfig_onCompletion onCompletion) {
-    	CouchGetBackground.OnCompletion couchOnCompletion = new CouchGetBackground.OnCompletion() {
-			@Override
-			public void failed(final String msg) {
-				onCompletion.failed(msg);
-			}
-			
-			@Override
-			public void complete(JSONObject resultDoc) {
-				onCompletion.complete(resultDoc);
-			}
-		};
-		String dbUrl = DbCredentialsProperty.getCouchConfigDbUrl(ctxt);
-		String authToken = null;
-		String hiveId = PairedHiveProperty.getPairedHiveId(ctxt, ActiveHiveProperty.getActiveHiveIndex(ctxt));
-    	final CouchGetBackground getter = new CouchGetBackground(dbUrl+"/"+hiveId, authToken, couchOnCompletion);
-    	getter.execute();
+		if (ActiveHiveProperty.isActiveHivePropertyDefined(ctxt)) {
+	    	CouchGetBackground.OnCompletion couchOnCompletion = new CouchGetBackground.OnCompletion() {
+				@Override
+				public void failed(final String msg) {
+					onCompletion.failed(msg);
+				}
+				
+				@Override
+				public void complete(JSONObject resultDoc) {
+					onCompletion.complete(resultDoc);
+				}
+			};
+			String dbUrl = DbCredentialsProperty.getCouchConfigDbUrl(ctxt);
+			String authToken = null;
+			String hiveId = PairedHiveProperty.getPairedHiveId(ctxt, ActiveHiveProperty.getActiveHiveIndex(ctxt));
+	    	final CouchGetBackground getter = new CouchGetBackground(dbUrl+"/"+hiveId, authToken, couchOnCompletion);
+	    	getter.execute();
+		}
 	}
 	
 }
