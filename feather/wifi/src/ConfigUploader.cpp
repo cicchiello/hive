@@ -27,10 +27,10 @@
 ConfigUploader::ConfigUploader(const HiveConfig &config,
 			       const class RateProvider &rateProvider,
 			       const class TimeProvider &timeProvider,
-			       unsigned long now)
+			       unsigned long now, Mutex *wifi)
   : Sensor("config-uploader", rateProvider, timeProvider, now),
     mConfig(config), mDoUpload(false), mNextActionTime(0),
-    mGetter(0), mPutter(0)
+    mGetter(0), mPutter(0), mWifiMutex(wifi)
 {}
 
 
@@ -251,12 +251,12 @@ bool ConfigUploader::processPutter(unsigned long now, unsigned long *callMeBackI
 }
 
 
-bool ConfigUploader::loop(unsigned long now, Mutex *wifiMutex)
+bool ConfigUploader::loop(unsigned long now)
 {
     TF("ConfigUploader::loop");
 
     bool callMeBack = true;
-    if (mDoUpload && (now > mNextActionTime) && wifiMutex->own(this)) {
+    if (mDoUpload && (now > mNextActionTime) && mWifiMutex->own(this)) {
         //TRACE("doing upload");
 	unsigned long callMeBackIn_ms = 10l;
 	if (mPutter == NULL) {
@@ -275,6 +275,6 @@ bool ConfigUploader::loop(unsigned long now, Mutex *wifiMutex)
 	mNextActionTime = now + callMeBackIn_ms;
     }
     if (!callMeBack)
-        wifiMutex->release(this);
+        mWifiMutex->release(this);
     return callMeBack;
 }

@@ -217,7 +217,7 @@ bool StepperActuator::isItTimeYetForSelfDrive(unsigned long now)
 }
 
 
-bool StepperActuator::loop(unsigned long now, Mutex *wifi)
+bool StepperActuator::loop(unsigned long now)
 {
     return mLoc != mTarget;
 }

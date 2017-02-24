@@ -14,11 +14,11 @@ class ConfigUploader : public Sensor {
     ConfigUploader(const HiveConfig &config,
 		   const class RateProvider &rateProvider,
 		   const class TimeProvider &timeProvider,
-		   unsigned long now);
+		   unsigned long now, Mutex *wifi);
     ~ConfigUploader();
 
     bool isItTimeYet(unsigned long now);
-    bool loop(unsigned long now, Mutex *wifi);
+    bool loop(unsigned long now);
 
     void upload();
     
@@ -36,6 +36,7 @@ class ConfigUploader : public Sensor {
     const HiveConfig &mConfig;
     class ConfigGetter *mGetter;
     HttpCouchPut *mPutter;
+    Mutex *mWifiMutex;
 };
 
 

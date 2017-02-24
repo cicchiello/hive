@@ -9,6 +9,8 @@ class Mutex {
   bool own(const void *tag);
   void release(const void *tag);
 
+  const void *whoOwns() const {return owner;}
+  
   bool isAvailable() const {return owner == 0;}
 };
 

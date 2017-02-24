@@ -12,7 +12,8 @@ class StepperMonitor : public SensorBase {
 		   const class RateProvider &rateProvider,
 		   const class TimeProvider &timeProvider,
 		   unsigned long now,
-		   const class StepperActuator &actuator);
+		   const class StepperActuator &actuator,
+		   Mutex *wifiMutex);
     ~StepperMonitor();
 
     bool sensorSample(Str *value);

@@ -29,9 +29,9 @@ SensorBase::SensorBase(const HiveConfig &config,
 		       const char *name,
 		       const class RateProvider &rateProvider,
 		       const class TimeProvider &timeProvider,
-		       unsigned long now)
+		       unsigned long now, Mutex *wifiMutex)
   : Sensor(name, rateProvider, timeProvider, now), mValueStr(new Str("NAN")),
-    mPoster(0), mConfig(config)
+    mPoster(0), mConfig(config), mWifiMutex(wifiMutex)
 {
     mNextSampleTime = now + FIRST_SAMPLE;
     mNextPostTime = now + FIRST_POST;
@@ -124,7 +124,7 @@ bool SensorBase::postImplementation(unsigned long now, Mutex *wifi)
 }
 
 
-bool SensorBase::loop(unsigned long now, Mutex *wifi)
+bool SensorBase::loop(unsigned long now)
 {
     TF("SensorBase::loop");
     
@@ -139,7 +139,7 @@ bool SensorBase::loop(unsigned long now, Mutex *wifi)
     if ((now >= mNextPostTime) && (strcmp(mValueStr->c_str(),"NAN")!=0)) {
         TRACE2("calling postImplementation for: ", getName());
         // let the postImplementation say whether we're totally done or not
-        callMeBack = postImplementation(now, wifi);
+        callMeBack = postImplementation(now, mWifiMutex);
     }
     
     return callMeBack;

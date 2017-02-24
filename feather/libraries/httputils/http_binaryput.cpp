@@ -54,7 +54,8 @@ HttpBinaryPut::HttpBinaryPut(const char *ssid, const char *ssidPswd,
    TRACE2("Using host: ",host);
    TRACE2("Using port: ",port);
    TRACE2("Using page: ",page);
-   TRACE2("Using credentials: ", (credentials?credentials:"<null>"));
+   TRACE2("Using dbuser: ", (dbUser?dbUser:"<null>"));
+   TRACE2("Using dbpswd: ", (dbPswd?dbPswd:"<null>"));
    TRACE2("Using contentType: ", contentType);
 }
 
@@ -120,7 +121,6 @@ void HttpBinaryPut::sendPUT(Stream &s, int contentLength) const
 }
 
 
-static unsigned long lastTime = 0;
 HttpBinaryPut::EventResult HttpBinaryPut::event(unsigned long now, unsigned long *callMeBackIn_ms)
 {
     TF("HttpBinaryPut::event");
@@ -142,9 +142,11 @@ HttpBinaryPut::EventResult HttpBinaryPut::event(unsigned long now, unsigned long
       break;
       
     case ISSUE_OP_FLUSH: {
+        TF("HttpBinaryPut::event; ISSUE_OP_FLUSH");
         EventResult er = HttpCouchGet::event(now, callMeBackIn_ms);
-	if (opState != ISSUE_OP_FLUSH)
+        if (getOpState() != ISSUE_OP_FLUSH)
 	    setOpState(CHUNKING);
+	return CallMeBack;
     }
       break;
       
@@ -184,7 +186,6 @@ HttpBinaryPut::EventResult HttpBinaryPut::event(unsigned long now, unsigned long
 		        _TAG("TRACE"); _TAG(tscope.getFunc()); _TAG(__FILE__); _TAG(__LINE__);
 			Serial.println((int) buf[ii], HEX);
 		    }
-		    
 #endif
 #endif
 

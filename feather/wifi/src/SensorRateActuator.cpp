@@ -29,7 +29,7 @@ SensorRateActuator::SensorRateActuator(HiveConfig *config, const char *name, uns
 }
 
 
-bool SensorRateActuator::loop(unsigned long now, Mutex *wifi)
+bool SensorRateActuator::loop(unsigned long now)
 {
     return false;
 }

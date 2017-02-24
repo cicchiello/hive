@@ -6,8 +6,6 @@
 #include <Trace.h>
 
 #include <hive_platform.h>
-#define CHKPT(msg) HivePlatform::singleton()->trace(msg)
-#define ERR(msg) HivePlatform::singleton()->error(msg)
 
 #include <version_id.h>
 
@@ -25,7 +23,8 @@
 #include <Indicator.h>
 #include <Heartbeat.h>
 #include <AppChannel.h>
-//#include <listener.h>
+#include <ListenSensor.h>
+#include <ListenActuator.h>
 #include <Mutex.h>
 
 
@@ -47,7 +46,7 @@ static bool s_isOnline = false;
 static bool s_hasBeenOnline = false;
 
 #define MAX_SENSORS 20
-static Mutex sWifiMutex;
+static Mutex sWifiMutex, sSdMutex;
 static Provision *s_provisioner = NULL;
 static ConfigUploader *s_configUploader = NULL;
 static Indicator *s_indicator = NULL;
@@ -82,7 +81,7 @@ public:
 
 void HiveConfigPersister::onUpdate(const HiveConfig &c) {
     if (s_provisioner && (&c == &s_provisioner->getConfig())) {
-        DocWriter writer(mFilename, c.getDoc());
+        DocWriter writer(mFilename, c.getDoc(), &sSdMutex);
 	while (writer.loop()) {}
 	assert(writer.isDone(), "Couldn't write updated config to file");
 	assert(!writer.hasError(), "Couldn't write updated config to file");
@@ -142,12 +141,11 @@ void setup(void)
 
     HivePlatform::nonConstSingleton()->startWDT();
   
-    s_provisioner = new Provision(ResetCause, VERSION, CONFIG_FILENAME, millis());
+    s_provisioner = new Provision(ResetCause, VERSION, CONFIG_FILENAME, millis(), &sWifiMutex);
     
     s_indicator = new Indicator(millis());
     s_indicator->setFlashMode(Indicator::TryingToConnect);
     
-    CHKPT("setup done");
     PL("Setup done...");
 
     pinMode(10, OUTPUT);  // set the SPI_CS pin as output
@@ -207,30 +205,38 @@ void loop(void)
 	SensorRateActuator *rate = new SensorRateActuator(&s_provisioner->getConfig(), "sample-rate", now);
 	s_actuators[actuatorIndex++] = rate;
 
-	s_configUploader = new ConfigUploader(s_provisioner->getConfig(), *rate, *s_appChannel, now);
+	s_configUploader = new ConfigUploader(s_provisioner->getConfig(), *rate, *s_appChannel, now, &sWifiMutex);
 	s_sensors[sensorIndex++] = s_configUploader;
 	
 	// setup callback to upload hive config changes
 	HiveConfigUploader *uploader = new HiveConfigUploader();
 	uploader->setPrevUpdater(CNF.onUpdate(uploader));
 	
-	s_sensors[sensorIndex++] = new HeartBeat(CNF, "heartbeat", *rate, *s_appChannel, now);
-	s_sensors[sensorIndex++] = new TempSensor(CNF, "temp", *rate, *s_appChannel, now);
-	s_sensors[sensorIndex++] = new HumidSensor(CNF, "humid", *rate, *s_appChannel, now);
+	s_sensors[sensorIndex++] = new HeartBeat(CNF, "heartbeat", *rate, *s_appChannel, now, &sWifiMutex);
+	s_sensors[sensorIndex++] = new TempSensor(CNF, "temp", *rate, *s_appChannel, now, &sWifiMutex);
+	s_sensors[sensorIndex++] = new HumidSensor(CNF, "humid", *rate, *s_appChannel, now, &sWifiMutex);
 	StepperActuator *motor0 = new StepperActuator(CNF, *rate, "motor0-target", now, 0x60, 1);
-	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor0", *rate, *s_appChannel, now, *motor0);
+	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor0", *rate, *s_appChannel, now, *motor0,
+						      &sWifiMutex);
 	s_actuators[actuatorIndex++] = motor0;
 	StepperActuator *motor1 = new StepperActuator(CNF, *rate, "motor1-target", now, 0x60, 2);
-	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor1", *rate, *s_appChannel, now, *motor1);
+	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor1", *rate, *s_appChannel, now, *motor1,
+						      &sWifiMutex);
 	s_actuators[actuatorIndex++] = motor1;
 	StepperActuator *motor2 = new StepperActuator(CNF, *rate, "motor2-target", now, 0x61, 2);
-	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor2", *rate, *s_appChannel, now, *motor2);
+	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor2", *rate, *s_appChannel, now, *motor2,
+						      &sWifiMutex);
 	s_actuators[actuatorIndex++] = motor2;
 //	BeeCounter *beecnt = new BeeCounter(CNF, "beecnt", *rate, *s_appChannel, now, 
-//					    BEECNT_PLOAD_PIN, BEECNT_CLOCK_PIN, BEECNT_DATA_PIN);
+//					    BEECNT_PLOAD_PIN, BEECNT_CLOCK_PIN, BEECNT_DATA_PIN,
+//					    &sWifiMutex);
 //	s_sensors[sensorIndex++] = beecnt;
 
-//	s_listener = new Listener(ADCPIN, BIASPIN);
+	ListenSensor *listener = new ListenSensor(CNF, "listener", *rate, *s_appChannel, now,
+						  ADCPIN, BIASPIN, &sWifiMutex, &sSdMutex);
+	ListenActuator *listenControl = new ListenActuator(*listener, "listen-ctrl", now);
+	s_sensors[sensorIndex++] = listener;
+	s_actuators[actuatorIndex++] = listenControl;
 
 	s_currSensor = 0;
 
@@ -244,12 +250,12 @@ void loop(void)
 	PL("Sensors initialized;");
 	TRACE("Sensors initialized;");
 
-//	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_10K(beecnt->getPulseGenConsumer());
-	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_10K(motor0->getPulseGenConsumer());
-	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_10K(motor1->getPulseGenConsumer());
-	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_10K(motor2->getPulseGenConsumer());
-//	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_20K(latch->getPulseGenConsumer());
-	HivePlatform::nonConstSingleton()->pulseGen_20K_init();
+//	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_11K(beecnt->getPulseGenConsumer());
+	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_11K(motor0->getPulseGenConsumer());
+	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_11K(motor1->getPulseGenConsumer());
+	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_11K(motor2->getPulseGenConsumer());
+//	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_22K(latch->getPulseGenConsumer());
+	HivePlatform::nonConstSingleton()->pulseGen_22K_init();
 	PL("PulseGenerators initialized;");
 	
 	// wait a bit for everything to settle
@@ -263,17 +269,17 @@ void loop(void)
 			motor1->processResult(now, "foo");
 			motor2->processResult(now, "foo");
 		    } else if (payload.equals("listen")) {
-			bool stat = s_listener->record(10500, "/LISTEN.WAV", true);
+			bool stat = listener->record(10500, "/LISTEN.WAV", true);
 			assert(stat, "Couldn't start recording");
 			TRACE2("Listening... ", millis());
 
 			bool done = false;
 			while (!done) {
 			  HivePlatform::nonConstSingleton()->clearWDT();
-			  bool success = s_listener->loop(true);
-			  if (s_listener->isDone()) {
-			    if (s_listener->hasError()) {
-			      TRACE2("Failed: ", s_listener->getErrmsg());
+			  bool success = listener->loop(true);
+			  if (listener->isDone()) {
+			    if (listener->hasError()) {
+			      TRACE2("Failed: ", listener->getErrmsg());
 			    } else {
 			      TRACE("Done: success! "); 
 			    }
@@ -288,7 +294,7 @@ void loop(void)
 			    HivePlatform::nonConstSingleton()->clearWDT();
 			    if (uploader.isItTimeYet(millis())) {
 			        //TRACE("calling uploader's loop");
-			        bool callItBack = uploader.loop(millis(), &sWifiMutex);
+			        bool callItBack = uploader.loop(millis());
 				done = !callItBack;
 				//TRACE2("uploader returned: ", (done ? "true":"false"));
 			    }
@@ -304,7 +310,7 @@ void loop(void)
 	while (s_sensors[sensorIndex]) {
 	    HivePlatform::nonConstSingleton()->clearWDT();
 	    if (s_sensors[sensorIndex]->isItTimeYet(now)) {
-	        s_sensors[sensorIndex]->loop(now, &sWifiMutex);
+	        s_sensors[sensorIndex]->loop(now);
 		rxLoop(now); // consider rx after every operation to ensure responsiveness from app
 	    }
 
@@ -317,7 +323,7 @@ void loop(void)
 	    int l = Actuator::getNumActiveActuators();
 	    HivePlatform::nonConstSingleton()->clearWDT();
 	    for (int actuatorIndex = 0; !setChanged && actuatorIndex < l; actuatorIndex++) {
-		bool callItBack = Actuator::getActiveActuator(actuatorIndex)->loop(now, &sWifiMutex);
+		bool callItBack = Actuator::getActiveActuator(actuatorIndex)->loop(now);
 		if (!callItBack) {
 		    TRACE2("Deactivating actuator: ", Actuator::getActiveActuator(actuatorIndex)->getName());
 		    Actuator::deactivate(actuatorIndex);
@@ -330,7 +336,7 @@ void loop(void)
       
     default: {
         TF("::loop; default");
-        ERR(Str("unknown value for s_mainState: ").append(s_mainState).c_str());
+	assert2(false, "Unknown value for s_mainState: ", s_mainState);
     }
     }
 }
@@ -346,13 +352,20 @@ void processMsg(const char *msg, unsigned long now)
     assert(s_appChannel->haveTimestamp(), "s_appChannel->haveTimestamp()");
     
     int whichActuator = 0;
+    bool foundConsumer = false;
     while (s_actuators[whichActuator]) {
+        HivePlatform::nonConstSingleton()->clearWDT();
         if (s_actuators[whichActuator]->isMyMsg(msg)) {
 	    TRACE2("Activating actuator: ", s_actuators[whichActuator]->getName());
+	    foundConsumer = true;
 	    Actuator::activate(s_actuators[whichActuator]);
 	    s_actuators[whichActuator]->processMsg(now, msg);
 	}
 	whichActuator++;
+    }
+
+    if (!foundConsumer) {
+        TRACE2("WARNING: received a message from the App that has not been claimed: ", msg);
     }
 }
 
@@ -378,20 +391,26 @@ void rxLoop(unsigned long now)
 	    TRACE("If AppChannel cannot connect within 120s, will revert to Provisioning");
 	    TRACE2("now: ", now);
 	    s_indicator->setFlashMode(Indicator::TryingToConnect);
-	    s_appChannel = new AppChannel(s_provisioner->getConfig(), now);
+	    s_appChannel = new AppChannel(s_provisioner->getConfig(), now, &sWifiMutex, &sSdMutex);
 	} else if (!s_provisioner->isStarted()) {
 	    TRACE("No valid config; starting the Provisioner");
 	    s_indicator->setFlashMode(Indicator::Provisioning);
 	    s_provisioner->start();
 	}
     } else {
-        if (s_appChannel->loop(now, &sWifiMutex)) {
+        if (s_appChannel->loop(now)) {
 	    if (s_appChannel->haveMessage()) {
 	        TRACE("Received a message from the Mobile App");
-		
-		Str payload;
-		s_appChannel->consumePayload(&payload);
-		processMsg(payload.c_str(), now);
+
+		if (sSdMutex.isAvailable() && sSdMutex.own(s_appChannel)) {
+		    assert(sSdMutex.whoOwns() == s_appChannel, "sSdMutex.whoOwns() == s_appChannel");
+		    Str payload;
+		    s_appChannel->consumePayload(&payload, &sSdMutex);
+		    assert(sSdMutex.whoOwns() == s_appChannel, "sSdMutex.whoOwns() == s_appChannel");
+		    processMsg(payload.c_str(), now);
+		    assert(sSdMutex.whoOwns() == s_appChannel, "sSdMutex.whoOwns() == s_appChannel");
+		    sSdMutex.release(s_appChannel);
+		}
 	    }
 	}
 	if (!s_isOnline && s_appChannel->isOnline()) {
@@ -418,7 +437,7 @@ void rxLoop(unsigned long now)
     }
 
     if (s_provisioner->isStarted()) {
-        if (!s_provisioner->loop(now, &sWifiMutex)) {
+        if (!s_provisioner->loop(now)) {
 	    Str dump;
 	    TRACE2("Using Config: ", CouchUtils::toString(s_provisioner->getConfig().getDoc(), &dump));
 	}

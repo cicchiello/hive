@@ -32,14 +32,14 @@
 
 static const char *DateTag = "Date: ";
 
-#define FREQ 5000l
+#define FREQ 7000l
 
 
-AppChannel::AppChannel(const HiveConfig &config, unsigned long now)
+AppChannel::AppChannel(const HiveConfig &config, unsigned long now, Mutex *wifiMutex, Mutex *sdMutex)
   : mNextAttempt(0), mState(LOAD_PREV_MSG_ID), mConfig(config),
     mInitialMsg(false), mHavePayload(false), mIsOnline(false), mHaveTimestamp(false),
     mPrevMsgId("undefined"), mNewMsgId(), mPayload(),
-    mGetter(NULL), mOfflineTime(now)
+    mGetter(NULL), mOfflineTime(now), mWifiMutex(wifiMutex), mSdMutex(sdMutex)
 {
 }
 
@@ -60,7 +60,7 @@ AppChannel::~AppChannel()
 static bool readMsgIdFile(SdFat &sd, const char *filename, Str *msgId)
 {
     TF("::readMsgIdFile");
-        
+
     SdFile f;
     if (!f.open(filename, O_READ)) {
         return false;
@@ -102,7 +102,8 @@ static bool writeMsgIdFile(SdFat &sd, const char *filename, const char *msgId, i
 bool AppChannel::loadPrevMsgId()
 {
     TF("AppChannel::loadPrevMsgId");
-    TRACE("entry");
+
+    assert(mSdMutex->whoOwns() == this, "mutex error");
 
     SdFat sd;
     SDUtils::initSd(sd);
@@ -161,6 +162,7 @@ bool AppChannel::processDoc(const CouchUtils::Doc &doc,
 			    bool gettingHeader,
 			    unsigned long *callMeBackIn_ms)
 {
+    TF("AppChannel::processDoc");
     bool isValid = true;
     if (gettingHeader) {
         int i = doc.lookup("msg-id");
@@ -308,9 +310,9 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 		if (mGetter->hasNotFound()) {
 		    PH2("object not found, so nothing to do @ ", now);
 		    // nothing to do
-		    mIsOnline = true;
+		    mIsOnline = mHaveTimestamp;
 		} else if (mGetter->haveDoc()) {
-		    mIsOnline = true;
+		    mIsOnline = mHaveTimestamp;
 		    bool isValid = processDoc(mGetter->getDoc(), gettingHeader, &callMeBackIn_ms);
 		    if (!isValid) {
 		        PH("Improper HeaderMsg found; ignoring");
@@ -358,31 +360,38 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 }
 
 
-bool AppChannel::loop(unsigned long now, Mutex *wifiMutex)
+bool AppChannel::loop(unsigned long now)
 {
     TF("AppChannel::loop");
     switch (mState) {
     case LOAD_PREV_MSG_ID:
-        mNextAttempt = now + 10l;
-        return loadPrevMsgId();
+        mNextAttempt = now + 50l;
+	if (mSdMutex->own(this)) {
+	    bool stat = loadPrevMsgId();
+	    mSdMutex->release(this);
+	    return stat;
+	} else return true;
     case READ_HEADER:
-        return getterLoop(now, wifiMutex, true);
+        return getterLoop(now, mWifiMutex, true);
     case READ_MSG:
-        return getterLoop(now, wifiMutex, false);
+        return getterLoop(now, mWifiMutex, false);
     default:
         FAIL("Unknown AppChannel state");
     }
 }
 
 
-void AppChannel::consumePayload(Str *result)
+void AppChannel::consumePayload(Str *result, Mutex *alreadyOwnedSdMutex)
 {
     TF("AppChannel::consumePayload");
+
+    assert(alreadyOwnedSdMutex->whoOwns() == this, "mutex problem");
     
     // now it's safe to write the msg id out to file to complete the atomic operation of aquiring a message
     SdFat sd;
     SDUtils::initSd(sd);
-
+    TRACE("After SDUtils::initSd");
+    
     if (sd.exists(FILENAME)) {
         // the following ugliness exists to ensure that the operation is transactional.
         // Specifically, I want to leave the old file there until I'm certain that I've been able

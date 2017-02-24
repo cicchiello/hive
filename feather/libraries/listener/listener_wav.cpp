@@ -1,5 +1,7 @@
 #include <listener_wav.h>
 
+#include <Arduino.h>
+
 #define NDEBUG
 #include <Trace.h>
 
@@ -15,21 +17,6 @@
 // this is done in a separate compilation unit so that I can use the standard Arduino SD
 // libraries without worrying about conflicts with the SdFat library that was required
 // in order to persist the samples fast enough
-
-#ifndef DISABLE_ASSERTS
-#define ENABLE_ASSERTS
-#endif
-
-#define regerr(msg) {s_singleton->m_success = false; s_singleton->m_errMsg = msg;}
-#define abort() PlatformUtils::nonConstSingleton().resetToBootloader()
-
-
-#define ENABLE_ASSERTS
-#ifdef ENABLE_ASSERTS
-#define failtest(t,msg) assert(t,msg)
-#else
-#define failtest(t,msg) if(!(t)) {regerr(msg);}
-#endif
 
 // soudnfile.sapp.org/doc/WaveFormat
 
@@ -100,7 +87,7 @@ ListenerWavCreatorImp::ListenerWavCreatorImp(const char *rawFilename, const char
     assert(stat, "RAW_FILENAME doesn't exist");
 
     stat = m_rf.open(m_rawFilename, O_READ);
-    failtest(stat, "Couldn't open RAW_FILENAME");
+    assert(stat, "Couldn't open RAW_FILENAME");
     if (!m_success) return;
  
     // wavFilename must *not* exist to begin with
@@ -203,8 +190,11 @@ bool ListenerWavCreatorImp::writeChunk()
 	    int bytesWritten;
 	    if (m_samplesWritten + samplesRead <= m_samplesToWrite) {
 	        bytesWritten = m_wf.write(buf, bytesRead);
-		if (bytesWritten != bytesRead) 
+		if (bytesWritten != bytesRead) {
 		    PH("Couldn't write the entire buffer to the wav file");
+		    TRACE2("bytesWritten: ", bytesWritten);
+		    TRACE2("bytesRead: ", bytesRead);
+		}
 		int samplesWritten = bytesWritten/Listener::BYTES_PER_SAMPLE;
 		m_samplesWritten += samplesWritten;
 		m_success &= samplesWritten == samplesRead;

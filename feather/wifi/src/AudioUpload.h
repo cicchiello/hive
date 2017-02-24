@@ -14,15 +14,20 @@ class AudioUpload : public SensorBase {
 		const char *filename,
 		const class RateProvider &rateProvider,
 		const class TimeProvider &timeProvider,
-		unsigned long now);
+		unsigned long now,
+		Mutex *wifiMutex, Mutex *sdMutex);
     ~AudioUpload();
 
     bool isItTimeYet(unsigned long now);
 
-    bool loop(unsigned long now, Mutex *wifi);
+    bool loop(unsigned long now);
+
+    void setAttachmentName(const char *attName);
     
     bool sensorSample(Str *value);
 
+    Mutex *getSdMutex() const {return mSdMutex;}
+    
     virtual bool processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms);
     
  private:
@@ -36,6 +41,7 @@ class AudioUpload : public SensorBase {
     class HttpBinaryPut *mBinaryPutter;
     bool mHaveDocId, mIsDone;
     Str *mDocId, *mRevision, *mAttachmentName, *mContentType, *mFilename;
+    Mutex *mSdMutex;
 };
 
 

@@ -29,7 +29,7 @@
 
 class MyDataProvider : public HttpDataProvider {
 public:
-    static const int BUFSZ = 64;
+    static const int BUFSZ = 512;
   
 private:
     unsigned char buf[BUFSZ];
@@ -52,6 +52,7 @@ public:
     void init()
     {
         TF("MyDataProvider::init");
+	TRACE("entry");
         SDUtils::initSd(mSd);
 	bool stat = mF.open(mFilename.c_str(), O_READ);
 	assert2(stat,"Couldn't open file",mFilename.c_str());
@@ -128,8 +129,10 @@ AudioUpload::AudioUpload(const HiveConfig &config,
 			 const char *filename, 
 			 const class RateProvider &rateProvider,
 			 const class TimeProvider &timeProvider,
-			 unsigned long now)
-  : SensorBase(config, sensorName, rateProvider, timeProvider, now), mTransferStart(0),
+			 unsigned long now,
+			 Mutex *wifiMutex, Mutex *sdMutex)
+  : SensorBase(config, sensorName, rateProvider, timeProvider, now, wifiMutex),
+    mTransferStart(0), mSdMutex(sdMutex),
     mBinaryPutter(NULL), mDataProvider(NULL),
     mAttachmentName(new Str(attachmentName)), mDocId(new Str()), mRevision(new Str()),
     mContentType(new Str(contentType)), mFilename(new Str(filename)),
@@ -152,6 +155,12 @@ AudioUpload::~AudioUpload()
 }
 
 
+void AudioUpload::setAttachmentName(const char *attName)
+{
+    *mAttachmentName = attName;
+}
+
+
 bool AudioUpload::isItTimeYet(unsigned long now)
 {
     return now >= getNextPostTime();
@@ -165,7 +174,7 @@ bool AudioUpload::sensorSample(Str *valueStr)
 }
 
 
-bool AudioUpload::loop(unsigned long now, Mutex *wifi)
+bool AudioUpload::loop(unsigned long now)
 {
     TF("AudioUpload::loop");
     
@@ -173,9 +182,20 @@ bool AudioUpload::loop(unsigned long now, Mutex *wifi)
         return false;
 
     if (!mHaveDocId) {
-        return SensorBase::loop(now, wifi);
+        return SensorBase::loop(now);
     } else {
-        if ((now >= getNextPostTime()) && wifi->own(this)) {
+	bool muticesOwned = (getWifiMutex()->whoOwns() == this) && (mSdMutex->whoOwns() == this);
+	if (!muticesOwned) {
+	    bool muticesAvailable = getWifiMutex()->isAvailable() && mSdMutex->isAvailable();
+	    if (muticesAvailable) {
+	        TRACE("Both Mutexes aquired");
+		bool ownWifi = getWifiMutex()->own(this);
+		bool ownSd = mSdMutex->own(this);
+		assert(ownWifi && ownSd, "ownWifi && ownSd");
+		muticesOwned = true;
+	    }
+	}
+        if ((now >= getNextPostTime()) && muticesOwned) {
 	    unsigned long callMeBackIn_ms = 10l;
 	    bool done = false;
 	    if (mBinaryPutter == 0) {
@@ -234,7 +254,8 @@ bool AudioUpload::loop(unsigned long now, Mutex *wifi)
 		    delete mDataProvider;
 		    mBinaryPutter = NULL;
 		    mDataProvider = NULL;
-		    wifi->release(this);
+		    getWifiMutex()->release(this);
+		    mSdMutex->release(this);
 		} else {
 		    //TRACE2("mBinaryPutter scheduled a callback in (ms): ", callMeBackIn_ms);
 		}

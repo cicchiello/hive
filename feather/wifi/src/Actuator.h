@@ -26,7 +26,7 @@ class Actuator {
     virtual bool isMyMsg(const char *msg) const = 0;
     virtual void processMsg(unsigned long now, const char *msg) = 0;
     
-    virtual bool loop(unsigned long now, Mutex *wifi) = 0;
+    virtual bool loop(unsigned long now) = 0;
 
     virtual const char *getName() const;
     
