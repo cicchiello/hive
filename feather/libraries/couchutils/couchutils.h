@@ -65,8 +65,8 @@ public:
   
   class NameValuePair {
   private:
-    const Str _name;
-    const Item _item;
+    Str _name;
+    Item _item;
 
     const NameValuePair&operator=(const NameValuePair&); // unimplemented
     
@@ -81,6 +81,7 @@ public:
     const Str &getName() const {return _name;}
     const Item &getValue() const {return _item;}
 
+    bool setValue(const Item &i);
   };
 
     
@@ -101,6 +102,7 @@ public:
     void clear();
     
     void addNameValue(NameValuePair *nv);
+    bool setValue(const char *name, const Item &value);
 
     int getSz() const {return numNVs;}
     bool isEmpty() const {return numNVs == 0;}

@@ -6,14 +6,15 @@ class Mutex;
 
 class Provision {
  public:
-    Provision(const char *resetCause, const char *version, const char *configFile, unsigned long now);
+    Provision(const char *resetCause, const char *version, const char *configFile,
+	      unsigned long now, Mutex *wifiMutex);
     ~Provision();
 
     void start();
     void forcedStart(); // run AP, regardless of validity of config
     void stop();
     
-    bool loop(unsigned long now, Mutex *wifi);
+    bool loop(unsigned long now);
 
     bool hasConfig() const;
     bool isStarted() const;
@@ -25,6 +26,7 @@ class Provision {
     const char *className() const {return "Provision";}
 
     class ProvisionImp *mImp;
+    Mutex *mWifiMutex;
 };
 
 #endif

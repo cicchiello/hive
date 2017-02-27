@@ -1,10 +1,9 @@
 #include <adcutils.h>
 
-//#define NDEBUG
-#include <strutils.h>
-
+#define NDEBUG
 #include <Trace.h>
 
+#include <strutils.h>
 #include <adc_bufqueue.h>
 #include <platformutils.h>
 
@@ -78,8 +77,9 @@ void ADCPulseCallback()
 }
 
 
-void ADCUtils::init(int PIN, size_t bufSz, int sampleRate, PersistBufferFunc persistCb)
+void ADCUtils::init(int PIN, size_t bufSz, PersistBufferFunc persistCb)
 {
+    TF("ADCUtils::init");
     if (!m_enabled) {
         assert(PIN != A0, "A0 should be reserved for DAC");
 	assert(g_APinDescription[PIN].ulADCChannelNumber == 3, "Unexpected ADC Channel");
@@ -154,12 +154,20 @@ void ADCUtils::init(int PIN, size_t bufSz, int sampleRate, PersistBufferFunc per
     
     NVIC_EnableIRQ( ADC_IRQn ) ;
 
-    PlatformUtils::nonConstSingleton().initPulseGenerator(0, sampleRate);
-    PlatformUtils::nonConstSingleton().startPulseGenerator(0, ADCPulseCallback);
-
     m_enabled = true;
     ADCHandler = Enabled_ADCHandler;
     m_readyToTrigger = true;
+}
+
+
+void ADCUtils::init(int PIN, size_t bufSz, int sampleRate, PersistBufferFunc persistCb)
+{
+    TF("ADCUtils::init (2)");
+    TRACE("entry");
+    init(PIN, bufSz, persistCb);
+    
+    PlatformUtils::nonConstSingleton().initPulseGenerator(0, sampleRate);
+    PlatformUtils::nonConstSingleton().startPulseGenerator(0, ADCPulseCallback);
 }
 
 
@@ -205,9 +213,8 @@ void ADCUtils::freeBuf(uint16_t *b)
 
 void ADCUtils::stop()
 {
-    PF("ADCUtils::stop; ");
+    TF("ADCUtils::stop");
     if (m_currBuf != NULL) {
-        DHL("ADCUtils::stop");
 	PlatformUtils::nonConstSingleton().stopPulseGenerator(0);
 	ADC->CTRLA.bit.ENABLE = 0x00;
 	ADCsync();

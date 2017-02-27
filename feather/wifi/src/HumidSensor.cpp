@@ -24,8 +24,8 @@ HumidSensor::HumidSensor(const HiveConfig &config,
 			 const char *name,
 			 const class RateProvider &rateProvider,
 			 const class TimeProvider &timeProvider,
-			 unsigned long now)
-  : SensorBase(config, name, rateProvider, timeProvider, now), mHumidStr(new Str("NAN"))
+			 unsigned long now, Mutex *wifiMutex)
+  : SensorBase(config, name, rateProvider, timeProvider, now, wifiMutex), mHumidStr(new Str("NAN"))
 {
 }
 
@@ -62,6 +62,7 @@ bool HumidSensor::sensorSample(Str *value)
 	P(output);
 	PL("%");
     }
+    return true;
 }
 
 

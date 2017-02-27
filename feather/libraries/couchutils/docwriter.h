@@ -3,9 +3,11 @@
 
 #include <couchutils.h>
 
+class Mutex;
+
 class DocWriter {
   public:
-    DocWriter(const char *filename, const CouchUtils::Doc &doc);
+    DocWriter(const char *filename, const CouchUtils::Doc &doc, Mutex *sdMutex);
     ~DocWriter();
 
     // returns true on success
@@ -29,6 +31,7 @@ class DocWriter {
     const CouchUtils::Doc mDoc;
     Str *mErrMsg, *mFilename;
     bool mIsDone, mSuccess;
+    Mutex *mSdMutex;
 };
 
 #endif

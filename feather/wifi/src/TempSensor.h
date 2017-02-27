@@ -13,7 +13,7 @@ class TempSensor : public SensorBase {
 	       const char *name,
 	       const class RateProvider &rateProvider,
 	       const class TimeProvider &timeProvider,
-	       unsigned long now);
+	       unsigned long now, Mutex *wifiMutex);
     ~TempSensor();
 
     bool hasTemp() const {return mHasTemp;}

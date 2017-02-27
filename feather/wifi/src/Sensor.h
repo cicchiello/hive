@@ -14,7 +14,7 @@ class Sensor {
     ~Sensor();
 
     virtual bool isItTimeYet(unsigned long now);
-    virtual bool loop(unsigned long now, Mutex *wifi) = 0;
+    virtual bool loop(unsigned long now) = 0;
 
     const RateProvider &getRateProvider() const {return mRateProvider;}
     const TimeProvider &getTimeProvider() const {return mTimeProvider;}

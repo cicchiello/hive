@@ -1,8 +1,9 @@
 #include <sdcard_rawwrite.t.h>
 
 #define NDEBUG
-#include <strutils.h>
+#include <Trace.h>
 
+#include <strutils.h>
 #include <sdutils.h>
 #include <SdFat.h>
 
@@ -43,8 +44,8 @@ static int loopCnt = 0;
 
 
 bool SDCardRawWrite::setup() {
-    PF("SDCardRawWrite::setup; ");
-    PHL("Initializing SD card...");
+    TF("SDCardRawWrite::setup; ");
+    PH("Initializing SD card...");
 
     // create file system object
     sd = new SdFat();
@@ -78,7 +79,7 @@ bool SDCardRawWrite::setup() {
 
 
 bool SDCardRawWrite::loop() {
-    PF("SDCardRawWrite::loop; ");
+    TF("SDCardRawWrite::loop; ");
     unsigned long now = micros();
     if (now > timeToAct && !m_didIt && success) {
         //*********************************NOTE**************************************
@@ -143,7 +144,7 @@ bool SDCardRawWrite::loop() {
 		delete sd;
 		delete file;
 
-		PHL("Done");
+		PH("Done");
 		PH("\tElapsed time: "); PL(t);
 		PH("\tMax write time: "); PL(maxWriteTime);
 		PH("\tMin write time: "); PL(minWriteTime);

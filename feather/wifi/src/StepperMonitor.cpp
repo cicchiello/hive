@@ -18,8 +18,9 @@ StepperMonitor::StepperMonitor(const HiveConfig &config,
 			       const class RateProvider &rateProvider,
 			       const class TimeProvider &timeProvider,
 			       unsigned long now,
-			       const class StepperActuator &actuator)
-  : SensorBase(config, name, rateProvider, timeProvider, now),
+			       const class StepperActuator &actuator,
+			       Mutex *wifiMutex)
+  : SensorBase(config, name, rateProvider, timeProvider, now, wifiMutex),
     mActuator(actuator)
 {
     TF("StepperMonitor::StepperMonitor");

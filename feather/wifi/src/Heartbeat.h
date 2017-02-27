@@ -13,7 +13,8 @@ class HeartBeat : public SensorBase {
 	      const char *name,
 	      const class RateProvider &rateProvider,
 	      const class TimeProvider &timeProvider,
-	      unsigned long now);
+	      unsigned long now,
+	      Mutex *wifiMutex);
     ~HeartBeat();
 
     bool sensorSample(Str *value);

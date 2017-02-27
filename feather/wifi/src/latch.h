@@ -17,7 +17,8 @@ class Latch : public SensorBase, private PulseGenConsumer {
 	  const class RateProvider &rateProvider,
 	  const class TimeProvider &timeProvider,
 	  unsigned long now,
-	  int servoPin, const TempSensor &tempSensor, const ServoConfig &servoConfig);
+	  int servoPin, const TempSensor &tempSensor, const ServoConfig &servoConfig,
+	  Mutex *wifiMutex);
     ~Latch();
 
     bool sensorSample(Str *value);

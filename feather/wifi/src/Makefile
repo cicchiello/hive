@@ -9,18 +9,18 @@ DFAMILY=samd21
 TESTBINS=$(addsuffix .t.bin,$(TESTS))
 TESTOBJS=$(addsuffix .t.o,$(TESTS))
 LOCALOBJS= \
-        Sensor.o Actuator.o Heartbeat.o \
-	hive_platform.o Trace.o \
+        Sensor.o Actuator.o Heartbeat.o hive_platform.o Trace.o \
 	SensorRateActuator.o TempSensor.o HumidSensor.o \
-	hiveconfig.o \
+	hiveconfig.o ConfigUploader.o \
+	ListenSensor.o ListenActuator.o \
 	SensorBase.o StepperMonitor.o ActuatorBase.o StepperActuator.o \
 	beecnt.o latch.o AudioActuator.o Provision.o Indicator.o \
 	AppChannel.o AudioUpload.o
 
 #	ServoConfigActuator.o \
 
-MYPACKAGES=strutils couchutils platformutils DHT tests wifiutils cloudpipe \
-	httputils adcutils sdutils listener rtc dacutils
+MYPACKAGES=strutils couchutils platformutils DHT tests wifiutils \
+	httputils adcutils sdutils rtc dacutils listener
 OTHERPACKAGES=SdFat SPI arduino arduino_zero USB Wire
 PACKAGES=$(MYPACKAGES) $(OTHERPACKAGES)
 

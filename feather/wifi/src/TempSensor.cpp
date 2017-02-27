@@ -34,8 +34,8 @@ TempSensor::TempSensor(const HiveConfig &config,
 		       const char *name,
 		       const class RateProvider &rateProvider,
 		       const class TimeProvider &timeProvider,
-		       unsigned long now)
-  : SensorBase(config, name, rateProvider, timeProvider, now),
+		       unsigned long now, Mutex *wifiMutex)
+  : SensorBase(config, name, rateProvider, timeProvider, now, wifiMutex),
     mTempStr(new Str("NAN")), mT(25.0), mHasTemp(false)
 {
     dht.begin();

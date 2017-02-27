@@ -3,6 +3,8 @@
 #include <sdcard_write.t.h>
 
 #define NDEBUG
+#include <Trace.h>
+
 #include <strutils.h>
 
 #include <sdutils.h>
@@ -15,8 +17,8 @@
 
 bool SDCardRead::setup()
 {
-    PF("SDCardRead::setup; ");
-    PHL("Initializing SD card...");
+    TF("SDCardRead::setup");
+    PH("Initializing SD card...");
 
     return true;
 }
@@ -25,7 +27,7 @@ bool SDCardRead::setup()
 /* STATIC */
 bool SDCardRead::testFile(const char *filename)
 {
-    PF("SDCardRead::testFile; ");
+    TF("SDCardRead::testFile");
     
     SdFat sd;
     
@@ -35,7 +37,7 @@ bool SDCardRead::testFile(const char *filename)
 
     SdFile f;
     if (!f.open(filename, O_READ)) {
-        PHL("Couldn't open file");
+        PH("Couldn't open file");
 	return false;
     }
 
@@ -53,29 +55,29 @@ bool SDCardRead::testFile(const char *filename)
 	    stat = SDUtils::readline(&f, newBuf, bufsz);
 	    bufsz *= 2;
 	}
-	PHL(buf);
+	PH(buf);
 		
 	if (linecnt == 0) {
 	    if (strcmp(buf, line1) != 0) {
 	        f.close();
-		PHL("SDCardRead: failed at test 1");
+		PH("SDCardRead: failed at test 1");
 		return false;
 	    }
 	} else if (linecnt == 1) {
 	    if (strcmp(buf, line2) != 0) {
 	        f.close();
-		PHL("SDCardRead: failed at test 2");
+		PH("SDCardRead: failed at test 2");
 		return false;
 	    }
 	} else if (linecnt == 2) {
 	    if (strcmp(buf, line3) != 0) {
 	        f.close();
-		PHL("SDCardRead: failed at test 3");
+		PH("SDCardRead: failed at test 3");
 		return false;
 	    }
 	} else {
 	    f.close();
-	    PHL("SDCardRead: failed at test 4");
+	    PH("SDCardRead: failed at test 4");
 	    return false;
 	}
 	linecnt++;
@@ -89,11 +91,11 @@ static unsigned long timeToAct = 1000l;
 static bool success = true;
 
 bool SDCardRead::loop() {
-    PF("SDCardRead::loop; ");
+    TF("SDCardRead::loop");
     
     unsigned long now = millis();
     if (now > timeToAct && !m_didIt) {
-        PHL(testName());
+        PH(testName());
 
 	m_didIt = true;
 
@@ -103,7 +105,7 @@ bool SDCardRead::loop() {
 	// file must exist to begin with
 	bool exists = sd.exists(FILENAME);
 	if (!exists) {
-	    PHL("TEST.TXT doesn't exist; I'll try to create it.");
+	    PH("TEST.TXT doesn't exist; I'll try to create it.");
 	    SDCardWrite::makeFile(FILENAME);
 	}
 
@@ -111,7 +113,7 @@ bool SDCardRead::loop() {
 	if (exists) {
 	    success = testFile(FILENAME);
 	} else {
-	    PHL("failed at test 5");
+	    PH("failed at test 5");
 	    success = false;
 	}
     }

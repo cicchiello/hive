@@ -1,6 +1,8 @@
 #include <sdcard_read2.t.h>
 
 #define NDEBUG
+#include <Trace.h>
+
 #include <strutils.h>
 
 #include <sdcard_read.t.h>
@@ -16,9 +18,9 @@
 
 bool SDCardRead2::setup()
 {
-    PF("SDCardRead2::setup; ");
+    TF("SDCardRead2::setup; ");
     
-    PHL("Initializing SD card...");
+    PH("Initializing SD card...");
 
     return true;
 }
@@ -38,7 +40,7 @@ bool SDCardRead2::loop() {
 	// file must exist to begin with
 	bool exists = sd.exists(FILENAME);
 	if (!exists) {
-	    PHL("TEST.TXT doesn't exist; I'll try to create it.");
+	    PH("TEST.TXT doesn't exist; I'll try to create it.");
 	    SDCardWrite2::makeFile(FILENAME);
 	}
 
@@ -46,7 +48,7 @@ bool SDCardRead2::loop() {
 	if (exists) {
 	    success = SDCardRead::testFile(FILENAME);
 	} else {
-	    PHL("failed at test");
+	    PH("failed at test");
 	    success = false;
 	}
     }

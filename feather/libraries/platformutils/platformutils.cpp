@@ -3,6 +3,8 @@
 #include <Arduino.h>
 
 #define NDEBUG
+#include <Trace.h>
+
 #include <strutils.h>
 
 #include <pm.h>
@@ -77,7 +79,7 @@ static PlatformUtils::PulseCallbackFunc s_pulseCb[] = {noopPulseHandler, noopPul
 
 static void choosePrescale(uint8_t *prescaler, unsigned int *prescale, int pulsesPerSecond)
 {
-    PF("::choosePrescale; ");
+    TF("::choosePrescale");
     *prescaler = TC_CTRLA_PRESCALER_DIV1_Val;
     *prescale = 1;
     while ((*prescaler < TC_CTRLA_PRESCALER_DIV1024_Val) &&
@@ -91,17 +93,16 @@ static void choosePrescale(uint8_t *prescaler, unsigned int *prescale, int pulse
 	case TC_CTRLA_PRESCALER_DIV256_Val: *prescale = 256; break;
 	case TC_CTRLA_PRESCALER_DIV1024_Val: *prescale = 1024; break;
 	default:
-	  DHL("Overflow in prescaler loop");
+	  PH("Overflow in prescaler loop");
 	}
     }
-    DH("Choosing prescaler of ");
-    DL(*prescale);
+    TRACE2("Choosing prescaler of ", *prescale);
 }
 
 void PlatformUtils::initPulseGenerator(int whichGenerator, int pulsesPerSecond)
 {
     WDT_TRACE("PlatformUtils::initPulseGenerator");
-    PF("PlatformUtils::initPulseGenerator");
+    TF("PlatformUtils::initPulseGenerator");
     if (!m_pulseGeneratorInitialized) {
         // Enable GCLK for TC4 and TC5 (timer counter input clock)
         GCLK->CLKCTRL.reg =

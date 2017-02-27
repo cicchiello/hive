@@ -1,6 +1,8 @@
 #include <sdcard_fnexist.t.h>
 
 #define NDEBUG
+#include <Trace.h>
+
 #include <strutils.h>
 
 #include <sdutils.h>
@@ -8,9 +10,9 @@
 
 
 bool SDCardFNExist::setup() {
-    PF("SDCardFNExist::setup; ");
+    TF("SDCardFNExist::setup");
     
-    PHL("Initializing SD card...");
+    PH("Initializing SD card...");
 
     SdFat sd;
     return SDUtils::initSd(sd);
@@ -21,7 +23,7 @@ static unsigned long timeToAct = 1000l;
 static bool success = true;
 
 bool SDCardFNExist::loop() {
-    PF("SDCardFNexist::loop; ");
+    TF("SDCardFNexist::loop");
     unsigned long now = millis();
     if (now > timeToAct && !m_didIt) {
 	m_didIt = true;
@@ -32,7 +34,7 @@ bool SDCardFNExist::loop() {
 	// NONEXIST.TXT should never exist!
 	success = !sd.exists("/NONEXIST.TXT");
 	if (!success) 
-	    PHL("File that shouldn't exist does!?!  /NONEXIST.TXT");
+	    PH("File that shouldn't exist does!?!  /NONEXIST.TXT");
     }
     
     return success;

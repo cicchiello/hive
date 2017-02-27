@@ -1,15 +1,17 @@
 #include <sdcard_ls.t.h>
 
 #define NDEBUG
+#include <Trace.h>
+
 #include <strutils.h>
 #include <sdutils.h>
 
 #include <SdFat.h>
 
 bool SDCardLS::setup() {
-    PF("SDCardLS::setup; ");
+    TF("SDCardLS::setup; ");
     
-    PHL("Initializing SD card...");
+    PH("Initializing SD card...");
 
     SdFat sd;
     if (!SDUtils::initSd(sd))
@@ -36,7 +38,7 @@ bool SDCardLS::setup() {
     // print the type and size of the first FAT-type volume
     uint32_t volumesize;
     PH("Volume type is FAT");
-    PLC(sd.fatType(), DEC);
+    Serial.println(sd.fatType(), DEC);
 
     volumesize = sd.blocksPerCluster();    // clusters are collections of blocks
     volumesize *= sd.clusterCount();       // we'll have a lot of clusters
@@ -51,7 +53,7 @@ bool SDCardLS::setup() {
     PL(volumesize);
     PL();
 
-    PHL("Files found on the card (name, date and size in bytes): ");
+    PH("Files found on the card (name, date and size in bytes): ");
     
     // list all files in the card with date and size
     sd.ls("/", LS_A | LS_DATE | LS_SIZE | LS_R);

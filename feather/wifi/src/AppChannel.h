@@ -12,11 +12,11 @@ class Mutex;
 
 class AppChannel : public TimeProvider {
  public:
-    AppChannel(const HiveConfig &config, unsigned long now);
+    AppChannel(const HiveConfig &config, unsigned long now, Mutex *wifiMutex, Mutex *sdMutex);
     ~AppChannel();
 
     // returns true when it has the time; false to be called back later
-    bool loop(unsigned long now, Mutex *wifiMutex);
+    bool loop(unsigned long now);
     
     const char *getName() const {return "appchannel";}
     // since there can be only one
@@ -27,7 +27,7 @@ class AppChannel : public TimeProvider {
 
     unsigned long getOfflineTime() const {return mOfflineTime;}
     
-    void consumePayload(Str *payload);
+    void consumePayload(Str *payload, Mutex *alreadyOwnedSdMutex);
 
     unsigned long secondsAtMark() const;
     unsigned long markTimestamp() const {return mTimestamp;}
@@ -49,6 +49,7 @@ class AppChannel : public TimeProvider {
     Str mPrevMsgId, mNewMsgId, mPayload;
     
     class AppChannelGetter *mGetter;
+    Mutex *mWifiMutex, *mSdMutex;
 };
 
 inline

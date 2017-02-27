@@ -22,7 +22,7 @@ class StepperActuator : public Actuator {
     int getLocation() const;
     int getTarget() const;
 
-    bool loop(unsigned long now, Mutex *wifi);
+    bool loop(unsigned long now);
     
     void processMsg(unsigned long now, const char *msg);
 

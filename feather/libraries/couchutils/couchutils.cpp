@@ -38,6 +38,16 @@ void CouchUtils::Doc::addNameValue(CouchUtils::NameValuePair *nv) {
     nvs[numNVs++] = nv;
 }
 
+bool CouchUtils::Doc::setValue(const char *name, const Item &value)
+{
+    int i = lookup(name);
+    if (i >= 0) {
+        return nvs[i]->setValue(value);
+    }
+    return false;
+}
+
+
 int CouchUtils::Doc::lookup(const char *name) const 
 {
     for (int i = 0; i < numNVs; i++)
@@ -116,6 +126,14 @@ CouchUtils::Item::Item(const CouchUtils::Item &o)
   : _str(o._str), _arr(o._arr ? new Arr(*o._arr) : 0), _doc(o._doc ? new Doc(*o._doc) : 0)
 {
 }
+
+
+bool CouchUtils::NameValuePair::setValue(const Item &i)
+{
+    _item = i;
+    return true;
+}
+
 
 
 bool CouchUtils::Item::equals(const CouchUtils::Item &other) const

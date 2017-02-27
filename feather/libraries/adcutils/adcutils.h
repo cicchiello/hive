@@ -11,7 +11,11 @@ public:
     static ADCUtils &nonConstSingleton();
 
     static void (*ADCHandler)();
-    
+
+    // initialize everything, including pulse generator that triggers samples
+    void init(int PIN, size_t bufSz, PersistBufferFunc persistCB);
+
+    // initialize everything but the pulse generator -- must separately call ADCPulseCallback at the proper rate
     void init(int PIN, size_t bufSz, int sampleRate, PersistBufferFunc persistCB);
 
     void freeBuf(uint16_t *buffer);

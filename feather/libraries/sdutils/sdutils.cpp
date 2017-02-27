@@ -1,10 +1,14 @@
 #include <sdutils.h>
 
+#include <Arduino.h>
+
+#define NDEBUG
+#include <Trace.h>
+
 #include <SdFat.h>
 
 #include <wiring_private.h> // pinPeripheral function
 
-#define NDEBUG
 #include <strutils.h>
 
 /* STATIC */
@@ -36,6 +40,7 @@ SDUtils::ReadlineStatus SDUtils::readline(SdFile *f, char *buf, int bufsz)
 
 bool SDUtils::initSd(SdFat &sd)
 {
+    TF("SDUtils::initSd");
     if (!sd.begin(SPI_CS, SPI_HALF_SPEED)) {
         PL("SDUtils::initSd; initialization failed. Things to check:");
 	PL("* is a card inserted?");
@@ -43,7 +48,7 @@ bool SDUtils::initSd(SdFat &sd)
 	PL("* did you change the chipSelect pin to match your shield or module?");
 	return false;
     } else {
-        DL("SDUtils::initSd; Wiring is correct and a card is present.");
+        TRACE("SDUtils::initSd; Wiring is correct and a card is present.");
 	return true;
     }
 }

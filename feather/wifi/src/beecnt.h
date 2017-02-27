@@ -14,7 +14,8 @@ class BeeCounter : public SensorBase, private PulseGenConsumer {
 	       const class RateProvider &rateProvider,
 	       const class TimeProvider &timeProvider,
 	       unsigned long now,
-	       int ploadPin, int clockPin, int dataPin);
+	       int ploadPin, int clockPin, int dataPin,
+	       Mutex *wifiMutex);
     ~BeeCounter();
 
     bool sensorSample(Str *value);

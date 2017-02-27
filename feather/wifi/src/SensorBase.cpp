@@ -19,6 +19,8 @@
 #include <str.h>
 
 
+#define FIRST_SAMPLE (15*1000l)
+#define FIRST_POST (30*1000l)
 #define DELTA (getRateProvider().secondsBetweenSamples()*1000l)
 //#define DELTA (30000l)
 
@@ -27,12 +29,12 @@ SensorBase::SensorBase(const HiveConfig &config,
 		       const char *name,
 		       const class RateProvider &rateProvider,
 		       const class TimeProvider &timeProvider,
-		       unsigned long now)
+		       unsigned long now, Mutex *wifiMutex)
   : Sensor(name, rateProvider, timeProvider, now), mValueStr(new Str("NAN")),
-    mPoster(0), mConfig(config)
+    mPoster(0), mConfig(config), mWifiMutex(wifiMutex)
 {
-    mNextSampleTime = now + DELTA;
-    mNextPostTime = now + DELTA;
+    mNextSampleTime = now + FIRST_SAMPLE;
+    mNextPostTime = now + FIRST_POST;
 }
 
 
@@ -92,7 +94,7 @@ bool SensorBase::postImplementation(unsigned long now, Mutex *wifi)
 	    TRACE2("using ssl? ", (mConfig.isSSL() ? "yes" : "no"));
 	    TRACE2("with dbuser: ", mConfig.getDbUser());
 	    TRACE2("with dbpswd: ", mConfig.getDbPswd());
-	    PH2("doc: ", dump.c_str());
+	    PH2("POSTing doc: ", dump.c_str());
 	    
 	    mPoster = new HttpCouchPost(mConfig.getSSID(), mConfig.getPSWD(),
 					mConfig.getDbHost(), mConfig.getDbPort(),
@@ -122,7 +124,7 @@ bool SensorBase::postImplementation(unsigned long now, Mutex *wifi)
 }
 
 
-bool SensorBase::loop(unsigned long now, Mutex *wifi)
+bool SensorBase::loop(unsigned long now)
 {
     TF("SensorBase::loop");
     
@@ -137,7 +139,7 @@ bool SensorBase::loop(unsigned long now, Mutex *wifi)
     if ((now >= mNextPostTime) && (strcmp(mValueStr->c_str(),"NAN")!=0)) {
         TRACE2("calling postImplementation for: ", getName());
         // let the postImplementation say whether we're totally done or not
-        callMeBack = postImplementation(now, wifi);
+        callMeBack = postImplementation(now, mWifiMutex);
     }
     
     return callMeBack;

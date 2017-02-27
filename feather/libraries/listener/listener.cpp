@@ -32,7 +32,7 @@ static Listener *s_currListener = NULL;
 Listener::Listener(int ADCPIN, int BIASPIN) 
   : m_sd(NULL), m_file(NULL), m_ADCPIN(ADCPIN), m_BIASPIN(BIASPIN), m_errMsg(NULL),
     m_initializedADC(false), m_wavCreator(NULL), 
-    m_fifo(4), m_min(0x7fff), m_max(-32766), m_avg(0), m_sampleCnt(0), m_skipCnt(0)
+    m_fifo(6), m_min(0x7fff), m_max(-32766), m_avg(0), m_sampleCnt(0), m_skipCnt(0)
 {
     TF("Listener::Listener");
     assert(s_currListener == NULL, "singleton rule violated for Listener");
@@ -108,7 +108,7 @@ void fail(const char *errMsg)
 {
     TF("::fail");
     if (s_currListener == NULL) {
-        PHL(errMsg);
+        PH(errMsg);
     } else {
         s_currListener->fail(errMsg);
     }
@@ -132,6 +132,7 @@ void persistBuffer(uint16_t *buf)
         int d;
 	assert((d = s_currListener->m_fifo.depth()) >= 0, "always true -- just capturing d");
         s_currListener->m_fifo.push(buf);
+	assert(!s_currListener->m_fifo.isEmpty(), "fifo shouldn't be empty");
 	assert(d + 1 == s_currListener->m_fifo.depth(), "re-entrant problem trapped");
     }
 }
@@ -183,7 +184,6 @@ bool Listener::record(unsigned int duration_ms, const char *wavFilename, bool ve
     assert(stat, "card.erase failed");
 
     if (verbose) {
-        TRACE2("Recording for (ms): ", m_duration_ms);
 	TRACE3("Setting up raw file to accommodate ", SD_BLOCK_COUNT(m_duration_ms), " SD blocks");
     }
     
@@ -196,8 +196,7 @@ bool Listener::record(unsigned int duration_ms, const char *wavFilename, bool ve
     m_chunkCnt = m_skipCnt = 0;
 
     // setup ADC bufferring
-    ADCUtils::nonConstSingleton().init(m_ADCPIN, SAMPLES_PER_CHUNK, Listener::SAMPLES_PER_SECOND,
-				       persistBuffer);
+    ADCUtils::nonConstSingleton().init(m_ADCPIN, SAMPLES_PER_CHUNK, persistBuffer);
     m_initializedADC = true;
 
     m_captureStartTime_us = micros();
@@ -312,7 +311,7 @@ bool Listener::loop(bool verbose)
 	break;
     case Capturing: {
         if (now >= m_endTime) {
-	    if (verbose) PHL("Capturing done");
+	    if (verbose) {TRACE2("Capturing done: ", millis());}
 	    // we're done recording
 	    ADCUtils::nonConstSingleton().stop();
 	    m_state = CaptureStopped;
@@ -370,7 +369,7 @@ bool Listener::loop(bool verbose)
 		m_state = Done;
 
 		if (verbose) 
-		    PHL("Done");
+		    PH("Done");
 	    }
 	    delete m_wavCreator;
 	    m_wavCreator = NULL;

@@ -1,6 +1,10 @@
 #include <listener_wav.h>
 
+#include <Arduino.h>
+
 #define NDEBUG
+#include <Trace.h>
+
 #include <strutils.h>
 
 #include <listener.h>
@@ -13,21 +17,6 @@
 // this is done in a separate compilation unit so that I can use the standard Arduino SD
 // libraries without worrying about conflicts with the SdFat library that was required
 // in order to persist the samples fast enough
-
-#ifndef DISABLE_ASSERTS
-#define ENABLE_ASSERTS
-#endif
-
-#define regerr(msg) {s_singleton->m_success = false; s_singleton->m_errMsg = msg;}
-#define abort() PlatformUtils::nonConstSingleton().resetToBootloader()
-
-
-#define ENABLE_ASSERTS
-#ifdef ENABLE_ASSERTS
-#define failtest(t,msg) assert(t,msg)
-#else
-#define failtest(t,msg) if(!(t)) {regerr(msg);}
-#endif
 
 // soudnfile.sapp.org/doc/WaveFormat
 
@@ -82,23 +71,21 @@ ListenerWavCreatorImp::ListenerWavCreatorImp(const char *rawFilename, const char
     m_samplesRead(0), m_samplesWritten(0), m_success(true), m_errMsg(NULL),
     m_dcBias(dcBias), m_srcResolution(srcResol), m_targetResolution(tgtResol)
 {
-    PF("ListenerWavCreatorImp::ListenerWavCreatorImp; ");
+    TF("ListenerWavCreatorImp::ListenerWavCreatorImp; ");
     
     assert(s_singleton == NULL, "Singleton assumption violated");
     s_singleton = this;
 
     SDUtils::initSd(m_sd);
     
-    PH("Will transfer ");
-    P(m_samplesToWrite);
-    PL(" samples to the WAV file");
+    PH3("Will transfer ", m_samplesToWrite, " samples to the WAV file");
 
     // rawFilename must exist to begin with
     bool stat = m_sd.exists(m_rawFilename);
     assert(stat, "RAW_FILENAME doesn't exist");
 
     stat = m_rf.open(m_rawFilename, O_READ);
-    failtest(stat, "Couldn't open RAW_FILENAME");
+    assert(stat, "Couldn't open RAW_FILENAME");
     if (!m_success) return;
  
     // wavFilename must *not* exist to begin with
@@ -182,7 +169,7 @@ ListenerWavCreator *Listener::initWavFileCreator(const char *rawFilename, const 
 bool ListenerWavCreatorImp::writeChunk()
 
 {
-    PF("ListnerWavCreatorImp::writeChunk; ");
+    TF("ListnerWavCreatorImp::writeChunk; ");
     
     //... data samples follow!
     if (m_success) { // as long as no error yet
@@ -201,8 +188,11 @@ bool ListenerWavCreatorImp::writeChunk()
 	    int bytesWritten;
 	    if (m_samplesWritten + samplesRead <= m_samplesToWrite) {
 	        bytesWritten = m_wf.write(buf, bytesRead);
-		if (bytesWritten != bytesRead) 
-		    PHL("Couldn't write the entire buffer to the wav file");
+		if (bytesWritten != bytesRead) {
+		    PH("Couldn't write the entire buffer to the wav file");
+		    TRACE2("bytesWritten: ", bytesWritten);
+		    TRACE2("bytesRead: ", bytesRead);
+		}
 		int samplesWritten = bytesWritten/Listener::BYTES_PER_SAMPLE;
 		m_samplesWritten += samplesWritten;
 		m_success &= samplesWritten == samplesRead;
@@ -220,7 +210,7 @@ bool ListenerWavCreatorImp::writeChunk()
 		m_success &= m_samplesWritten == m_samplesRead;
 	    }
 	    if (!m_success) {
-	        PHL("Just detected failure");
+	        PH("Just detected failure");
 	    }
 	} else {
 	    PH(m_samplesRead);
@@ -235,7 +225,7 @@ bool ListenerWavCreatorImp::writeChunk()
 
 ListenerWavCreatorImp::~ListenerWavCreatorImp()
 {
-    PF("ListenerWavCreatorImp::~ListenerWavCreatorImp; ");
+    TF("ListenerWavCreatorImp::~ListenerWavCreatorImp; ");
     
     PH("Wrote ");
     P(m_samplesWritten);

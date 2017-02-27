@@ -12,10 +12,11 @@
 
 #include <SdFat.h>
 
+#include <Mutex.h>
 
 
-DocWriter::DocWriter(const char *filename, const CouchUtils::Doc &config)
-  : mDoc(config), mIsDone(false)
+DocWriter::DocWriter(const char *filename, const CouchUtils::Doc &config, Mutex *sdMutex)
+  : mDoc(config), mIsDone(false), mSdMutex(sdMutex)
     //  ,mErrMsg(new Str("no error")), mFilename(new Str(filename))
 {
     TF("DocWriter::DocWriter");
@@ -98,8 +99,9 @@ static bool writeFile(const char *filename, const CouchUtils::Doc &contents, Str
 
 bool DocWriter::loop() {
     TF("DocWriter::loop");
+    TRACE("entry");
 
-    if (!mIsDone) {
+    if (!mIsDone && mSdMutex->own(this)) {
         mIsDone = true;
 	mSuccess = false;
     
@@ -117,15 +119,19 @@ bool DocWriter::loop() {
 	    *mErrMsg = *mFilename;
 	    mErrMsg->append(" exists and couldn't be deleted");
 	    TRACE(mErrMsg->c_str());
+	    mSdMutex->release(this);
 	    return false;
 	}
 	
 	Str rawContents;
 	if (!writeFile(mFilename->c_str(), mDoc, mErrMsg)) {
 	    // errMsg set within writeFile
+	    mSdMutex->release(this);
 	    return false;
 	}
 
+	PH2("INFO: wrote doc to file: ", mFilename->c_str());
+	mSdMutex->release(this);
 	mSuccess = true;
     }
     

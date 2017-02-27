@@ -32,7 +32,10 @@ HiveConfig::~HiveConfig()
 
 bool HiveConfig::setDoc(const CouchUtils::Doc &doc)
 {
+    TF("HiveConfig::setDoc");
     mDoc = doc;
+    TRACE4("Overriding ", HiveFirmwareProperty, " with ", mVersionId.c_str());
+    mDoc.setValue(HiveFirmwareProperty, mVersionId.c_str());
 
     if (mUpdateFunctor != NULL) {
         mUpdateFunctor->onUpdate(*this);
@@ -43,6 +46,7 @@ bool HiveConfig::setDoc(const CouchUtils::Doc &doc)
 
 
 const char *HiveConfig::HiveIdProperty = "hive-id";
+const char *HiveConfig::HiveFirmwareProperty = "hive-version";
 const char *HiveConfig::TimestampProperty = "timestamp";
 const char *HiveConfig::SsidProperty = "ssid";
 const char *HiveConfig::SsidPswdProperty = "pswd";
@@ -59,6 +63,7 @@ void HiveConfig::setDefault()
     TRACE("entry");
     mDoc.clear();
     mDoc.addNameValue(new CouchUtils::NameValuePair(HiveIdProperty, CouchUtils::Item(getHiveId())));
+    mDoc.addNameValue(new CouchUtils::NameValuePair(HiveFirmwareProperty, CouchUtils::Item(mVersionId)));
     mDoc.addNameValue(new CouchUtils::NameValuePair(TimestampProperty, CouchUtils::Item("1400000000")));
     mDoc.addNameValue(new CouchUtils::NameValuePair(SsidProperty, CouchUtils::Item("<MyWifi>")));
     mDoc.addNameValue(new CouchUtils::NameValuePair(SsidPswdProperty, CouchUtils::Item("<MyPasscode>")));
@@ -81,6 +86,7 @@ bool HiveConfig::docIsValidForConfig(const CouchUtils::Doc &d)
 {
     TF("HiveConfig::docIsValidForConfig");
     TRACE(d.lookup(HiveIdProperty) >= 0);
+    TRACE(d.lookup(HiveFirmwareProperty) >= 0);
     TRACE(d.lookup(TimestampProperty) >= 0);
     TRACE(d.lookup(SsidProperty) >= 0);
     TRACE(d.lookup(SsidPswdProperty) >= 0);
@@ -90,6 +96,7 @@ bool HiveConfig::docIsValidForConfig(const CouchUtils::Doc &d)
     TRACE(d.lookup(DbPswdProperty) >= 0);
     TRACE(d.lookup(IsSslProperty) >= 0);
     TRACE(d[d.lookup(HiveIdProperty)].getValue().isStr());
+    TRACE(d[d.lookup(HiveFirmwareProperty)].getValue().isStr());
     TRACE(d[d.lookup(TimestampProperty)].getValue().isStr());
     TRACE(d[d.lookup(SsidProperty)].getValue().isStr());
     TRACE(d[d.lookup(SsidPswdProperty)].getValue().isStr());
@@ -103,6 +110,7 @@ bool HiveConfig::docIsValidForConfig(const CouchUtils::Doc &d)
 	  (strcmp(d[d.lookup(IsSslProperty)].getValue().getStr().c_str(),"false") == 0));
     
     return d.lookup(HiveIdProperty) >= 0 &&
+      d.lookup(HiveFirmwareProperty) >= 0 && 
       d.lookup(TimestampProperty) >= 0 && 
       d.lookup(SsidProperty) >= 0 &&
       d.lookup(SsidPswdProperty) >= 0 &&
@@ -112,6 +120,7 @@ bool HiveConfig::docIsValidForConfig(const CouchUtils::Doc &d)
       d.lookup(DbPswdProperty) >= 0 &&
       d.lookup(IsSslProperty) >= 0 &&
       d[d.lookup(HiveIdProperty)].getValue().isStr() &&
+      d[d.lookup(HiveFirmwareProperty)].getValue().isStr() &&
       d[d.lookup(TimestampProperty)].getValue().isStr() &&
       d[d.lookup(SsidProperty)].getValue().isStr() &&
       !d[d.lookup(SsidProperty)].getValue().getStr().equals("<MyWifi>") &&
@@ -149,7 +158,7 @@ const int HiveConfig::isSSL() const {return strcmp(mDoc[mDoc.lookup(IsSslPropert
 const char *HiveConfig::getLogDbName() const {return "hive-sensor-log";}     // couchdb name
 const char *HiveConfig::getConfigDbName() const {return "hive-config";}      // couchdb name
 const char *HiveConfig::getChannelDbName() const {return "hive-channel";}    // couchdb name
-const char *HiveConfig::getDesignDocId() const {return "_design/SensorLog";}
+const char *HiveConfig::getDesignDocId() const {return "_design/SensorLog";} // couchdb design document
 const char *HiveConfig::getSensorByHiveViewName() const {return "by-hive-sensor";}
 
 const char *HiveConfig::getHiveId() const

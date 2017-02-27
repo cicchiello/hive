@@ -201,8 +201,9 @@ bool ProvisionImp::loop(unsigned long now, Mutex *wifiMutex)
 
 
 
-Provision::Provision(const char *resetCause, const char *versionId, const char *configFilename, unsigned long now)
-  : mImp(new ProvisionImp(resetCause, versionId, configFilename))
+Provision::Provision(const char *resetCause, const char *versionId, const char *configFilename,
+		     unsigned long now, Mutex *wifiMutex)
+  : mImp(new ProvisionImp(resetCause, versionId, configFilename)), mWifiMutex(wifiMutex)
 {
     TF("Provision::Provision");
     
@@ -252,10 +253,10 @@ void Provision::stop()
 }
 
 
-bool Provision::loop(unsigned long now, Mutex *wifiMutex)
+bool Provision::loop(unsigned long now)
 {
     if (now > mImp->mNextActionTime)
-        return mImp->loop(now, wifiMutex);
+        return mImp->loop(now, mWifiMutex);
 }
 
 

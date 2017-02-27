@@ -29,7 +29,7 @@
 
 class MyDataProvider : public HttpDataProvider {
 public:
-    static const int BUFSZ = 64;
+    static const int BUFSZ = 512;
   
 private:
     unsigned char buf[BUFSZ];
@@ -52,6 +52,7 @@ public:
     void init()
     {
         TF("MyDataProvider::init");
+	TRACE("entry");
         SDUtils::initSd(mSd);
 	bool stat = mF.open(mFilename.c_str(), O_READ);
 	assert2(stat,"Couldn't open file",mFilename.c_str());
@@ -123,16 +124,20 @@ MyDataProvider::~MyDataProvider()
 
 AudioUpload::AudioUpload(const HiveConfig &config,
 			 const char *sensorName,
+			 const char *attachmentDescription,
 			 const char *attachmentName,
 			 const char *contentType,
 			 const char *filename, 
 			 const class RateProvider &rateProvider,
 			 const class TimeProvider &timeProvider,
-			 unsigned long now)
-  : SensorBase(config, sensorName, rateProvider, timeProvider, now), mTransferStart(0),
+			 unsigned long now,
+			 Mutex *wifiMutex, Mutex *sdMutex)
+  : SensorBase(config, sensorName, rateProvider, timeProvider, now, wifiMutex),
+    mTransferStart(0), mSdMutex(sdMutex),
     mBinaryPutter(NULL), mDataProvider(NULL),
     mAttachmentName(new Str(attachmentName)), mDocId(new Str()), mRevision(new Str()),
     mContentType(new Str(contentType)), mFilename(new Str(filename)),
+    mAttDesc(new Str(attachmentDescription)),
     mIsDone(false), mHaveDocId(false)
 {
     TF("AudioUpload::AudioUpload");
@@ -145,6 +150,7 @@ AudioUpload::~AudioUpload()
     delete mDocId;
     delete mRevision;
     delete mAttachmentName;
+    delete mAttDesc;
     delete mContentType;
     delete mFilename;
     delete mBinaryPutter;
@@ -160,12 +166,12 @@ bool AudioUpload::isItTimeYet(unsigned long now)
 
 bool AudioUpload::sensorSample(Str *valueStr)
 {
-    *valueStr = "10s-audio-clip";
+    *valueStr = *mAttDesc;
     return true;
 }
 
 
-bool AudioUpload::loop(unsigned long now, Mutex *wifi)
+bool AudioUpload::loop(unsigned long now)
 {
     TF("AudioUpload::loop");
     
@@ -173,9 +179,20 @@ bool AudioUpload::loop(unsigned long now, Mutex *wifi)
         return false;
 
     if (!mHaveDocId) {
-        return SensorBase::loop(now, wifi);
+        return SensorBase::loop(now);
     } else {
-        if ((now >= getNextPostTime()) && wifi->own(this)) {
+	bool muticesOwned = (getWifiMutex()->whoOwns() == this) && (mSdMutex->whoOwns() == this);
+	if (!muticesOwned) {
+	    bool muticesAvailable = getWifiMutex()->isAvailable() && mSdMutex->isAvailable();
+	    if (muticesAvailable) {
+	        TRACE("Both Mutexes aquired");
+		bool ownWifi = getWifiMutex()->own(this);
+		bool ownSd = mSdMutex->own(this);
+		assert(ownWifi && ownSd, "ownWifi && ownSd");
+		muticesOwned = true;
+	    }
+	}
+        if ((now >= getNextPostTime()) && muticesOwned) {
 	    unsigned long callMeBackIn_ms = 10l;
 	    bool done = false;
 	    if (mBinaryPutter == 0) {
@@ -204,6 +221,7 @@ bool AudioUpload::loop(unsigned long now, Mutex *wifi)
 						  getConfig().getDbUser(), getConfig().getDbPswd(),
 						  getConfig().isSSL(),
 						  mDataProvider, mContentType->c_str());
+		mTransferStart = now;
 	    } else {
 	        TF("AudioUpload::loop; processing HttpBinaryPut event");
 	        HttpBinaryPut::EventResult r = mBinaryPutter->event(now, &callMeBackIn_ms);
@@ -217,24 +235,25 @@ bool AudioUpload::loop(unsigned long now, Mutex *wifi)
 				assert(mDataProvider->isDone(),
 				       "upload appeared to succeed, but not at EOF");
 				unsigned long transferTime = now - mTransferStart;
-				TRACE2("Transfer completed after (ms): ", transferTime);
+				PH3("Upload completed; upload took ", transferTime, " ms");
 			    } else {
 			        Str dump;
-				TRACE2("Received unexpected couch response:",
+				PH2("Received unexpected couch response:",
 				       CouchUtils::toString(mBinaryPutter->getDoc(), &dump));
 			    }
 			} else {
-			    TRACE2("Found unexpected information in the header response:",
-				   mBinaryPutter->getHeaderConsumer().getResponse().c_str());
+			    PH2("Found unexpected information in the header response:",
+				mBinaryPutter->getHeaderConsumer().getResponse().c_str());
 			}
 		    }  else {
-		        TRACE("unknown failure");
+		        PH("unknown failure");
 		    }
 		    delete mBinaryPutter;
 		    delete mDataProvider;
 		    mBinaryPutter = NULL;
 		    mDataProvider = NULL;
-		    wifi->release(this);
+		    getWifiMutex()->release(this);
+		    mSdMutex->release(this);
 		} else {
 		    //TRACE2("mBinaryPutter scheduled a callback in (ms): ", callMeBackIn_ms);
 		}
@@ -266,6 +285,8 @@ bool AudioUpload::processResult(const HttpCouchConsumer &consumer, unsigned long
 	    mHaveDocId = true;
 	    mIsDone = false;
 	    PH2("saved doc to id/rev: ", Str(id).append("/").append(rev).c_str());
+	} else {
+	    PH("Unexpected problem with the result");
 	}
     } else {
         PH("Unexpected problem with the result");

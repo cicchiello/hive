@@ -16,8 +16,8 @@ HeartBeat::HeartBeat(const HiveConfig &config,
 		     const char *name,
 		     const class RateProvider &rateProvider,
 		     const class TimeProvider &timeProvider,
-		     unsigned long now)
-  : SensorBase(config, name, rateProvider, timeProvider, now),
+		     unsigned long now, Mutex *wifiMutex)
+  : SensorBase(config, name, rateProvider, timeProvider, now, wifiMutex),
     mCreateTimestampStr(0), mCreateTimestamp(now)
 {
     TF("HeartBeat::HeartBeat");

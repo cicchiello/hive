@@ -16,7 +16,7 @@ class SensorRateActuator : public Actuator, public RateProvider {
     
     int secondsBetweenSamples() const;
     
-    bool loop(unsigned long now, Mutex *wifi);
+    bool loop(unsigned long now);
     
  protected:
     virtual const char *className() const {return "SensorRateActuator";}

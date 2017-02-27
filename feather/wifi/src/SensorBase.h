@@ -15,12 +15,14 @@ class SensorBase : public Sensor {
     SensorBase(const HiveConfig &config, const char *name,
 	       const class RateProvider &rateProvider,
 	       const class TimeProvider &timeProvider,
-	       unsigned long now);
+	       unsigned long now, Mutex *wifiMutex);
     ~SensorBase();
 
-    bool loop(unsigned long now, Mutex *wifi);
+    bool loop(unsigned long now);
 
     virtual bool sensorSample(Str *value) = 0;
+
+    Mutex *getWifiMutex() const {return mWifiMutex;}
 
  protected:
     const HiveConfig &getConfig() const {return mConfig;}
@@ -44,6 +46,7 @@ class SensorBase : public Sensor {
     Str *mValueStr;
     const HiveConfig &mConfig;
     class HttpCouchPost *mPoster;
+    Mutex *mWifiMutex;
 };
 
 inline

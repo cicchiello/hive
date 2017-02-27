@@ -15,8 +15,9 @@ BeeCounter::BeeCounter(const HiveConfig &config, const char *name,
 		       const class RateProvider &rateProvider,
 		       const class TimeProvider &timeProvider,
 		       unsigned long now,
-		       int _ploadPin, int _clockPin, int _dataPin)
-  : SensorBase(config, name, rateProvider, timeProvider, now),
+		       int _ploadPin, int _clockPin, int _dataPin,
+		       Mutex *wifiMutex)
+  : SensorBase(config, name, rateProvider, timeProvider, now, wifiMutex),
     mFirstRead(true), mNumBees(0),
     ploadPin(_ploadPin), clockPin(_clockPin), dataPin(_dataPin),
     mLastSampleTime(now)
@@ -39,6 +40,11 @@ BeeCounter::BeeCounter(const HiveConfig &config, const char *name,
 }
 
 
+BeeCounter::~BeeCounter()
+{
+}
+
+
 inline static void clkDelay()
 {
   for (int i = 0; i < 40; i++)
@@ -49,10 +55,6 @@ inline static void halfClkDelay()
 {
   for (int i = 0; i < 20; i++)
     ;
-}
-
-BeeCounter::~BeeCounter()
-{
 }
 
 PulseGenConsumer *BeeCounter::getPulseGenConsumer()
