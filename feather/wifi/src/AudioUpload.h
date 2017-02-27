@@ -9,6 +9,7 @@ class AudioUpload : public SensorBase {
 
     AudioUpload(const HiveConfig &config,
 		const char *sensorName,
+		const char *attachmentDescription,
 		const char *attachmentName,
 		const char *contentType,
 		const char *filename,
@@ -22,8 +23,6 @@ class AudioUpload : public SensorBase {
 
     bool loop(unsigned long now);
 
-    void setAttachmentName(const char *attName);
-    
     bool sensorSample(Str *value);
 
     Mutex *getSdMutex() const {return mSdMutex;}
@@ -40,7 +39,7 @@ class AudioUpload : public SensorBase {
     class MyDataProvider *mDataProvider;
     class HttpBinaryPut *mBinaryPutter;
     bool mHaveDocId, mIsDone;
-    Str *mDocId, *mRevision, *mAttachmentName, *mContentType, *mFilename;
+    Str *mDocId, *mRevision, *mAttachmentName, *mContentType, *mFilename, *mAttDesc;
     Mutex *mSdMutex;
 };
 

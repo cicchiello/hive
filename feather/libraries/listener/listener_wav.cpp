@@ -78,9 +78,7 @@ ListenerWavCreatorImp::ListenerWavCreatorImp(const char *rawFilename, const char
 
     SDUtils::initSd(m_sd);
     
-    PH("Will transfer ");
-    P(m_samplesToWrite);
-    PL(" samples to the WAV file");
+    PH3("Will transfer ", m_samplesToWrite, " samples to the WAV file");
 
     // rawFilename must exist to begin with
     bool stat = m_sd.exists(m_rawFilename);

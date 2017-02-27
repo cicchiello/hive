@@ -32,7 +32,10 @@ HiveConfig::~HiveConfig()
 
 bool HiveConfig::setDoc(const CouchUtils::Doc &doc)
 {
+    TF("HiveConfig::setDoc");
     mDoc = doc;
+    TRACE4("Overriding ", HiveFirmwareProperty, " with ", mVersionId.c_str());
+    mDoc.setValue(HiveFirmwareProperty, mVersionId.c_str());
 
     if (mUpdateFunctor != NULL) {
         mUpdateFunctor->onUpdate(*this);

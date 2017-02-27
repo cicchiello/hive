@@ -10,7 +10,7 @@ class RateProvider;
 class TimeProvider;
 class ListenerWavCreator;
 
-class ListenSensor : public AudioUpload, PulseGenConsumer {
+class ListenSensor : public SensorBase, PulseGenConsumer {
 public:
     ListenSensor(const HiveConfig &config,
 		 const char *name, 
@@ -27,6 +27,8 @@ public:
     bool loop(unsigned long now);
 
     void start(int millisecondsToRecord, const char *attName);
+
+    Mutex *getSdMutex() const {return mSdMutex;}
     
     const char *className() const {return "ListenSensor";}
     
@@ -35,13 +37,15 @@ public:
  private:
     void pulse(unsigned long now);
 
-    Str *mValue;
+    Str *mValue, *mAttName;
+    Mutex *mSdMutex;
     bool mStart;
     int mState;
     int mMillisecondsToRecord;
     int mADCPIN, mBIASPIN;
     unsigned long mStartTimestamp;
     class Listener *mListener;
+    class AudioUpload *mUploader;
 };
 
 #endif

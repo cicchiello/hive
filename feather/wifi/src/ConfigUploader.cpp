@@ -29,7 +29,7 @@ ConfigUploader::ConfigUploader(const HiveConfig &config,
 			       const class TimeProvider &timeProvider,
 			       unsigned long now, Mutex *wifi)
   : Sensor("config-uploader", rateProvider, timeProvider, now),
-    mConfig(config), mDoUpload(false), mNextActionTime(0),
+    mConfig(config), mDoUpload(true), mNextActionTime(now + 10000l),
     mGetter(0), mPutter(0), mWifiMutex(wifi)
 {}
 
@@ -240,6 +240,7 @@ bool ConfigUploader::processPutter(unsigned long now, unsigned long *callMeBackI
 
     if (mPutter->getHeaderConsumer().hasOk()) {
         TRACE("hasOk; upload succeeded");
+	PH("ConfigUpload succeeded");
 	mDoUpload = false;
     } else {
         TRACE("PUT failed; retrying again in 5s");

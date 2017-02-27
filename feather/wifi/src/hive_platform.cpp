@@ -73,7 +73,8 @@ const char *HivePlatform::getResetCause() const
 }
 
 
-static void stackDump()
+/* STATIC */
+void HivePlatform::stackDump()
 {
     if (TraceScope::sCurrScope != NULL) {
         SdFile f;
@@ -105,7 +106,7 @@ void HEADLESS_wdtEarlyWarningHandler()
     // first, prevent the WDT from doing a full system reset by resetting the timer
     PlatformUtils::nonConstSingleton().clearWDT();
 
-    stackDump();
+    HivePlatform::stackDump();
     
     // force an immediate system reset 
     NVIC_SystemReset();
@@ -116,7 +117,7 @@ void DEBUG_wdtEarlyWarningHandler()
     // first, prevent the WDT from doing a full system reset by resetting the timer
     PlatformUtils::nonConstSingleton().clearWDT();
 
-    stackDump();
+    HivePlatform::stackDump();
     
     PL("wdtEarlyWarningHandler; BARK!");
     PL("");

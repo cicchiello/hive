@@ -14,6 +14,8 @@ class HivePlatform {
 
     void markWDT(const char *msg) const;
 
+    static void stackDump();
+    
     static void trace(const char *msg);
     static void error(const char *msg);
 

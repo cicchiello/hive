@@ -20,6 +20,11 @@
 #define RECORDING       1
 #define UPLOADING       3
 
+
+#define DEFAULT_ATTACHMENT_NAME  "listen.wav"
+#define ATTACHMENT_CONTENT_TYPE  "audio/wav"
+#define CONTENT_FILENAME         "/LISTEN.WAV"
+
 ListenSensor::ListenSensor(const HiveConfig &config,
 			   const char *name, 
 			   const RateProvider &rateProvider,
@@ -27,10 +32,10 @@ ListenSensor::ListenSensor(const HiveConfig &config,
 			   unsigned long now,
 			   int ADCPIN, int BIASPIN,
 			   Mutex *wifiMutex, Mutex *sdMutex)
-  : AudioUpload(config, name, "listen.wav", "audio/wav", "/LISTEN.WAV", rateProvider, timeProvider,
-		now, wifiMutex, sdMutex),
-    mState(NOOP), mStart(false),
-    mListener(0), mMillisecondsToRecord(0), mADCPIN(ADCPIN), mBIASPIN(BIASPIN), mValue(new Str())
+  : SensorBase(config, name, rateProvider, timeProvider, now, wifiMutex),
+    mState(NOOP), mStart(false), mUploader(NULL), mSdMutex(sdMutex),
+    mListener(NULL), mMillisecondsToRecord(0), mADCPIN(ADCPIN), mBIASPIN(BIASPIN),
+    mValue(new Str()), mAttName(new Str(DEFAULT_ATTACHMENT_NAME))
 {
 }
 
@@ -42,6 +47,7 @@ ListenSensor::~ListenSensor()
     delete mListener;
 
     delete mValue;
+    delete mAttName;
 }
 
 
@@ -50,7 +56,7 @@ void ListenSensor::start(int millisecondsToRecord, const char *attName)
     TF("ListenSensor::start");
     TRACE("entry");
     mStart = true;
-    setAttachmentName(attName);
+    *mAttName = attName;
     mMillisecondsToRecord = millisecondsToRecord;
 }
 
@@ -125,7 +131,14 @@ bool ListenSensor::loop(unsigned long now)
 		mState = NOOP;
 	    } else {
 	        TRACE2("Audio Capture complete; proceeding to upload it:", (millis()-mStartTimestamp));
+		Str attachmentDescription;
+		attachmentDescription.append((int)(mMillisecondsToRecord/1000));
+		attachmentDescription.append("s-audio-clip");
 		mState = UPLOADING;
+		mUploader = new AudioUpload(getConfig(), getName(), attachmentDescription.c_str(),
+					    mAttName->c_str(), ATTACHMENT_CONTENT_TYPE,
+					    CONTENT_FILENAME, getRateProvider(), getTimeProvider(),
+					    now, getWifiMutex(), getSdMutex());
 	    }
 	    getSdMutex()->release(this);
 	    getWifiMutex()->release(this);
@@ -136,12 +149,14 @@ bool ListenSensor::loop(unsigned long now)
       break;
 
     case UPLOADING: {
-        callMeBack = AudioUpload::loop(now);
+        callMeBack = mUploader->loop(now);
 	if (!callMeBack) {
 	    Str timeStr;
 	    getTimeProvider().toString(millis(), &timeStr);
 	    PH2("Audio Capture Success!  Total time: ", (millis()-mStartTimestamp));
 	    PH2("Time now: ", timeStr.c_str());
+	    delete mUploader;
+	    mUploader = NULL;
 	    mState = NOOP;
 	}
     }

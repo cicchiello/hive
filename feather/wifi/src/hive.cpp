@@ -96,7 +96,7 @@ public:
 };
 
 void HiveConfigUploader::onUpdate(const HiveConfig &c) {
-    if (s_provisioner && (&c == &s_provisioner->getConfig())) {
+    if (s_configUploader && s_provisioner && (&c == &s_provisioner->getConfig())) {
         s_configUploader->upload();
     }
 
@@ -123,7 +123,7 @@ void setup(void)
     Serial.begin(115200);
 #endif
   
-    P("ResetCause: "); PL(ResetCause);
+    PH2("ResetCause: ", ResetCause);
     
     pinMode(19, INPUT);               // used for preventing runnaway on reset
     while (digitalRead(19) == HIGH) {
@@ -143,10 +143,14 @@ void setup(void)
   
     s_provisioner = new Provision(ResetCause, VERSION, CONFIG_FILENAME, millis(), &sWifiMutex);
     
+    // setup callback to upload hive config changes (including whatever one gets chosen by provisioner)
+    HiveConfigUploader *uploader = new HiveConfigUploader();
+    uploader->setPrevUpdater(CNF.onUpdate(uploader));
+	
     s_indicator = new Indicator(millis());
     s_indicator->setFlashMode(Indicator::TryingToConnect);
     
-    PL("Setup done...");
+    PH("Setup done...");
 
     pinMode(10, OUTPUT);  // set the SPI_CS pin as output
 }
@@ -184,7 +188,7 @@ void loop(void)
     switch (s_mainState) {
     case INIT_SENSORS: {
         TF("::loop; INIT_SENSORS");
-        TRACE("Initializing sensors and actuators");
+        PH("Initializing sensors and actuators");
 	s_mainState = SENSOR_SAMPLE;
 
 	for (int i = 0; i < MAX_SENSORS; i++) {
@@ -207,10 +211,6 @@ void loop(void)
 
 	s_configUploader = new ConfigUploader(s_provisioner->getConfig(), *rate, *s_appChannel, now, &sWifiMutex);
 	s_sensors[sensorIndex++] = s_configUploader;
-	
-	// setup callback to upload hive config changes
-	HiveConfigUploader *uploader = new HiveConfigUploader();
-	uploader->setPrevUpdater(CNF.onUpdate(uploader));
 	
 	s_sensors[sensorIndex++] = new HeartBeat(CNF, "heartbeat", *rate, *s_appChannel, now, &sWifiMutex);
 	s_sensors[sensorIndex++] = new TempSensor(CNF, "temp", *rate, *s_appChannel, now, &sWifiMutex);
@@ -251,9 +251,6 @@ void loop(void)
 	TRACE("Sensors initialized;");
 
 //	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_11K(beecnt->getPulseGenConsumer());
-	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_11K(motor0->getPulseGenConsumer());
-	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_11K(motor1->getPulseGenConsumer());
-	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_11K(motor2->getPulseGenConsumer());
 //	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_22K(latch->getPulseGenConsumer());
 	HivePlatform::nonConstSingleton()->pulseGen_22K_init();
 	PL("PulseGenerators initialized;");
@@ -265,27 +262,7 @@ void loop(void)
 
 #ifdef foo		    
 		    if (payload.equals("motors")) {
-		        motor0->processResult(now, "foo");
-			motor1->processResult(now, "foo");
-			motor2->processResult(now, "foo");
 		    } else if (payload.equals("listen")) {
-			bool stat = listener->record(10500, "/LISTEN.WAV", true);
-			assert(stat, "Couldn't start recording");
-			TRACE2("Listening... ", millis());
-
-			bool done = false;
-			while (!done) {
-			  HivePlatform::nonConstSingleton()->clearWDT();
-			  bool success = listener->loop(true);
-			  if (listener->isDone()) {
-			    if (listener->hasError()) {
-			      TRACE2("Failed: ", listener->getErrmsg());
-			    } else {
-			      TRACE("Done: success! "); 
-			    }
-			    done = true;
-			  }
-			}
 		    } else if (payload.equals("upload")) {
 		        AudioUpload uploader(CNF, "audio-capture", "listen.wav", "audio/wav",
 					     "/LISTEN.WAV", *s_rate, *s_timestamp, now);
@@ -346,7 +323,7 @@ void loop(void)
 void processMsg(const char *msg, unsigned long now)
 {
     TF("::processMsg");
-    TRACE2("Msg to process: ", msg);
+    PH2("Msg to process: ", msg);
 
     assert(s_appChannel, "s_appChannel");
     assert(s_appChannel->haveTimestamp(), "s_appChannel->haveTimestamp()");
@@ -365,7 +342,7 @@ void processMsg(const char *msg, unsigned long now)
     }
 
     if (!foundConsumer) {
-        TRACE2("WARNING: received a message from the App that has not been claimed: ", msg);
+        PH2("WARNING: received a message from the App that has not been claimed: ", msg);
     }
 }
 
@@ -399,18 +376,13 @@ void rxLoop(unsigned long now)
 	}
     } else {
         if (s_appChannel->loop(now)) {
-	    if (s_appChannel->haveMessage()) {
-	        TRACE("Received a message from the Mobile App");
-
-		if (sSdMutex.isAvailable() && sSdMutex.own(s_appChannel)) {
-		    assert(sSdMutex.whoOwns() == s_appChannel, "sSdMutex.whoOwns() == s_appChannel");
-		    Str payload;
-		    s_appChannel->consumePayload(&payload, &sSdMutex);
-		    assert(sSdMutex.whoOwns() == s_appChannel, "sSdMutex.whoOwns() == s_appChannel");
-		    processMsg(payload.c_str(), now);
-		    assert(sSdMutex.whoOwns() == s_appChannel, "sSdMutex.whoOwns() == s_appChannel");
-		    sSdMutex.release(s_appChannel);
-		}
+	    if (s_appChannel->haveMessage() && sSdMutex.isAvailable() && sSdMutex.own(s_appChannel)) {
+	        assert(sSdMutex.whoOwns() == s_appChannel, "sSdMutex.whoOwns() == s_appChannel");
+		Str payload;
+		s_appChannel->consumePayload(&payload, &sSdMutex);
+		assert(sSdMutex.whoOwns() == s_appChannel, "sSdMutex.whoOwns() == s_appChannel");
+		processMsg(payload.c_str(), now);
+		sSdMutex.release(s_appChannel);
 	    }
 	}
 	if (!s_isOnline && s_appChannel->isOnline()) {

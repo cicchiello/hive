@@ -28,7 +28,8 @@
 #define LOAD_PREV_MSG_ID 1
 #define READ_HEADER      2
 #define READ_MSG         3
-#define DONE             4
+#define HAVE_PAYLOAD     4
+#define DONE             5
 
 static const char *DateTag = "Date: ";
 
@@ -69,8 +70,10 @@ static bool readMsgIdFile(SdFat &sd, const char *filename, Str *msgId)
     const int bufsz = 40;
     char buf[bufsz];
     SDUtils::ReadlineStatus stat = SDUtils::readline(&f, buf, bufsz);
-    if (stat == SDUtils::ReadBufOverflow)
+    if (stat == SDUtils::ReadBufOverflow) {
+        f.close();
         return false;
+    }
 
     f.close();
     
@@ -197,7 +200,7 @@ bool AppChannel::processDoc(const CouchUtils::Doc &doc,
 		// good!  this means I have the next message that the system should process
 		PH2("Have the next message to process: ", mPayload.c_str());
 		mHavePayload = true;
-		mState = READ_HEADER;
+		mState = HAVE_PAYLOAD;
 		mInitialMsg = false;
 	    } else {
 	        mNewMsgId = prevMsgId;
@@ -375,6 +378,12 @@ bool AppChannel::loop(unsigned long now)
         return getterLoop(now, mWifiMutex, true);
     case READ_MSG:
         return getterLoop(now, mWifiMutex, false);
+    case HAVE_PAYLOAD:
+        if (!mHavePayload) {
+	    // done; can now move on to read the next message in the channel
+	    mState = READ_HEADER;
+	}
+	return true; // return true, regardless
     default:
         FAIL("Unknown AppChannel state");
     }

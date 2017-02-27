@@ -94,7 +94,7 @@ bool SensorBase::postImplementation(unsigned long now, Mutex *wifi)
 	    TRACE2("using ssl? ", (mConfig.isSSL() ? "yes" : "no"));
 	    TRACE2("with dbuser: ", mConfig.getDbUser());
 	    TRACE2("with dbpswd: ", mConfig.getDbPswd());
-	    PH2("doc: ", dump.c_str());
+	    PH2("POSTing doc: ", dump.c_str());
 	    
 	    mPoster = new HttpCouchPost(mConfig.getSSID(), mConfig.getPSWD(),
 					mConfig.getDbHost(), mConfig.getDbPort(),

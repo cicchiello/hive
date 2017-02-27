@@ -124,6 +124,7 @@ MyDataProvider::~MyDataProvider()
 
 AudioUpload::AudioUpload(const HiveConfig &config,
 			 const char *sensorName,
+			 const char *attachmentDescription,
 			 const char *attachmentName,
 			 const char *contentType,
 			 const char *filename, 
@@ -136,6 +137,7 @@ AudioUpload::AudioUpload(const HiveConfig &config,
     mBinaryPutter(NULL), mDataProvider(NULL),
     mAttachmentName(new Str(attachmentName)), mDocId(new Str()), mRevision(new Str()),
     mContentType(new Str(contentType)), mFilename(new Str(filename)),
+    mAttDesc(new Str(attachmentDescription)),
     mIsDone(false), mHaveDocId(false)
 {
     TF("AudioUpload::AudioUpload");
@@ -148,16 +150,11 @@ AudioUpload::~AudioUpload()
     delete mDocId;
     delete mRevision;
     delete mAttachmentName;
+    delete mAttDesc;
     delete mContentType;
     delete mFilename;
     delete mBinaryPutter;
     delete mDataProvider;
-}
-
-
-void AudioUpload::setAttachmentName(const char *attName)
-{
-    *mAttachmentName = attName;
 }
 
 
@@ -169,7 +166,7 @@ bool AudioUpload::isItTimeYet(unsigned long now)
 
 bool AudioUpload::sensorSample(Str *valueStr)
 {
-    *valueStr = "10s-audio-clip";
+    *valueStr = *mAttDesc;
     return true;
 }
 
@@ -224,6 +221,7 @@ bool AudioUpload::loop(unsigned long now)
 						  getConfig().getDbUser(), getConfig().getDbPswd(),
 						  getConfig().isSSL(),
 						  mDataProvider, mContentType->c_str());
+		mTransferStart = now;
 	    } else {
 	        TF("AudioUpload::loop; processing HttpBinaryPut event");
 	        HttpBinaryPut::EventResult r = mBinaryPutter->event(now, &callMeBackIn_ms);
@@ -237,18 +235,18 @@ bool AudioUpload::loop(unsigned long now)
 				assert(mDataProvider->isDone(),
 				       "upload appeared to succeed, but not at EOF");
 				unsigned long transferTime = now - mTransferStart;
-				TRACE2("Transfer completed after (ms): ", transferTime);
+				PH3("Upload completed; upload took ", transferTime, " ms");
 			    } else {
 			        Str dump;
-				TRACE2("Received unexpected couch response:",
+				PH2("Received unexpected couch response:",
 				       CouchUtils::toString(mBinaryPutter->getDoc(), &dump));
 			    }
 			} else {
-			    TRACE2("Found unexpected information in the header response:",
-				   mBinaryPutter->getHeaderConsumer().getResponse().c_str());
+			    PH2("Found unexpected information in the header response:",
+				mBinaryPutter->getHeaderConsumer().getResponse().c_str());
 			}
 		    }  else {
-		        TRACE("unknown failure");
+		        PH("unknown failure");
 		    }
 		    delete mBinaryPutter;
 		    delete mDataProvider;
@@ -287,6 +285,8 @@ bool AudioUpload::processResult(const HttpCouchConsumer &consumer, unsigned long
 	    mHaveDocId = true;
 	    mIsDone = false;
 	    PH2("saved doc to id/rev: ", Str(id).append("/").append(rev).c_str());
+	} else {
+	    PH("Unexpected problem with the result");
 	}
     } else {
         PH("Unexpected problem with the result");

@@ -35,7 +35,7 @@ public:
 
   void addStepper(StepperActuator *stepper);
   void removeStepper(StepperActuator *stepper);
-  
+
   void pulse(unsigned long now);
 };
 
@@ -43,6 +43,11 @@ public:
 void StepperActuatorPulseGenConsumer::addStepper(StepperActuator *stepper)
 {
     TF("StepperActuatorPulseGenConsumer::addStepper");
+
+    // if there are no steppers currently on the ISR handler list, then let's start the pulse generator
+    if (mSteppers[0] == NULL) {
+        HivePlatform::nonConstSingleton()->registerPulseGenConsumer_11K(StepperActuatorPulseGenConsumer::nonConstSingleton());
+    }
     
     // put given StepperActuator on the ISR handler list
     // (consider that it might already be there)
@@ -80,6 +85,11 @@ void StepperActuatorPulseGenConsumer::removeStepper(StepperActuator *stepper)
     } else {
         mSteppers[i] = mSteppers[j];
 	mSteppers[j] = NULL;
+    }
+
+    // if the ISR Handler list is empty, stop the pulse generator
+    if (mSteppers[0] == NULL) {
+        HivePlatform::nonConstSingleton()->unregisterPulseGenConsumer_11K(StepperActuatorPulseGenConsumer::nonConstSingleton());
     }
 }
 
@@ -142,7 +152,7 @@ StepperActuator::StepperActuator(const HiveConfig &config,
 				 unsigned long now,
 				 int address, int port,
 				 bool isBackwards)
-  : Actuator(name, now), mLoc(0), mTarget(0),
+  : Actuator(name, now), mLoc(0), mTarget(0), 
     mRunning(false), mIsBackwards(isBackwards)
 {
     TF("StepperActuator::StepperActuator");
