@@ -16,7 +16,6 @@ import android.widget.TextView;
 import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.IPropertyMgr;
 import com.jfc.srvc.cloud.CouchCmdPush;
-import com.jfc.srvc.cloud.PushEmbed;
 import com.jfc.util.misc.DbAlertHandler;
 import com.jfc.util.misc.DialogUtils;
 import com.jfc.util.misc.SplashyText;
@@ -55,13 +54,6 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 		setRate(ctxt, DEFAULT_SAMPLE_RATE);
 	}
 	
-	public static void informHiveOfNewRate(Context ctxt, String hiveId, String rateStr) {
-		String sensor = "sample-rate";
-		String msg = "tx|"+hiveId.replace('-', ':')+"|action|"+sensor+"|"+rateStr;
-		
-		new PushEmbed(msg);
-	}
-
 	public SensorSampleRateProperty(final Activity activity, final TextView tv, ImageButton button, DbAlertHandler _dbAlert) {
 		this.mCtxt = activity.getApplicationContext();
 		this.mActivity = activity;
@@ -100,8 +92,6 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 						        		SplashyText.highlightModifiedField(mActivity, mSampleRateTv);
 									}
 								});
-								
-								informHiveOfNewRate(activity, mHiveId, rateValueStr);
 							}
 							@Override
 							public void error(final String msg) {
