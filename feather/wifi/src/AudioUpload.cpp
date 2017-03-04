@@ -200,8 +200,8 @@ bool AudioUpload::loop(unsigned long now)
 	        const char *docId = mDocId->c_str();
 		const char *attName = mAttachmentName->c_str();
 		const char *rev = mRevision->c_str();
-		Str url;
-		CouchUtils::toAttachmentPutURL(getConfig().getLogDbName(),
+		StrBuf url;
+		CouchUtils::toAttachmentPutURL(getConfig().getLogDbName().c_str(),
 					       docId, attName, rev, 
 					       &url);
 	    

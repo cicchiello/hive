@@ -3,6 +3,7 @@
 
 
 class Str;
+class StrBuf;
 class Mutex;
 
 class Sensor {
@@ -24,7 +25,7 @@ class Sensor {
  protected:
     virtual const char *className() const = 0;
     
-    Str TAG(const char *memberfunc, const char *msg) const;
+    StrBuf TAG(const char *memberfunc, const char *msg) const;
     
     unsigned long mNextSampleTime;
 

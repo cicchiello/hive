@@ -43,7 +43,7 @@ bool HttpGetTest::loop() {
     unsigned long now = millis();
     if (now > m_timeToAct && !m_didIt) {
 	if (m_getter == NULL) {
-	    Str url;
+	    StrBuf url;
 	    CouchUtils::toURL(defaultDbName, defaultDocid, &url);
 	    m_getter = new HttpCouchGet(ssid, pass, getDbHost(), getDbPort(),
 					url.c_str(), getDbUser(), getDbPswd(), getIsSSL());

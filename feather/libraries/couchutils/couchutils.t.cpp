@@ -1,6 +1,8 @@
 #include <couchutils.t.h>
 
-//#define NDEBUG
+#include <Arduino.h>
+
+#define NDEBUG
 #include <strutils.h>
 
 #include <Trace.h>
@@ -8,6 +10,7 @@
 #include <couchutils.h>
 
 #include <str.h>
+#include <strbuf.h>
 
 #include <Arduino.h>
 
@@ -37,7 +40,7 @@ bool CouchUtilsTest::setup() {
     
     TestAssert(CouchUtils::NameValuePair::s_instanceCnt == 3, "CouchUtils::NameValuePair::s_instanceCnt == 3");
 
-    Str buf;
+    StrBuf buf;
     CouchUtils::toString(*sDoc, &buf);
     const char *expected = "{\"_rev\":\"4-0352417bf4356dcc4a621084d57aaf46\",\"content2\":\"Hi CouchDB!\",\"content\":\"Hi feather, if you can read this, the test worked!\"}";
  
@@ -65,25 +68,25 @@ bool CouchUtilsTest::setup() {
     CouchUtils::Doc doc2;
     TestAssert(CouchUtils::parseDoc(stringToParse, &doc2) != NULL, "CouchUtils::parseDoc(stringToParse, &doc2) != NULL");
 
-    Str buf2;
+    StrBuf buf2;
     CouchUtils::toString(doc2, &buf2);
     TestAssert(strcmp(expected, buf2.c_str()) == 0, "strcmp(expected, buf2.c_str()) == 0");
 
     const char *rawdoc3 = "{\"_id\":\"feather-get-test\",\"_rev\":\"7-477f7b016f691940f63da508c712fa37\",\"content2\":\"Hi CouchDB!\",\"content\":\"Hi feather, if you can read this, the test worked!\",\"_attachments\":{\"wav\":{\"content_type\":\"application/x-www-form-urlencoded\",\"revpos\":7,\"digest\":\"md5-2mAAFXEzk+JAIKoESbDF0Q==\",\"length\":133,\"stub\":true}}}";
     expected = "{\"_id\":\"feather-get-test\",\"_rev\":\"7-477f7b016f691940f63da508c712fa37\",\"content2\":\"Hi CouchDB!\",\"content\":\"Hi feather, if you can read this, the test worked!\",\"_attachments\":{\"wav\":{\"content_type\":\"application/x-www-form-urlencoded\",\"revpos\":\"7\",\"digest\":\"md5-2mAAFXEzk+JAIKoESbDF0Q==\",\"length\":\"133\",\"stub\":\"true\"}}}";
 
-    Str buf3;
+    StrBuf buf3;
     CouchUtils::Doc doc3;
     CouchUtils::parseDoc(rawdoc3, &doc3);
     CouchUtils::toString(doc3, &buf3);
     TestAssert(strcmp(expected, buf3.c_str()) == 0, "strcmp(expected, buf3.c_str()) == 0");
 
     CouchUtils::Doc doc4(doc3);
-    Str buf4;
+    StrBuf buf4;
     CouchUtils::toString(doc4, &buf4);
     TestAssert(strcmp(expected, buf4.c_str()) == 0, "strcmp(expected, buf4.c_str()) == 0");
 
-    Str tstr("0123456789abcdef0123456789abcdef");
+    StrBuf tstr("0123456789abcdef0123456789abcdef");
     TRACE2("tstr: ", tstr.c_str());
     CouchUtils::Doc tstrdoc;
     tstrdoc.addNameValue(new CouchUtils::NameValuePair("test", CouchUtils::Item(Str(tstr.c_str()))));
@@ -120,7 +123,7 @@ bool CouchUtilsTest::setup() {
     
 		    
     const char *rawdoc5 = "{\"total_rows\":20088,\"offset\":3102,\"rows\":[\{\"id\":\"b2616c9c249a6e23b6cb1288477bac2f\",\"key\":[\"F0-17-66-FC-5E-A1\",\"sample-rate\",\"1484857822\"],\"value\":[\"F0-17-66-FC-5E-A1\",\"sample-rate\",\"1484857822\",\"10\"]}\]}";
-    Str buf5;
+    StrBuf buf5;
     CouchUtils::Doc doc5;
     CouchUtils::parseDoc(rawdoc5, &doc5);
 
@@ -149,10 +152,8 @@ bool CouchUtilsTest::setup() {
 		    
 
     const char *rawdoc6 = "{\"total_rows\":22851,\"offset\":22654,\"rows\":[|\n|]}|";
-    Str s6 = rawdoc6;
-    for (int i = 0; i < s6.len(); i++)
-      if (s6.c_str()[i] == '|')
-	s6.set(0x0d, i);
+    StrBuf s6;
+    StringUtils::replace(&s6, rawdoc6, "|", "\n");
     TRACE2("s6.c_str(): ", s6.c_str());
     
     CouchUtils::Doc doc6;

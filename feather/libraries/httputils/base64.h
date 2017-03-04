@@ -1,8 +1,8 @@
 #ifndef base64_h
 #define base64_h
 
-class Str;
+class StrBuf;
 
-int base64_encode(Str *output, const char *input, int inputLen);
+int base64_encode(StrBuf *output, const char *input, int inputLen);
 
 #endif

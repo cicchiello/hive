@@ -3,8 +3,8 @@
 
 
 #include <Sensor.h>
+#include <couchutils.h>
 
-class Str;
 class Mutex;
 class HiveConfig;
 class HttpCouchPut;
@@ -27,14 +27,17 @@ class ConfigUploader : public Sensor {
     
  private:
     class ConfigGetter *createGetter(const HiveConfig &);
-    HttpCouchPut *createPutter(const HiveConfig &, unsigned long now, const char *id, const char *rev);
+    HttpCouchPut *createPutter(const HiveConfig &, CouchUtils::Doc *docToUpload, const char *id);
     bool processGetter(const HiveConfig &, unsigned long now, unsigned long *callMeBackIn_ms);
     bool processPutter(unsigned long now, unsigned long *callMeBackIn_ms);
+    void prepareDocToUpload(const CouchUtils::Doc &existingDoc, CouchUtils::Doc *newDoc,
+			    unsigned long now, const char *rev);
     
     unsigned long mNextActionTime;
     bool mDoUpload;
     const HiveConfig &mConfig;
     class ConfigGetter *mGetter;
+    CouchUtils::Doc *mDocToUpload;
     HttpCouchPut *mPutter;
     Mutex *mWifiMutex;
 };

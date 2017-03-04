@@ -18,13 +18,16 @@ bool HttpRawConsumer::consume(unsigned long now)
 	    DL("HttpRawConsumer::consume; consuming raw response");
 	    int avail;
 	    if (avail = client.available()) {
-	        m_response.expand(m_response.len()+avail+1);
-		uint8_t *s = (uint8_t*) m_response.c_str();
-		int read = client.read(&s[m_response.len()], avail);
+		StrBuf something;
+		something.expand(avail+1);
+		uint8_t *s = (uint8_t*) something.c_str();
+		int read = client.read(s, avail);
 		if (read != avail) {
 		    DL("HttpRawConsumer::consume; error while consuming raw response document");
 		    return false;
 		}
+		s[avail] = 0;
+		appendToResponse(something.c_str());
 	    }
 	    return true;
 	} else {

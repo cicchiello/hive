@@ -25,19 +25,25 @@ HttpHeaderConsumer::HttpHeaderConsumer(const WifiUtils::Context &ctxt)
   : HttpResponseConsumer(ctxt)
 {
     TF("HttpHeaderConsumer::HttpHeaderConsumer");
-    TRACE("entry");
     init();
+}
+
+
+HttpHeaderConsumer::~HttpHeaderConsumer()
+{
+    TF("HttpHeaderConsumer::~HttpHeaderConsumer");
 }
 
 
 void HttpHeaderConsumer::init()
 {
+    TF("HttpHeaderConsumer::init");
     m_hasOk = m_timedout = m_haveHeader = m_parsedDoc = m_haveFirstCRLF = m_gotCR = m_err = false;
     mIsChunked = mHasContentLength = false;
     m_firstConsume = true;
     m_contentLength = 0;
     m_firstConsumeTime = 0;
-    m_response.clear();
+    m_response = "";
 }
 
 
@@ -51,7 +57,6 @@ void HttpHeaderConsumer::reset()
 bool HttpHeaderConsumer::hasNotFound() const
 {
     TF("HttpHeaderConsumer::hasNotFound");
-    TRACE("entry");
     if (!m_parsedDoc)
         hasOk();
 
@@ -109,18 +114,15 @@ bool HttpHeaderConsumer::hasOk() const
 bool HttpHeaderConsumer::consume(unsigned long now)
 {
     TF("HttpHeaderConsumer::consume");
-    
     if (m_firstConsume) {
-        TRACE("firstConsume");
-	TRACE(now);
+        TRACE2("firstConsume; now : ", now);
         m_firstConsume = false;
 	m_firstConsumeTime = now;
     }
     
     Adafruit_WINC1500Client &client = m_ctxt.getClient();
     if (now - consumeStart() > getTimeout()) {
-        TRACE("timeout!");
-	TRACE(now);
+        TRACE2("timeout!  now: ", now);
 	m_err = m_timedout = true;
 	client.stop();
 	return false;
@@ -157,4 +159,23 @@ bool HttpHeaderConsumer::consume(unsigned long now)
     return false;
 }
 
+
+void HttpHeaderConsumer::setResponse(const char *newResponse)
+{
+    TF("HttpHeaderConsumer::setResponse");
+    m_response = newResponse;
+}
+
+void HttpHeaderConsumer::appendToResponse(char c)
+{
+    TF("HttpHeaderConsumer::appendToResponse (char)");
+    m_response.add(c);
+}
+
+
+void HttpHeaderConsumer::appendToResponse(const char *str)
+{
+    TF("HttpHeaderConsumer::appendToResponse(const char*)");
+    m_response.append(str);
+}
 

@@ -6,35 +6,10 @@
 #include <Trace.h>
 
 
-HttpCouchGet::HttpCouchGet(const char *ssid, const char *ssidPswd, 
-			   const char *host, int port, const char *page,
-			   const char *dbUser, const char *dbPswd,
-			   bool isSSL)
-  : HttpGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
-    m_consumer(getContext())
-{
-    init();
-}
-
-
-HttpCouchGet::HttpCouchGet(const char *ssid, const char *ssidPswd, 
-			   const IPAddress &hostip, int port, const char *page,
-			   const char *dbUser, const char *dbPswd,
-			   bool isSSL)
-  : HttpGet(ssid, ssidPswd, hostip, port, page, dbUser, dbPswd, isSSL),
-    m_consumer(getContext())
-{
-    init();
-}
-
-
-HttpCouchGet::~HttpCouchGet()
-{
-}
-
 
 void HttpCouchGet::init()
 {
+    TF("HttpCouchGet::init");
     m_consumer.reset();
     m_doc.clear();
     m_haveDoc = m_parsedDoc = false;
@@ -44,7 +19,6 @@ void HttpCouchGet::init()
 void HttpCouchGet::resetForRetry()
 {
     TF("HttpCouchGet::resetForRetry");
-    TRACE("entry");
     init();
 
     HttpGet::resetForRetry();

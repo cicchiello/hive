@@ -1,11 +1,13 @@
 #include <couchutils.h>
 
+#include <Arduino.h>
+
 #define NDEBUG
 #include <strutils.h>
 
 #include <Trace.h>
 
-#include <str.h>
+#include <strbuf.h>
 
 #include <Arduino.h>
 
@@ -48,6 +50,16 @@ bool CouchUtils::Doc::setValue(const char *name, const Item &value)
 }
 
 
+bool CouchUtils::Doc::setValue(const Str &name, const Item &value)
+{
+    int i = lookup(name);
+    if (i >= 0) {
+        return nvs[i]->setValue(value);
+    }
+    return false;
+}
+
+
 int CouchUtils::Doc::lookup(const char *name) const 
 {
     for (int i = 0; i < numNVs; i++)
@@ -59,7 +71,7 @@ int CouchUtils::Doc::lookup(const char *name) const
 CouchUtils::Doc::Doc(const CouchUtils::Doc &d)
   : nvs(new NameValuePair*[d.arrSz]), numNVs(d.numNVs), arrSz(d.arrSz)
 {
-    TF("CouchUtils::Doc::Doc");
+    TF("CouchUtils::Doc::Doc (cpy)");
     s_instanceCnt++;
     assert(numNVs <= arrSz, "numNVs <= arrSz");
     for (int i = 0; i < arrSz; i++)
@@ -251,9 +263,7 @@ const char *CouchUtils::parseArr(const char *rawtext, CouchUtils::Arr *arr)
 		const char *nestedArrMarker = StringUtils::eatPunctuation(marker, '[');
 		if ((nestedDocMarker == NULL) && (nestedArrMarker == NULL)) {
 		    // primitive value 
-		    TRACE("found a string");
-
-		    Str value;
+		    StrBuf value;
 		    marker = StringUtils::unquote(marker, &value);
 		    if (marker == NULL) {
 		        // invalid Doc
@@ -261,7 +271,7 @@ const char *CouchUtils::parseArr(const char *rawtext, CouchUtils::Arr *arr)
 		    }
 
 		    TRACE2("parsed a primitive: ", value.c_str());
-		    arr->append(Item(value));
+		    arr->append(Item(value.c_str()));
 		} else if (nestedDocMarker != NULL) {
 		    // nested Doc
 		    TRACE("found a document");
@@ -310,7 +320,7 @@ const char *CouchUtils::parseArr(const char *rawtext, CouchUtils::Arr *arr)
 const char *CouchUtils::parseDoc(const char *rawtext, CouchUtils::Doc *doc) 
 {
     TF("CouchUtils::parseDoc");
-    
+ 
     const char *marker = strstr(rawtext, "{");
     if (marker != NULL) {
         marker = StringUtils::eatWhitespace(marker+1);
@@ -323,7 +333,7 @@ const char *CouchUtils::parseDoc(const char *rawtext, CouchUtils::Doc *doc)
 		if (tmarker != NULL) 
 		    return tmarker;
 
-		Str name;
+		StrBuf name;
 		marker = StringUtils::unquote(marker, &name);
 		if (marker == NULL) {
 		    // error -- DONE
@@ -338,9 +348,7 @@ const char *CouchUtils::parseDoc(const char *rawtext, CouchUtils::Doc *doc)
 		const char *nestedArrMarker = StringUtils::eatPunctuation(marker, '[');
 		if ((nestedDocMarker == NULL) && (nestedArrMarker == NULL)) {
 		    // primitive value 
-		    TRACE("found a string");
-
-		    Str value;
+		    StrBuf value;
 		    marker = StringUtils::unquote(marker, &value);
 		    if (marker == NULL) {
 		        // invalid Doc
@@ -476,7 +484,7 @@ void CouchUtils::printArr(const CouchUtils::Arr &arr)
 }
 
 /* STATIC */
-const char *CouchUtils::urlEncode(const char* msg, Str *buf)
+const char *CouchUtils::urlEncode(const char* msg, StrBuf *buf)
 {
     // according to https://tools.ietf.org/html/rfc3986, the following are the legal characters within a url
     // "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~:/?#[]@!$&'()*+,;="
@@ -505,7 +513,7 @@ const char *CouchUtils::urlEncode(const char* msg, Str *buf)
 
 
 /* STATIC */
-const char *CouchUtils::toURL(const char *db, const char *docid, Str *page)
+const char *CouchUtils::toURL(const char *db, const char *docid, StrBuf *page)
 {
     int len = strlen(db)+1+strlen(docid)+1+1;
     page->expand(len);
@@ -515,7 +523,7 @@ const char *CouchUtils::toURL(const char *db, const char *docid, Str *page)
 
 /* STATIC */
 const char *CouchUtils::toAttachmentPutURL(const char *db, const char *docid, 
-					   const char *attachName, const char *revision, Str *page)
+					   const char *attachName, const char *revision, StrBuf *page)
 {
     toURL(db, docid, page);
     int len = page->len()+1+strlen(attachName)+1+4+strlen(revision)+1;
@@ -527,7 +535,7 @@ const char *CouchUtils::toAttachmentPutURL(const char *db, const char *docid,
 
 /* STATIC */
 const char *CouchUtils::toAttachmentGetURL(const char *db, const char *docid, 
-					   const char *attachName, Str *page)
+					   const char *attachName, StrBuf *page)
 {
     toURL(db, docid, page);
     int len = page->len()+1+strlen(attachName)+1+4;
@@ -538,17 +546,14 @@ const char *CouchUtils::toAttachmentGetURL(const char *db, const char *docid,
 
 
 
-const char *CouchUtils::toString(const CouchUtils::Doc &doc, Str *buf)
+const char *CouchUtils::toString(const CouchUtils::Doc &doc, StrBuf *buf)
 {
-    buf->expand(2);
-
     buf->add('{');
-    buf->set(0, 1);
     for (int i = 0; i < doc.getSz(); i++) {
         const Str &name = doc[i].getName();
 	int requiredLen = buf->len()+5+name.len();
 	if (doc[i].getValue().isDoc()) {
-	    Str nested;
+	    StrBuf nested;
 	    toString(doc[i].getValue().getDoc(), &nested);
 	    requiredLen += nested.len()+4;
 	    buf->expand(requiredLen);
@@ -557,7 +562,7 @@ const char *CouchUtils::toString(const CouchUtils::Doc &doc, Str *buf)
 	    if (i+1 < doc.getSz()) 
 	        strcat(nonConstBuf, ",");
 	} else if (doc[i].getValue().isArr()) {
-	    Str nested;
+	    StrBuf nested;
 	    toString(doc[i].getValue().getArr(), &nested);
 	    requiredLen += nested.len()+4;
 	    buf->expand(requiredLen);
@@ -580,17 +585,14 @@ const char *CouchUtils::toString(const CouchUtils::Doc &doc, Str *buf)
 }
 
 
-const char *CouchUtils::toString(const CouchUtils::Arr &arr, Str *buf)
+const char *CouchUtils::toString(const CouchUtils::Arr &arr, StrBuf *buf)
 {
-    buf->expand(2);
-
     buf->add('[');
-    buf->set(0, 1);
     for (int i = 0; i < arr.getSz(); i++) {
         const Item &item = arr[i];
 	int requiredLen = buf->len()+1;
 	if (item.isDoc()) {
-	    Str nested;
+	    StrBuf nested;
 	    toString(item.getDoc(), &nested);
 	    requiredLen += nested.len()+2;
 	    buf->expand(requiredLen);
@@ -599,7 +601,7 @@ const char *CouchUtils::toString(const CouchUtils::Arr &arr, Str *buf)
 	    if (i+1 < arr.getSz()) 
 	        strcat(nonConstBuf, ",");
 	} else if (item.isArr()) {
-	    Str nested;
+	    StrBuf nested;
 	    toString(item.getArr(), &nested);
 	    requiredLen += nested.len()+2;
 	    buf->expand(requiredLen);

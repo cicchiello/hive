@@ -1,6 +1,8 @@
 #include <listener.t.h>
 
-//#define NDEBUG
+#include <Arduino.h>
+
+#define NDEBUG
 #include <strutils.h>
 
 #include <Trace.h>

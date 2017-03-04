@@ -20,6 +20,8 @@
 #include <rtcconversions.h>
 #include <http_couchget.h>
 
+#include <strbuf.h>
+
 #include <sdutils.h>
 
 #include <SdFat.h>
@@ -42,6 +44,12 @@ AppChannel::AppChannel(const HiveConfig &config, unsigned long now, Mutex *wifiM
     mPrevMsgId("undefined"), mNewMsgId(), mPayload(),
     mGetter(NULL), mOfflineTime(now), mWifiMutex(wifiMutex), mSdMutex(sdMutex)
 {
+    TF("AppChannel::AppChannel");
+    StrBuf channelId(config.getHiveId().c_str()), encodedId, channelUrl;
+    channelId.append("-app");
+    CouchUtils::urlEncode(channelId.c_str(), &encodedId);
+    CouchUtils::toURL(config.getChannelDbName().c_str(), encodedId.c_str(), &channelUrl);
+    mChannelUrl = channelUrl.c_str();
 }
 
 
@@ -115,7 +123,7 @@ bool AppChannel::loadPrevMsgId()
  
     if (sd.exists(NEW_FILENAME)) {
         TRACE("Found pre-existing NEW_FILENAME");
-	
+
         // the file is there!  so try to read it, 'cause it's probably the right one
         // since NEW_FILENAME exists, it means the previous run crashed mid-stream
         if (readMsgIdFile(sd, NEW_FILENAME, &mPrevMsgId)) {
@@ -176,11 +184,11 @@ bool AppChannel::processDoc(const CouchUtils::Doc &doc,
 	    TRACE2("mInitialMsg: ", (mInitialMsg ? "true" : "false"));
 	    const Str &msgId = doc[i].getValue().getStr();
 	    if (!mInitialMsg && msgId.equals(mPrevMsgId)) {
-	        TRACE3("Msg ", msgId.c_str(), " has already been processed");
+	        PH3("Msg ", msgId.c_str(), " has already been processed");
 		// nothing to do
 	    } else {
 	        // then go get the msg -- don't release the mutex and continue very soon
-	        TRACE2("Attempting to get message id: ", msgId.c_str());
+	        PH2("Attempting to get message id: ", msgId.c_str());
 		mNewMsgId = msgId;
 		mState = READ_MSG;
 		*callMeBackIn_ms = 10l;
@@ -217,8 +225,8 @@ bool AppChannel::processDoc(const CouchUtils::Doc &doc,
 
 class AppChannelGetter : public HttpCouchGet {
 public:
-    AppChannelGetter(const char *ssid, const char *pswd, const char *dbHost, int dbPort, bool isSSL,
-		     const char *url, const char *dbUser, const char *dbPswd)
+    AppChannelGetter(const Str &ssid, const Str &pswd, const Str &dbHost, int dbPort, bool isSSL,
+		     const Str &url, const Str &dbUser, const Str& dbPswd)
       : HttpCouchGet(ssid, pswd, dbHost, dbPort, url, dbUser, dbPswd, isSSL)
     {
         TF("AppChannelGetter::AppChannelGetter");
@@ -235,10 +243,10 @@ public:
         const char *dateStr = strstr(m_consumer.getResponse().c_str(), DateTag);
 	if (dateStr != NULL) {
 	    dateStr += strlen(DateTag);
-	    Str date;
+	    StrBuf date;
 	    while (*dateStr != 13) date.add(*dateStr++);
 	    PH2("Received timestamp: ", date.c_str());
-	    return date;
+	    return date.c_str();
 	} else {
 	    return Str("unknown");
 	}
@@ -264,39 +272,38 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
         if (mGetter == NULL) {
 	    mHavePayload = false;
 	    mStartTime = now;
-	  
-	    Str objid, encodedUrl;
+
+	    const Str *url = NULL;
+	    Str msgUrl;
 	    if (gettingHeader) {
-	        objid.append(mConfig.getHiveId());
-		objid.append("-app");
+	        url = &mChannelUrl;
 	    } else {
-	        objid.append(mNewMsgId.c_str());
+	        StrBuf msgUrlBuf, encodedUrl;
+		CouchUtils::urlEncode(mNewMsgId.c_str(), &encodedUrl);
+		CouchUtils::toURL(mConfig.getChannelDbName().c_str(), encodedUrl.c_str(), &msgUrlBuf);
+		msgUrl = msgUrlBuf.c_str();
+		url = &msgUrl;
 	    }
-	    CouchUtils::urlEncode(objid.c_str(), &encodedUrl);
 	    
-	    Str url;
-	    CouchUtils::toURL(mConfig.getChannelDbName(), encodedUrl.c_str(), &url);
-	    TRACE2("creating getter with url: ", url.c_str());
-	    TRACE2("thru wifi: ", mConfig.getSSID());
-	    TRACE2("with pswd: ", mConfig.getPSWD());
-	    TRACE2("to host: ", mConfig.getDbHost());
+	    TRACE2("creating getter with url: ", url);
+	    TRACE2("thru wifi: ", mConfig.getSSID().c_str());
+	    TRACE2("with pswd: ", mConfig.getPSWD().c_str());
+	    TRACE2("to host: ", mConfig.getDbHost().c_str());
 	    TRACE2("port: ", mConfig.getDbPort());
 	    TRACE2("using ssl? ", (mConfig.isSSL() ? "yes" : "no"));
-	    TRACE2("with db-user: ", mConfig.getDbUser());
-	    TRACE2("with db-pswd: ", mConfig.getDbPswd());
+	    TRACE2("with db-user: ", mConfig.getDbUser().c_str());
+	    TRACE2("with db-pswd: ", mConfig.getDbPswd().c_str());
 	    mGetter = new AppChannelGetter(mConfig.getSSID(), mConfig.getPSWD(),
 					   mConfig.getDbHost(), mConfig.getDbPort(), mConfig.isSSL(),
-					   url.c_str(), mConfig.getDbUser(), mConfig.getDbPswd());
+					   *url, mConfig.getDbUser(), mConfig.getDbPswd());
 	} else {
 	    HivePlatform::nonConstSingleton()->clearWDT();
-	    HivePlatform::singleton()->markWDT("AppChannel::loop; calling getter::event");
 	    HttpOp::EventResult er = mGetter->event(now, &callMeBackIn_ms);
-	    HivePlatform::singleton()->markWDT("AppChannel::loop; processing event result");
 	    if (!mGetter->processEventResult(er)) {
-	        HivePlatform::singleton()->markWDT("AppChannel::loop; done processing event result");
 		bool retry = false;
 		if (!mHaveTimestamp && mGetter->hasTimestamp()) {
-		    HivePlatform::singleton()->markWDT("have Timestamp");
+		    TRACE("Staring the WDT");
+		    HivePlatform::nonConstSingleton()->startWDT();
 		    TF("hasTimestamp");
 		    Str timestampStr = mGetter->getTimestamp();
 		    TRACE2("timestampStr: ", timestampStr.c_str());
@@ -399,7 +406,6 @@ void AppChannel::consumePayload(Str *result, Mutex *alreadyOwnedSdMutex)
     // now it's safe to write the msg id out to file to complete the atomic operation of aquiring a message
     SdFat sd;
     SDUtils::initSd(sd);
-    TRACE("After SDUtils::initSd");
     
     if (sd.exists(FILENAME)) {
         // the following ugliness exists to ensure that the operation is transactional.

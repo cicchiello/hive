@@ -5,6 +5,7 @@
 #define NDEBUG
 #include <Trace.h>
 
+#include <strbuf.h>
 #include <strutils.h>
 
 #include <pm.h>
@@ -344,9 +345,11 @@ void PlatformUtils::shutdownWDT(PlatformUtils::WDT_EarlyWarning_Func replacement
 
 void PlatformUtils::clearWDT()
 {
+    TF("PlatformUtils::clearWDT");
     WDTsync();
     WDT->CLEAR.bit.CLEAR = WDT_CLEAR_CLEAR_KEY_Val;
     PlatformUtils::nonConstSingleton().setCountdownVal(WDT_MaxTime_ms/EARLY_WARNING_TIME_MS);
+    TRACE2("clearing WDT; now: ", millis());
 }
 
 
@@ -388,7 +391,6 @@ void WDT_Handler (void)
 /* STATIC */
 const char *PlatformUtils::resetCause()
 {
-    static Str s_holder;
     unsigned char rcause = PM->RCAUSE.reg;
     if (rcause & PM_RCAUSE_EXT) {
         return "External Reset";
@@ -400,7 +402,8 @@ const char *PlatformUtils::resetCause()
         return "Brown Out 12 Detector Reset";
     } else if (rcause & PM_RCAUSE_WDT) {
         return "Watchdog Reset";
-  } else {
+    } else {
+        static StrBuf s_holder;
         s_holder = "Unknown reason: 0x";
 	char buf[4];
 	itoa(rcause, buf, 16);
@@ -413,9 +416,13 @@ const char *PlatformUtils::resetCause()
 void HardFault_Handler(void)
 {
     if (s_WDT_EarlyWarning_Func != 0) {
+        PL("");
+        PL("");
         PL("HardFault_Handler called; invoking WDT shutdown");
         s_WDT_EarlyWarning_Func();
     } else {
+        PL("");
+        PL("");
         PL("HardFault_Handler called; no WDT handler is installed to invoke");
 	PlatformUtils::nonConstSingleton().resetToBootloader();
     }

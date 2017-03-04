@@ -1,9 +1,12 @@
 #include <docreader.h>
 
+#include <Arduino.h>
+
 #define NDEBUG
 #include <strutils.h>
 
 #include <str.h>
+#include <strbuf.h>
 
 #include <Trace.h>
 
@@ -14,7 +17,7 @@
 
 
 DocReader::DocReader(const char *filename)
-  : mDoc(), mErrMsg(new Str("no error")), mFilename(new Str(filename)),
+  : mDoc(), mErrMsg(new StrBuf("no error")), mFilename(new Str(filename)),
     mHasDoc(false), mIsDone(false)
 {
     TF("DocReader::DocReader");
@@ -29,10 +32,11 @@ DocReader::~DocReader()
 }
 
 
-static bool loadFile(const char *filename, Str *contents, Str *errMsg)
+const char *DocReader::errMsg() const {return mErrMsg->c_str();}
+
+static bool loadFile(const char *filename, StrBuf *contents, StrBuf *errMsg)
 {
     TF("::loadFile");
-    TRACE("entry");
     
     SdFile f;
     if (!f.open(filename, O_READ)) {
@@ -77,13 +81,13 @@ bool DocReader::loop() {
 	// file must exist to begin with
 	bool exists = sd.exists(mFilename->c_str());
 	if (!exists) {
-	    *mErrMsg = *mFilename;
+	    *mErrMsg = mFilename->c_str();
 	    mErrMsg->append(" doesn't exist");
 	    TRACE(mErrMsg->c_str());
 	    return false;
 	}
 
-	Str rawContents;
+	StrBuf rawContents;
 	if (!loadFile(mFilename->c_str(), &rawContents, mErrMsg)) {
 	    // errMsg set within loadFile
 	    return false;
@@ -94,7 +98,7 @@ bool DocReader::loop() {
 	const char *remainder = CouchUtils::parseDoc(rawContents.c_str(), &doc);
 	if (remainder == NULL) {
 	    *mErrMsg = "Parsing error: ";
-	    mErrMsg->append(rawContents);
+	    mErrMsg->append(rawContents.c_str());
 	    return false;
 	}
 

@@ -115,7 +115,7 @@ bool HttpBinaryPutTest::createPutter(const CouchUtils::Doc &originalDoc)
     if (i >= 0) {
         Str revision = originalDoc[i].getValue().getStr();
 
-	Str url;
+	StrBuf url;
 	CouchUtils::toAttachmentPutURL(defaultDbName, getDocid(), ATTACHMENT_NAME, revision.c_str(), &url);
 
 	int bytes = 44000*2;

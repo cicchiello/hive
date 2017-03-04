@@ -7,24 +7,9 @@
 
 #include <Trace.h>
 
-
-HttpCouchPut::HttpCouchPut(const char *ssid, const char *ssidPswd, 
-			   const char *host, int port, const char *page,
-			   const CouchUtils::Doc &content,
-			   const char *dbUser, const char *dbPswd, bool isSSL)
-  : HttpCouchGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
-    m_content(content)
+HttpCouchPut::~HttpCouchPut()
 {
-}
-
-
-HttpCouchPut::HttpCouchPut(const char *ssid, const char *ssidPswd, 
-			   const IPAddress &hostip, int port, const char *page,
-			   const CouchUtils::Doc &content,
-			   const char *dbUser, const char *dbPswd, bool isSSL)
-  : HttpCouchGet(ssid, ssidPswd, hostip, port, page, dbUser, dbPswd, isSSL),
-    m_content(content)
-{
+    delete m_content;
 }
 
 
@@ -75,8 +60,8 @@ HttpOp::EventResult HttpCouchPut::event(unsigned long now, unsigned long *callMe
     case ISSUE_OP: {
         TRACE("ISSUE_OP");
 	
-	Str str;
-	CouchUtils::toString(m_content, &str);
+	StrBuf str;
+	CouchUtils::toString(*m_content, &str);
 	    
 	sendPUT(getContext().getClient(), str.len());
 	if (str.len() > 0) {

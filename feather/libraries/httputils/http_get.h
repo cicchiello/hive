@@ -10,12 +10,27 @@ class HttpGet : public HttpOp {
    HttpGet(const char *ssid, const char *ssidPswd, 
 	   const char *host, int port, const char *page,
 	   const char *dbUser, const char *dbPswd,
-	   bool isSSL = false);
+	   bool isSSL = false)
+     : HttpOp(ssid, ssidPswd, host, port, dbUser, dbPswd, isSSL), m_page(page)
+  {
+  }
+     
+   HttpGet(const Str &ssid, const Str &ssidPswd, 
+	   const Str &host, int port, const Str &page,
+	   const Str &dbUser, const Str &dbPswd,
+	   bool isSSL = false)
+     : HttpOp(ssid, ssidPswd, host, port, dbUser, dbPswd, isSSL), m_page(page)
+  {
+  }
+     
    HttpGet(const char *ssid, const char *ssidPswd, 
 	   const IPAddress &hostip, int port, const char *page,
 	   const char *dbUser, const char *dbPswd,
-	   bool isSSL = false);
-
+	   bool isSSL = false)
+     : HttpOp(ssid, ssidPswd, hostip, port, dbUser, dbPswd, isSSL), m_page(page)
+  {
+  }
+  
    virtual ~HttpGet() {}
 
    virtual EventResult event(unsigned long now, unsigned long *callMeBackIn_ms);

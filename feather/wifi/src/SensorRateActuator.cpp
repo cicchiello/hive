@@ -11,7 +11,7 @@
 #include <RateProvider.h>
 #include <hiveconfig.h>
 
-#include <str.h>
+#include <strbuf.h>
 #include <strutils.h>
 
 
@@ -39,8 +39,8 @@ int SensorRateActuator::secondsBetweenSamples() const
 {
     TF("SensorRateActuator::secondsBetweenSamples");
     
-    const char *value = mConfig.getProperty(SENSOR_RATE_PROPNAME);
-    if (value == NULL) 
+    const char *value = mConfig.getProperty(SENSOR_RATE_PROPNAME).c_str();
+    if (value == NULL || *value == 0) 
         return mSeconds;
 
     int s = StringUtils::isNumber(value) ? atoi(value) : mSeconds;
@@ -67,7 +67,7 @@ void SensorRateActuator::processMsg(unsigned long now, const char *msg)
     assert2(StringUtils::isNumber(msg), InvalidMsg, msg);
 
     int seconds = atoi(msg);
-    Str secondsStr;
+    StrBuf secondsStr;
     secondsStr.append(seconds);
     PH4("setting HiveConfig property ", SENSOR_RATE_PROPNAME, " to ", secondsStr.c_str());
     mConfig.addProperty(SENSOR_RATE_PROPNAME, secondsStr.c_str());

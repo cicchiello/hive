@@ -3,7 +3,7 @@
 
 #include <wifiutils.h>
 
-class Str;
+class StrBuf;
 
 class HttpResponseConsumer {
  public:
@@ -17,7 +17,7 @@ class HttpResponseConsumer {
   virtual bool consume(unsigned long now) = 0;
 
   virtual bool isError() const = 0;
-  virtual const Str &getErrmsg() const = 0;
+  virtual const StrBuf &getErrmsg() const = 0;
   
   virtual bool isTimeout() const = 0;
 

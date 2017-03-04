@@ -23,10 +23,12 @@
 #include <Indicator.h>
 #include <Heartbeat.h>
 #include <AppChannel.h>
+#include <http_op.h>
 #include <ListenSensor.h>
 #include <ListenActuator.h>
 #include <Mutex.h>
 
+#include <strbuf.h>
 
 #include <wifiutils.h>
 
@@ -54,6 +56,7 @@ static AppChannel *s_appChannel = NULL;
 static int s_currSensor = 0;
 static class Sensor *s_sensors[MAX_SENSORS];
 static class Actuator *s_actuators[Actuator::MAX_ACTUATORS];
+static BeeCounter *s_beecnt = NULL;
 
 #define CNF s_provisioner->getConfig()
 
@@ -104,6 +107,16 @@ void HiveConfigUploader::onUpdate(const HiveConfig &c) {
 }
   
 
+static HttpOp::YieldHandler sPrevYieldHandler = NULL;
+void MyYieldHandler()
+{
+    if (s_beecnt != NULL)
+        s_beecnt->sample(millis());
+
+    if (sPrevYieldHandler != NULL)
+        sPrevYieldHandler();
+}
+
   
 /**************************************************************************/
 /*!
@@ -122,8 +135,10 @@ void setup(void)
     delay(500);
     Serial.begin(115200);
 #endif
-  
+
     PH2("ResetCause: ", ResetCause);
+
+    pinMode(5, OUTPUT);
     
     pinMode(19, INPUT);               // used for preventing runnaway on reset
     while (digitalRead(19) == HIGH) {
@@ -139,14 +154,14 @@ void setup(void)
     PL("Hive Controller debug console");
     PL("---------------------------------------");
 
-    HivePlatform::nonConstSingleton()->startWDT();
-  
     s_provisioner = new Provision(ResetCause, VERSION, CONFIG_FILENAME, millis(), &sWifiMutex);
     
     // setup callback to upload hive config changes (including whatever one gets chosen by provisioner)
     HiveConfigUploader *uploader = new HiveConfigUploader();
     uploader->setPrevUpdater(CNF.onUpdate(uploader));
-	
+
+    sPrevYieldHandler = HttpOp::registerYieldHandler(MyYieldHandler);
+    
     s_indicator = new Indicator(millis());
     s_indicator->setFlashMode(Indicator::TryingToConnect);
     
@@ -179,6 +194,8 @@ void loop(void)
     if (!s_isOnline)
         return;
 
+    now = millis();
+    
     assert(s_isOnline, "s_isOnline");
     assert(s_appChannel, "s_appChannel");
     assert(s_provisioner, "s_provisioner");
@@ -211,6 +228,7 @@ void loop(void)
 
 	s_configUploader = new ConfigUploader(s_provisioner->getConfig(), *rate, *s_appChannel, now, &sWifiMutex);
 	s_sensors[sensorIndex++] = s_configUploader;
+	s_configUploader->upload(); // to force an initial upload one every run
 	
 	s_sensors[sensorIndex++] = new HeartBeat(CNF, "heartbeat", *rate, *s_appChannel, now, &sWifiMutex);
 	s_sensors[sensorIndex++] = new TempSensor(CNF, "temp", *rate, *s_appChannel, now, &sWifiMutex);
@@ -227,10 +245,10 @@ void loop(void)
 	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor2", *rate, *s_appChannel, now, *motor2,
 						      &sWifiMutex);
 	s_actuators[actuatorIndex++] = motor2;
-//	BeeCounter *beecnt = new BeeCounter(CNF, "beecnt", *rate, *s_appChannel, now, 
-//					    BEECNT_PLOAD_PIN, BEECNT_CLOCK_PIN, BEECNT_DATA_PIN,
-//					    &sWifiMutex);
-//	s_sensors[sensorIndex++] = beecnt;
+	BeeCounter *beecnt = s_beecnt = new BeeCounter(CNF, "beecnt", *rate, *s_appChannel, now, 
+					      BEECNT_PLOAD_PIN, BEECNT_CLOCK_PIN, BEECNT_DATA_PIN,
+					      &sWifiMutex);
+	s_sensors[sensorIndex++] = beecnt;
 
 	ListenSensor *listener = new ListenSensor(CNF, "listener", *rate, *s_appChannel, now,
 						  ADCPIN, BIASPIN, &sWifiMutex, &sSdMutex);
@@ -250,7 +268,6 @@ void loop(void)
 	PL("Sensors initialized;");
 	TRACE("Sensors initialized;");
 
-//	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_11K(beecnt->getPulseGenConsumer());
 //	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_22K(latch->getPulseGenConsumer());
 	HivePlatform::nonConstSingleton()->pulseGen_22K_init();
 	PL("PulseGenerators initialized;");
@@ -286,8 +303,14 @@ void loop(void)
 	int sensorIndex = 0;
 	while (s_sensors[sensorIndex]) {
 	    HivePlatform::nonConstSingleton()->clearWDT();
+	    unsigned long mark = now;
 	    if (s_sensors[sensorIndex]->isItTimeYet(now)) {
+	        //TRACE2("invoking loop for sensor ", sensorIndex);
 	        s_sensors[sensorIndex]->loop(now);
+		now = millis();
+		if (now - mark > 20) {
+		    TRACE4("Sensor ", sensorIndex, " took longer than expected; delta: ", (now-mark));
+		}
 		rxLoop(now); // consider rx after every operation to ensure responsiveness from app
 	    }
 
@@ -358,6 +381,8 @@ void rxLoop(unsigned long now)
 
     s_indicator->loop(now);
     
+    s_beecnt->sample(now);
+	  
     if (s_appChannel == NULL) {
 	if (s_provisioner->hasConfig() && s_provisioner->isStarted()) {
 	    //TRACE("Has a valid config; stopping the provisioner");
@@ -410,7 +435,7 @@ void rxLoop(unsigned long now)
 
     if (s_provisioner->isStarted()) {
         if (!s_provisioner->loop(now)) {
-	    Str dump;
+	    StrBuf dump;
 	    TRACE2("Using Config: ", CouchUtils::toString(s_provisioner->getConfig().getDoc(), &dump));
 	}
     }

@@ -1,147 +1,98 @@
 #include <str.h>
 
+#ifdef ARDUINO
 #include <Arduino.h>
+#else
+#include <cstdio>
+#include <string.h>
+#endif
 
 #define HEADLESS
 #define NDEBUG
-#include <Trace.h>
+
+#ifdef ARDUINO
+#   include <Trace.h>
+#else
+#   include <CygwinTrace.h>
+#endif
 
 int Str::sBytesConsumed = 0;
 
 static int sMaxReported = 0;
 
-Str::Str(const char *s)
-  : buf(0), cap(0), deleted(false)
+
+/* STATIC */
+Str Str::sEmpty((const char *)0);
+
+
+Str::Item::Item(const char *_s)
+  : buf(0), cap(0), refs(0)
 {
-    if (s != NULL) {
-        int l = strlen(s);
-	expand(l);
-	strcpy(buf, s);
+    TF("Str::Item::Item (1)");
+    if (_s) {
+        expand((len = strlen(_s)) + 1);
+	strcpy(buf, _s);
     }
 }
 
-Str::Str(const Str &str)
-  : buf(0), cap(0), deleted(false)
+
+Str::Item::Item(int sz)
+  : buf(0), cap(0), len(sz)
 {
-    int l = str.len();
-    expand(l);
-    strcpy(buf, str.c_str());
+    TF("Str::Item::Item (2)");
+    expand(sz+1);
+    buf[0] = 0;
+    refs = 0;
 }
 
-Str::~Str()
+
+Str::Item *Str::Item::lookupOrCreate(const char *s)
 {
-    sBytesConsumed -= cap;
-    delete [] buf;
-    deleted = true;
+    TF("Str::Item::lookupOrCreate");
+    sBytesConsumed += sizeof(Item);
+    return new Item(s);
+}
+
+Str::Str(const char *s)
+  : item(Item::lookupOrCreate(s)), deleted(false)
+{
+  item->refs++;
+}
+
+Str::Str(Item *_item)
+  : item(_item), deleted(false)
+{
+  item->refs++;
+}
+
+Str::Item::~Item()
+{
+  assert(refs == 0, "refs == 0");
+  sBytesConsumed -= cap;
+  delete [] buf;
 }
 
 int Str::len() const
 {
     assert(!deleted, "!deleted");
-    return cap > 0 ? strlen(buf) : 0;
+    if (item->len == -1)
+      return item->len = (item->cap > 0 ? strlen(item->buf) : 0);
+    else
+      return item->len;
 }
 
-void Str::add(char c)  
+void Str::Item::expand(int required)
 {
-    assert(!deleted, "!deleted");
-    
-    // there is an incoming byte available from the host; make sure there's space, then consume it
-    int l = len();
-    expand(l+2);
-    buf[l++] = c;
-    buf[l] = 0;
+    Str::expand(required, &cap, &buf);
 }
 
-Str &Str::append(const char *str)
-{
-    assert(!deleted, "!deleted");
-    
-    Str temp(str); // done this way just in case "str" is a point to within *this
-    return append(temp);
-}
-
-Str &Str::append(const Str &str)
-{
-    assert(!deleted, "!deleted");
-    
-    expand(len()+str.len()+1);
-    strcpy(&buf[len()], str.c_str());
-    return *this;
-}
-
-Str &Str::append(int i)
-{
-    assert(!deleted, "!deleted");
-    
-    char buf[10];
-    sprintf(buf, "%d", i);
-    return append(buf);
-}
-
-Str &Str::append(long l)
-{
-    assert(!deleted, "!deleted");
-    
-    char buf[15];
-    sprintf(buf, "%Ld", l);
-    return append(buf);
-}
-
-Str &Str::append(unsigned long l)
-{
-    assert(!deleted, "!deleted");
-    
-    char buf[15];
-    sprintf(buf, "%Lu", l);
-    return append(buf);
-}
-
-void Str::clear()
-{
-    assert(!deleted, "!deleted");
-    
-    if (buf != NULL) 
-        buf[0] = 0;
-}
-
-void Str::expand(int required)
-{
-    if (required < 16) 
-        required = 16;
-    else {
-        int l = 16;
-	while (l < required)
-	    l *= 2;
-	required = l;
-    }
-    
-    if (required > cap) {
-        char *newBuf = new char[required+1];
-	sBytesConsumed += required+1;
-	if (sBytesConsumed > 2*sMaxReported) {
-	    P("Str malloc report: "); PL(sBytesConsumed);
-	    sMaxReported = sBytesConsumed;
-	}
-        if (cap > 0) {
-	    strcpy(newBuf, buf);
-	    delete [] buf;
-	    sBytesConsumed -= cap;
-	} else {
-	    newBuf[0] = 0;
-	}
-	buf = newBuf;
-	cap = required+1;
-    }
-}
-
-bool Str::equals(const Str &other) const
+bool Str::Item::equals(const Str::Item &other) const
 {
     if (this == &other)
         return true;
-
-    return strcmp(c_str(), other.c_str()) == 0;
+  
+    return strcmp(buf, other.buf) == 0;
 }
-
 
 Str &Str::operator=(const Str &o)
 {
@@ -150,9 +101,14 @@ Str &Str::operator=(const Str &o)
     if (this == &o)
         return *this;
 
-    expand(o.len());
-    strcpy(buf, o.buf);
-
+    if (--item->refs == 0) {
+        delete item;
+	sBytesConsumed -= sizeof(Item);
+    }
+    
+    item = o.item;
+    item->refs++;
+  
     return *this;
 }
   
@@ -160,13 +116,14 @@ Str &Str::operator=(const char *o)
 {
     assert(!deleted, "!deleted");
     
-    if (buf == o) // trivial case
+    if (c_str() == o) // trivial case
         return *this;
-  
-    Str temp(o); // done this way just in case "o" is a point within this->buf
-    *this = temp;
 
-    return *this;
+    if (strcmp(c_str(), o) == 0) // another trivial case
+        return *this;
+
+    Str temp(o); // done this way just in case "o" is a point within this->buf
+    return this->operator=(temp);
 }
   
 
@@ -176,22 +133,89 @@ bool Str::endsWith(const char *cmp) const
 }
 
 
-Str Str::tolower() const
-{
-    Str r(*this);
-
-    for (int i = 0; i < r.len(); i++)
-      if ((r.c_str()[i] >= 'A') && (r.c_str()[i] <= 'Z')) {
-	  const char *ptr = r.c_str() + i;
-	  char *nonConstPtr = (char*) ptr;
-	  *nonConstPtr -= 'A' - 'a';
-      }
-
-    return r;
-}
-
-
 bool Str::lessThan(const Str &o) const
 {
     return strcmp(c_str(), o.c_str()) < 0;
+}
+
+
+/* STATIC */
+int Str::cacheSz()
+{
+  return 0;
+}
+
+
+#define A 54059 /* a prime */
+#define B 76963 /* another prime */
+#define C 86969 /* yet another prime */
+#define FIRSTH 37 /* also prime */
+
+/* STATIC */
+unsigned int Str::hash_str(const char* s)
+{
+   unsigned int h = FIRSTH;
+   while (s && *s) {
+     h = (h * A) ^ (s[0] * B);
+     s++;
+   }
+   return h; // or return h % C;
+}
+
+
+// A binary search based function to find the position
+// where item should be inserted in a[low..high]
+//
+// returns the index into a of item, or the index immediately
+// preceding where item should be place
+int binarySearch(int a[], int item, int low, int high)
+{
+    if (high <= low)
+        return (item > a[low])?  (low + 1): low;
+ 
+    int mid = (low + high)/2;
+ 
+    if(item == a[mid])
+        return mid+1;
+ 
+    if(item > a[mid])
+        return binarySearch(a, item, mid+1, high);
+    return binarySearch(a, item, low, mid-1);
+}
+
+
+/* STATIC */
+void Str::expand(int required, unsigned short *cap, char **buf)
+{
+    TF("Str::expand");
+    if (required < 16) 
+        required = 16;
+    else {
+        int l = 16;
+	while (l < required)
+	    l *= 2;
+	required = l;
+    }
+    
+    if (required > *cap) {
+        TF("Str::expand; creating new buf");
+	TRACE2("required: ", required);
+        char *newBuf = new char[required];
+	assert(newBuf, "newBuf");
+	sBytesConsumed += required;
+	if (sBytesConsumed > 2*sMaxReported) {
+	    P("Str malloc report: "); PL(sBytesConsumed);
+	    sMaxReported = sBytesConsumed;
+	}
+        if (*cap > 0) {
+	    TF("Str::expand; copying old buf");
+	    strcpy(newBuf, *buf);
+	    delete [] *buf;
+	    sBytesConsumed -= *cap;
+	} else {
+	    newBuf[0] = 0;
+	}
+	*buf = newBuf;
+	*cap = required;
+    }
 }

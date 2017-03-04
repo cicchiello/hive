@@ -4,6 +4,7 @@
 #include <couchutils.h>
 
 class Mutex;
+class StrBuf;
 
 class DocWriter {
   public:
@@ -17,7 +18,7 @@ class DocWriter {
     bool loop();
 
     // error message iff loop returns false
-    const char *errMsg() const {return mErrMsg->c_str();}
+    const char *errMsg() const;
 
     bool isDone() const {return mIsDone;}
     bool hasError() const {return !mSuccess;}
@@ -29,7 +30,8 @@ class DocWriter {
     DocWriter &operator=(const DocWriter &); // unimplemented
     
     const CouchUtils::Doc mDoc;
-    Str *mErrMsg, *mFilename;
+    StrBuf *mErrMsg;
+    Str *mFilename;
     bool mIsDone, mSuccess;
     Mutex *mSdMutex;
 };

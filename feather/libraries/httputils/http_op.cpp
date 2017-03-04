@@ -7,6 +7,7 @@
 
 #include <Trace.h>
 
+#include <strbuf.h>
 #include <strutils.h>
 
 #include <MyWiFi.h>
@@ -61,28 +62,6 @@ typedef MyMap MapType;
 static MapType sDnsResolutions;
 
 
-HttpOp::HttpOp(const char *ssid, const char *pswd, 
-	       const IPAddress &hostip, int port,
-	       const char *dbUser, const char *dbPswd,
-	       bool isSSL)
-  : m_ssid(ssid), m_pswd(pswd), mSpecifiedHostname((char*)0), m_port(port), m_dbuser(dbUser), m_dbpswd(dbPswd),
-    mSpecifiedHostIP(hostip), m_isSSL(isSSL)
-{
-    init();
-}
-
-
-HttpOp::HttpOp(const char *ssid, const char *pswd, 
-	       const char *hostname, int port,
-	       const char *dbUser, const char *dbPswd,
-	       bool isSSL)
-  : m_ssid(ssid), m_pswd(pswd), mSpecifiedHostname(hostname), m_port(port), m_dbuser(dbUser), m_dbpswd(dbPswd),
-    mSpecifiedHostIP(), m_isSSL(isSSL)
-{
-    init();
-}
-
-
 HttpOp::~HttpOp()
 {
     getContext().getWifi().end();
@@ -120,9 +99,9 @@ void HttpOp::resetForRetry()
 }
 
 
-static Str IPtoString(const IPAddress &ip) 
+static StrBuf IPtoString(const IPAddress &ip) 
 {
-    Str s;
+    StrBuf s;
     for (int i =0; i < 3; i++)
     {
         s.append(ip[i]);
@@ -148,7 +127,7 @@ HttpOp::ConnectStat HttpOp::httpConnectInit(const IPAddress &host, const char *h
 								 (const uint8_t*) hostname);
     switch (s) {
     case WiFiClient::FAILED: return HttpOp::FAILED;
-    case WiFiClient::WORKING: return HttpOp::WORKING;
+    case WiFiClient::WORKING: yield(); return HttpOp::WORKING;
     case WiFiClient::CONNECTED: return HttpOp::CONNECTED;
     default:
       ERR(HivePlatform::singleton()->error("Unknown WiFiClient::ConnectStat value"));
@@ -164,7 +143,7 @@ HttpOp::ConnectStat HttpOp::httpConnectCheck()
     WiFiClient::ConnectStat s = m_ctxt.getClient().checkConnectNoWait();
     switch (s) {
     case WiFiClient::FAILED: return HttpOp::FAILED;
-    case WiFiClient::WORKING: return HttpOp::WORKING;
+    case WiFiClient::WORKING: yield(); return HttpOp::WORKING;
     case WiFiClient::CONNECTED: return HttpOp::CONNECTED;
     default:
       ERR(HivePlatform::singleton()->error("Unknown WiFiClient::ConnectStat value"));
@@ -201,10 +180,10 @@ void HttpOp::sendHost(class Stream &s) const
     PL(m_port);
     s.println(m_port);
     if (m_dbuser.len() > 0) {
-	Str creds;
-	creds.append(m_dbuser).append(":").append(m_dbpswd);
+	StrBuf creds;
+	creds.append(m_dbuser.c_str()).append(":").append(m_dbpswd.c_str());
 	
-	Str encoded;
+	StrBuf encoded;
 	base64_encode(&encoded, creds.c_str(), creds.len());
 
         P("Authorization: Basic ");
@@ -229,6 +208,7 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 	    mWifiConnectState = 0;
 	    mWifiWaitStart = now;
 	} else {
+	    yield();
 	    TRACE("WIFI_WAITING");
 	}
         WifiUtils::ConnectorStatus cstat = WifiUtils::connector(m_ctxt, m_ssid.c_str(),
@@ -295,6 +275,7 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 	    setOpState(DNS_WAITING);
 	} else {
 	    TF("HttpOp::event; DNS_WAITING");
+	    yield();
 	    dnsState = w.dnsCheck(mResolvedHostIP);
 	}
 	
@@ -313,6 +294,7 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 	  break;
 	case MyWiFi::DNS_RETRY: {
 	    TF("HttpOp::event; DNS_INIT; DNS_RETRY");
+	    yield();
 	    if (--mDnsCnt == 0) {
 	        TRACE2("DNS_WAITING timeout after (ms) ", (now-mDnsWaitStart));
 		w.dnsFailed();
@@ -345,12 +327,14 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 	    setOpState(HTTP_WAITING);
 	} else {
 	    TRACE("HTTP_WAITING");
+	    yield();
 	    stat = httpConnectCheck();
 	}
 	switch (stat) {
 	case WORKING: {
 	    TF("HttpOp::event; HTTP_INIT; WORKING");
 	    TRACE("WORKING");
+	    yield();
 	    *callMeBackIn_ms = 100l;
 	    if (--mHttpConnectCnt == 0) {
 	        TRACE2("HTTP_WAITING timeout after (ms) ", (now-mHttpWaitStart));
@@ -383,11 +367,13 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
     }
       break;
     case ISSUE_OP:
-    case CHUNKING: 
+    case CHUNKING:
+        yield();
         TRACE("ERROR: derived class should handle the ISSUE_OP and CHUNKING states");
 	return UnknownFailure;
     case ISSUE_OP_FLUSH: {
         int remaining;
+	yield();
         if (getContext().getClient().flushOut(&remaining) && (remaining == 0)) {
 	    setOpState(CONSUME_RESPONSE);
 	}
@@ -396,11 +382,12 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
       break;
     case CONSUME_RESPONSE: {
         TF("HttpOp::event; CONSUME_RESPONSE");
-        //TRACE2("CONSUME_RESPONSE ", now);
+	//TRACE2("CONSUME_RESPONSE ", now);
+	yield();
         if (!getResponseConsumer().consume(now)) {
 	    m_finalResult = HTTPSuccessResponse; // start optimistically
 	    if (!getResponseConsumer().isError()) {
-	      TRACE("http operation done: ");
+	        TRACE("http operation done: ");
 	    } else {
 	        if (getResponseConsumer().isTimeout()) {
 		    TRACE("TIMEOUT from response consumer");
@@ -444,6 +431,7 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 		setOpState(DISCONNECTED);
 	        return DisconnectFailure;
 	    } else {
+	        yield();
 	        if (m_disconnectCnt == 0) {
 		    TRACE("calling disconnect");
 		    m_ctxt.getWifi().disconnect();
@@ -470,4 +458,14 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 }
 
 
+/* STATIC */
+HttpOp::YieldHandler HttpOp::sYieldHandler = NULL;
+
+/* STATIC */
+HttpOp::YieldHandler HttpOp::registerYieldHandler(HttpOp::YieldHandler yieldHandler)
+{
+    YieldHandler prev = sYieldHandler;
+    sYieldHandler = yieldHandler;
+    return prev;
+}
 

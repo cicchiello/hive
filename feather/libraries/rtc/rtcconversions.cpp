@@ -5,7 +5,7 @@
 #define NDEBUG
 #include <Trace.h>
 
-#include <str.h>
+#include <strbuf.h>
 
 #include <strutils.h>
 
@@ -56,42 +56,42 @@ bool RTCConversions::cvtToTimestamp(const char *readable, Timestamp_t *result)
     readable = StringUtils::eatWhitespace(readable);
     TRACE3("after eating leading whitespace: \'", readable, "\'");
 
-    Str dayOfWeek;
+    StrBuf dayOfWeek;
     readable = StringUtils::eatPunctuation(StringUtils::getToken(readable, &dayOfWeek), ',');
     TRACE3("day of week: \'", dayOfWeek.c_str(), "\'");
     TRACE3("after eating day of week: \'", readable, "\'");
 
-    Str dayOfMonth;
+    StrBuf dayOfMonth;
     readable = StringUtils::eatWhitespace(StringUtils::getToken(readable, &dayOfMonth));
     TRACE3("day of month: \'", dayOfMonth.c_str(), "\'");
     TRACE3("after eating day of month: \'", readable, "\'");
 
-    Str month;
+    StrBuf month;
     readable = StringUtils::eatWhitespace(StringUtils::getToken(readable, &month));
     TRACE3("month: \'", month.c_str(), "\'");
     TRACE3("after eating month: \'", readable, "\'");
 
-    Str year;
+    StrBuf year;
     readable = StringUtils::eatWhitespace(StringUtils::getToken(readable, &year));
     TRACE3("year: \'", year.c_str(), "\'");
     TRACE3("after eating year: \'", readable, "\'");
     
-    Str hour;
+    StrBuf hour;
     readable = StringUtils::eatPunctuation(StringUtils::getToken(readable, &hour), ':');
     TRACE3("hour: \'", hour.c_str(), "\'");
     TRACE3("after eating hour: \'", readable, "\'");
     
-    Str minute;
+    StrBuf minute;
     readable = StringUtils::eatPunctuation(StringUtils::getToken(readable, &minute), ':');
     TRACE3("minute: \'", minute.c_str(), "\'");
     TRACE3("after eating minute: \'", readable, "\'");
     
-    Str seconds;
+    StrBuf seconds;
     readable = StringUtils::eatWhitespace(StringUtils::getToken(readable, &seconds));
     TRACE3("seconds: \'", seconds.c_str(), "\'");
     TRACE3("after eating seconds: \'", readable, "\'");
 
-    Str timezone;
+    StrBuf timezone;
     readable = StringUtils::eatWhitespace(StringUtils::getToken(readable, &timezone));
     TRACE3("timezone: \'", timezone.c_str(), "\'");
     TRACE3("after eating timezone: \'", readable, "\'");

@@ -1,6 +1,8 @@
 #include <http_sslbinput.t.h>
 
-//#define NDEBUG
+#include <Arduino.h>
+
+#define NDEBUG
 #include <strutils.h>
 
 #include <Trace.h>
@@ -85,7 +87,7 @@ bool HttpSSLBinaryPutTest::createPutter(const CouchUtils::Doc &originalDoc)
     if (i >= 0) {
         Str revision = originalDoc[i].getValue().getStr();
 
-	Str url;
+	StrBuf url;
 	CouchUtils::toAttachmentPutURL(defaultDbName, getDocid(), ATTACHMENT_NAME, revision.c_str(), &url);
 
 	int bytes = 44000*2;

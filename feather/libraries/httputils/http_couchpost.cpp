@@ -8,26 +8,6 @@
 #include <Trace.h>
 
 
-HttpCouchPost::HttpCouchPost(const char *ssid, const char *ssidPswd, 
-			     const char *host, int port, const char *page,
-			     const CouchUtils::Doc &content,
-			     const char *dbUser, const char *dbPswd, bool isSSL)
-  : HttpCouchGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
-    m_content(content)
-{
-}
-
-
-HttpCouchPost::HttpCouchPost(const char *ssid, const char *ssidPswd, 
-			     const IPAddress &hostip, int port, const char *page,
-			     const CouchUtils::Doc &content,
-			     const char *dbUser, const char *dbPswd, bool isSSL)
-  : HttpCouchGet(ssid, ssidPswd, hostip, port, page, dbUser, dbPswd, isSSL),
-    m_content(content)
-{
-}
-
-
 void HttpCouchPost::sendPOST(Stream &s, int contentLength) const
 {
     TF("HttpCouchPost::sendPOST");
@@ -75,7 +55,7 @@ HttpOp::EventResult HttpCouchPost::event(unsigned long now, unsigned long *callM
     case ISSUE_OP: {
         TRACE("ISSUE_OP");
 	
-	Str str;
+	StrBuf str;
 	CouchUtils::toString(m_content, &str);
 	    
 	sendPOST(getContext().getClient(), str.len());

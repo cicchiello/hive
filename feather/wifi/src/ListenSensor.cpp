@@ -8,6 +8,7 @@
 #include <Trace.h>
 
 #include <str.h>
+#include <strbuf.h>
 
 #include <hive_platform.h>
 
@@ -102,8 +103,9 @@ bool ListenSensor::loop(unsigned long now)
 
 	      assert(stat, "Couldn't start recording");
 
-	      *mValue = "";
-	      mValue->append(mMillisecondsToRecord);
+	      StrBuf m;
+	      m.append(mMillisecondsToRecord);
+	      *mValue = m.c_str();
 
 	      TRACE("Recording...");
 	      mStartTimestamp = now;
@@ -131,9 +133,8 @@ bool ListenSensor::loop(unsigned long now)
 		mState = NOOP;
 	    } else {
 	        TRACE2("Audio Capture complete; proceeding to upload it:", (millis()-mStartTimestamp));
-		Str attachmentDescription;
-		attachmentDescription.append((int)(mMillisecondsToRecord/1000));
-		attachmentDescription.append("s-audio-clip");
+		StrBuf attachmentDescription;
+		attachmentDescription.append((int)(mMillisecondsToRecord/1000)).append("s-audio-clip");
 		mState = UPLOADING;
 		mUploader = new AudioUpload(getConfig(), getName(), attachmentDescription.c_str(),
 					    mAttName->c_str(), ATTACHMENT_CONTENT_TYPE,
@@ -173,9 +174,9 @@ bool ListenSensor::loop(unsigned long now)
 
 bool ListenSensor::sensorSample(Str *value)
 {
-    *mValue = "";
-    mValue->append(mMillisecondsToRecord);
-    *value = *mValue;
+    StrBuf m;
+    m.append(mMillisecondsToRecord);
+    *mValue = m.c_str();
     return true;
 }
 

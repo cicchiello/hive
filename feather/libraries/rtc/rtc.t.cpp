@@ -45,10 +45,10 @@ public:
         const char *dateStr = strstr(m_consumer.getResponse().c_str(), DateTag);
 	if (dateStr != NULL) {
 	    dateStr += strlen(DateTag);
-	    Str date;
+	    StrBuf date;
 	    while (*dateStr != 13) date.add(*dateStr++);
 	    TRACE("Received timestamp: "); PL(date.c_str());
-	    return date;
+	    return date.c_str();
 	} else {
 	    return Str("unknown");
 	}
@@ -75,7 +75,7 @@ bool RTCTest::loop()
 	    testTimestampConversions();
 	    
 	    TRACE("creating getter");
-	    Str url;
+	    StrBuf url;
 	    CouchUtils::toURL(TimestampDb, TimestampDocId, &url);
 	    m_getter = m_rtcGetter = new RTCTestGetter(this, url.c_str(),
 						       HttpOpTest::sslDbUser, HttpOpTest::sslDbPswd);

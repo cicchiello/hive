@@ -1,5 +1,7 @@
 #include <http_fileput.t.h>
 
+#include <Arduino.h>
+
 //#define NDEBUG
 #include <strutils.h>
 
@@ -60,7 +62,7 @@ bool HttpFilePutTest::createPutter(const CouchUtils::Doc &originalDoc)
     if (i >= 0) {
         Str revision = originalDoc[i].getValue().getStr();
 
-	Str url;
+	StrBuf url;
 	CouchUtils::toAttachmentPutURL(defaultDbName, getDocid(), ATTACHMENT_NAME, revision.c_str(), &url);
 
 	m_putter = new HttpFilePut(ssid, pass,
