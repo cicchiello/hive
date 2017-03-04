@@ -213,11 +213,8 @@ WifiUtils::ConnectorStatus WifiUtils::connector(const WifiUtils::Context &ctxt,
 	ctxt.getWifi().connectionFailed();
         return ConnectTimeout;
     } else if (*connectorState == 0) {
-        Str s("Attempting to connect to SSID/PWD: ");
-	s.append(ssid);
-	s.append("/");
-	s.append(pswd == NULL ? "<null>" : pswd);
-	TRACE(s.c_str());
+        TRACE2("Attempting to connect to SSID/PWD: ",
+	       Str(ssid).append2("/").append2(pswd == NULL ? "<null>" : pswd).c_str());
 
         // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
 	r = pswd == NULL ? ctxt.getWifi().begin(ssid) : ctxt.getWifi().beginNoWait(ssid, pswd);

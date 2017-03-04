@@ -22,10 +22,12 @@ class BeeCounter : public SensorBase, private PulseGenConsumer {
     
     PulseGenConsumer *getPulseGenConsumer();
     
- private:
-    const char *className() const {return "BeeCounter";}
+    bool sample(unsigned long now);
     
+ private:
     void pulse(unsigned long now);
+    
+    const char *className() const {return "BeeCounter";}
     
     void readReg();
 

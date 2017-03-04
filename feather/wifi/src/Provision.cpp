@@ -15,6 +15,7 @@
 #include <Mutex.h>
 #include <hive_platform.h>
 
+#include <strbuf.h>
 #include <strutils.h>
 
 #include <MyWiFi.h>
@@ -49,7 +50,8 @@ class ProvisionImp {
     Str mInvalidFieldname;
     DocReader *mConfigReader;
     HiveConfig mConfig;
-    Str mConfigFilename, mCurrentLine;
+    Str mConfigFilename;
+    StrBuf mCurrentLine;
     class WiFiServer *mServer;
     class WiFiClient *mClient;
     const WifiUtils::Context *mCtxt;
@@ -58,7 +60,8 @@ class ProvisionImp {
     : mConfig(resetCause, versionId), mConfigFilename(configFilename), 
       mServer(0), mClient(0), mConfigReader(0),
       mCtxt(0), 
-      mNextActionTime(0), mMajorState(NOOP), mMinorState(0), mInvalidInput(false), mInvalidFieldname("unknown"),
+      mNextActionTime(0), mMajorState(NOOP), mMinorState(0), mInvalidInput(false),
+      mInvalidFieldname("unknown"),
       mHasConfig(false), mIsStarted(false), mSaved(false)
   {
   }
@@ -108,7 +111,7 @@ class ProvisionImp {
   void sendPage(WiFiClient &client, const char *ssid, const char *pswd,
 		const char *dbHost, int dbPort, bool isSsl,
 		const char *dbUser, const char *dbPswd);
-  void parseRequest(const Str &url);
+  void parseRequest(const char *url);
 
   // search for a string of the form key=value in
   // a string that looks like q?xyz=abc&uvw=defgh HTTP/1.1\r\n
@@ -116,7 +119,7 @@ class ProvisionImp {
   // The returned value is stored in retval.
   //
   // Return LENGTH of found value of seeked parameter. this can return 0 if parameter was there but the value was missing!
-  static int getKeyVal(const char *key, const char *str, Str *retval);
+  static int getKeyVal(const char *key, const char *str, StrBuf *retval);
   
 };
   
@@ -134,6 +137,7 @@ bool ProvisionImp::loadLoop(unsigned long now)
     bool shouldReturn = true; // very few cases shouldn't return, so make true the default
     switch (mMinorState) {
     case INIT: {
+        TRACE("INIT");
         mConfigReader = new DocReader(mConfigFilename.c_str());
 	mConfigReader->setup();
 	mMinorState = LOADING;
@@ -141,21 +145,22 @@ bool ProvisionImp::loadLoop(unsigned long now)
 	break;
 	
     case LOADING: {
+        TRACE("LOADING");
         bool callConfigReaderAgain = mConfigReader->loop();
 	if (!callConfigReaderAgain) {
 	    if (mConfigReader->hasDoc()) {
 	        if (HiveConfig::docIsValidForConfig(mConfigReader->getDoc())) {
 		    mConfig.setDoc(mConfigReader->getDoc());
 		    
-		    Str dump;
-		    TRACE2("Have a local configuration: ", CouchUtils::toString(mConfig.getDoc(), &dump));
+		    StrBuf dump;
+		    PH2("Have a local configuration: ", CouchUtils::toString(mConfig.getDoc(), &dump));
 		    mHasConfig = mConfig.isValid();
 		    if (!mHasConfig) {
 		        TRACE("Invalid local config loaded");
 		    }
 		} else {
 		    TRACE("Loaded config is invalid; setting to default");  
-		    Str dump;
+		    StrBuf dump;
 		    TRACE2("Default configuration: ", CouchUtils::toString(mConfig.getDoc(), &dump));
 		    mConfig.setDefault();
 		}
@@ -359,14 +364,14 @@ bool ProvisionImp::apLoop(unsigned long now, Mutex *wifiMutex)
 		    if (c == '\n') {                // if the byte is a newline character
 		        // if the current line is blank, you got two newline characters in a row.
 		        // that's the end of the client HTTP request, so send a response:
-		        if (mCurrentLine.length() == 0) {
+		        if (mCurrentLine.len() == 0) {
 			    // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
 			    // and a content-type so the client knows what's coming, then a blank line:
 			    sendOk(*mClient);
 
-			    sendPage(*mClient, mConfig.getSSID(), mConfig.getPSWD(),
-				     mConfig.getDbHost(), mConfig.getDbPort(), mConfig.isSSL(),
-				     mConfig.getDbUser(), mConfig.getDbPswd());
+			    sendPage(*mClient, mConfig.getSSID().c_str(), mConfig.getPSWD().c_str(),
+				     mConfig.getDbHost().c_str(), mConfig.getDbPort(), mConfig.isSSL(),
+				     mConfig.getDbUser().c_str(), mConfig.getDbPswd().c_str());
 				
 			    // close the connection:
 			    mClient->stop();
@@ -376,11 +381,11 @@ bool ProvisionImp::apLoop(unsigned long now, Mutex *wifiMutex)
 			    mMinorState = WEB_LISTEN;
 			    delay(10);
 			} else {      // if you got a newline, then clear currentLine:
-			    parseRequest(mCurrentLine);
+			    parseRequest(mCurrentLine.c_str());
 			    mCurrentLine = "";
 			}
 		    } else if (c != '\r') {    // if you got anything else but a carriage return character,
-		        mCurrentLine += c;      // add it to the end of the currentLine
+		        mCurrentLine.add(c); // add it to the end of the currentline
 		    }
 		}
 	    }
@@ -471,27 +476,27 @@ void ProvisionImp::sendPage(WiFiClient &client,
     D(pageStart);
 
     // wifi settings page
-    Str buf1, buf2;
+    StrBuf buf1, buf2;
     const char *r = StringUtils::replace(&buf1, pageSet, "{ssid}", ssid);
     r = StringUtils::replace(&buf2, r, "{pass}", pswd);
-    buf1.clear();
+    buf1 = "";
     r = StringUtils::replace(&buf1, r, "{couchDbHost}", dbHost);
-    buf2.clear();
-    r = StringUtils::replace(&buf2, r, "{couchDbPort}", Str().append(dbPort).c_str());
-    buf1.clear();
+    buf2 = "";
+    r = StringUtils::replace(&buf2, r, "{couchDbPort}", StrBuf().append(dbPort).c_str());
+    buf1 = "";
     r = StringUtils::replace(&buf1, r, "{isSsl}", isSsl?"y":"n");
-    buf2.clear();
+    buf2 = "";
     r = StringUtils::replace(&buf2, r, "{couchDbUser}", dbUser);
-    buf1.clear();
+    buf1 = "";
     r = StringUtils::replace(&buf1, r, "{couchDbPswd}", dbPswd);
 
-    Str statMsg = "Loaded Config";
+    StrBuf statMsg = "Loaded Config";
     if (mInvalidInput) {
         statMsg = "Invalid value: ";
-	statMsg.append(mInvalidFieldname);
+	statMsg.append(mInvalidFieldname.c_str());
     }
 
-    buf2.clear();
+    buf2 = "";
     r = StringUtils::replace(&buf2, r, "{status}", statMsg.c_str());
     if (mSaved) {
         buf1 = r;
@@ -522,13 +527,13 @@ void ProvisionImp::sendOk(WiFiClient &client)
 }
 
 
-void ProvisionImp::parseRequest(const Str &line)
+void ProvisionImp::parseRequest(const char *line)
 {
     TF("ProvisionImp::parseRequest");
-    TRACE2("line to parse: ", line.c_str());
+    TRACE2("line to parse: ", line);
 
-    Str save;
-    getKeyVal("save", line.c_str(), &save);
+    StrBuf save;
+    getKeyVal("save", line, &save);
     TRACE2("save: ", save.c_str());
     
     // saving data?
@@ -541,45 +546,52 @@ void ProvisionImp::parseRequest(const Str &line)
         // copy parameters from URL GET to actual destination in structure
         CouchUtils::Doc newDoc;
 	
-        Str buf;
-	getKeyVal("ssid", line.c_str(), &buf); //32 -- from sysroot/usr/include/user_interface.h
-	newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::SsidProperty, CouchUtils::Item(buf)));
+        StrBuf buf;
+	getKeyVal("ssid", line, &buf); //32 -- from sysroot/usr/include/user_interface.h
+	newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::SsidProperty, CouchUtils::Item(buf.c_str())));
 	
 	// set password? we have to hide it...
-	buf.clear();
-	getKeyVal("pass", line.c_str(), &buf);
-	if( !buf.equals("******") )
+	buf = "";
+	getKeyVal("pass", line, &buf);
+	if (strcmp(buf.c_str(), "******") != 0)
 	    newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::SsidPswdProperty,
-							      CouchUtils::Item(buf)));
+							      CouchUtils::Item(buf.c_str())));
 
-	buf.clear();
-	getKeyVal("couchDbHost", line.c_str(), &buf);
-	newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbHostProperty, CouchUtils::Item(buf)));
+	buf = "";
+	getKeyVal("couchDbHost", line, &buf);
+	newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbHostProperty, CouchUtils::Item(buf.c_str())));
 
-	buf.clear();
-	getKeyVal("couchDbUser", line.c_str(), &buf);
-	newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbUserProperty, CouchUtils::Item(buf)));
+	buf = "";
+	getKeyVal("couchDbUser", line, &buf);
+	newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbUserProperty, CouchUtils::Item(buf.c_str())));
 
-	buf.clear();
-	getKeyVal("couchDbPswd", line.c_str(), &buf);
-	newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbPswdProperty, CouchUtils::Item(buf)));
+	buf = "";
+	getKeyVal("couchDbPswd", line, &buf);
+	newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbPswdProperty, CouchUtils::Item(buf.c_str())));
 
-	buf.clear();
-	getKeyVal("couchDbPort", line.c_str(), &buf);
-	newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbPortProperty, CouchUtils::Item(buf)));
+	buf = "";
+	getKeyVal("couchDbPort", line, &buf);
+	newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbPortProperty, CouchUtils::Item(buf.c_str())));
 	if (!StringUtils::isNumber(buf.c_str())) {
 	    TRACE2("couchDbPort failed isNumber test: ", buf.c_str());
 	    mInvalidInput = true;
 	    mInvalidFieldname = "CouchDbPort";
 	}
 
-	buf.clear();
-	getKeyVal("isSsl", line.c_str(), &buf);
-	Str buf2 = buf.tolower();
-	bool isValidFlag = buf2.equals("y") || buf2.equals("n") || 
-	  buf2.equals("true") || buf2.equals("false") ||
-	  buf2.equals("yes") || buf2.equals("no");
-	bool isSsl = buf2.equals("y") || buf2.equals("true") || buf2.equals("yes");
+	buf = "";
+	getKeyVal("isSsl", line, &buf);
+	StrBuf buf2 = buf.tolower();
+	bool isValidFlag =
+	  (strcmp(buf2.c_str(), "y") == 0) ||
+	  (strcmp(buf2.c_str(), "n") == 0) ||
+	  (strcmp(buf2.c_str(), "true") == 0) ||
+	  (strcmp(buf2.c_str(), "false") == 0) ||
+	  (strcmp(buf2.c_str(), "yes") == 0) ||
+	  (strcmp(buf2.c_str(), "no") == 0);
+	bool isSsl =
+	  (strcmp(buf2.c_str(), "y") == 0) ||
+	  (strcmp(buf2.c_str(), "true") == 0) ||
+	  (strcmp(buf2.c_str(), "yes") == 0);
 	newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::IsSslProperty,
 							  CouchUtils::Item(isSsl ? "true" : "false")));
 	if (!isValidFlag) {
@@ -606,7 +618,7 @@ void ProvisionImp::parseRequest(const Str &line)
 	    mHasConfig = true;
 	}
 
-	Str dump;
+	StrBuf dump;
 	TRACE2("updated configuration: ", CouchUtils::toString(mConfig.getDoc(), &dump));
     }
 }
@@ -620,7 +632,7 @@ void ProvisionImp::parseRequest(const Str &line)
 //
 // Return LENGTH of found value of seeked parameter. this can return 0 if parameter was there but the value was missing!
 /* STATIC */
-int ProvisionImp::getKeyVal(const char *key, const char *str, Str *retval)
+int ProvisionImp::getKeyVal(const char *key, const char *str, StrBuf *retval)
 {
     TF("ProvisionImp::getKeyVal");
     
@@ -660,7 +672,7 @@ int ProvisionImp::getKeyVal(const char *key, const char *str, Str *retval)
 	
 	// copy the value to a buffer and terminate it with '\0'
 	while( *str && *str!='\r' && *str!='\n' && *str!=' ' && *str!='&' ) {
-	    retval->append(*str);
+	    retval->add(*str);
 	    str++;
 	    found++;
 	}

@@ -1,6 +1,6 @@
 #include "base64.h"
 
-#include <str.h>
+#include <strbuf.h>
 
 static const char b64_alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 		"abcdefghijklmnopqrstuvwxyz"
@@ -11,7 +11,7 @@ inline void a3_to_a4(unsigned char * a4, unsigned char * a3);
 inline void a4_to_a3(unsigned char * a3, unsigned char * a4);
 inline unsigned char b64_lookup(char c);
 
-int base64_encode(Str *output, const char *input, int inputLen) {
+int base64_encode(StrBuf *output, const char *input, int inputLen) {
 	int i = 0, j = 0;
 	int encLen = 0;
 	unsigned char a3[3];
@@ -23,7 +23,7 @@ int base64_encode(Str *output, const char *input, int inputLen) {
 			a3_to_a4(a4, a3);
 
 			for(i = 0; i < 4; i++) {
-			    output->append(b64_alphabet[a4[i]]);
+			    output->add(b64_alphabet[a4[i]]);
 			}
 
 			i = 0;
@@ -38,11 +38,11 @@ int base64_encode(Str *output, const char *input, int inputLen) {
 		a3_to_a4(a4, a3);
 
 		for(j = 0; j < i + 1; j++) {
-		    output->append(b64_alphabet[a4[j]]);
+		    output->add(b64_alphabet[a4[j]]);
 		}
 
 		while((i++ < 3)) {
-		    output->append('=');
+		    output->add('=');
 		}
 	}
 	return encLen;

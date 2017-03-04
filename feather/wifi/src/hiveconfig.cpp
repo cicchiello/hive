@@ -11,10 +11,13 @@
 #include <strutils.h>
 #include <couchutils.h>
 
+#include <strbuf.h>
+
 
 /* STATIC */
 HiveConfig::UpdateFunctor *HiveConfig::mUpdateFunctor = NULL;
 
+static Str sEmpty;
 
 HiveConfig::HiveConfig(const char *resetCause, const char *versionId)
   : mDoc(), mRCause(resetCause), mVersionId(versionId)
@@ -33,7 +36,31 @@ HiveConfig::~HiveConfig()
 bool HiveConfig::setDoc(const CouchUtils::Doc &doc)
 {
     TF("HiveConfig::setDoc");
-    mDoc = doc;
+
+    CouchUtils::Doc cleanedDoc; // make a new doc that uses the known property names
+    for (int i = 0; i < doc.getSz(); i++) {
+        bool found = false;
+	for (int j = 0; !found && j < mDoc.getSz(); j++) {
+	    if (mDoc[j].getName().equals(doc[i].getName())) {
+	        found = true;
+		if (mDoc[j].getValue().isStr() && doc[i].getValue().isStr() &&
+		    mDoc[j].getValue().getStr().equals(doc[i].getValue().getStr())) {
+		    cleanedDoc.addNameValue(new CouchUtils::NameValuePair(mDoc[j]));
+		} else {
+		    cleanedDoc.addNameValue(new CouchUtils::NameValuePair(mDoc[j].getName(), doc[i].getValue()));
+		}
+	    }
+	}
+	if (!found) {
+	    cleanedDoc.addNameValue(new CouchUtils::NameValuePair(doc[i].getName(), doc[i].getValue()));
+	}
+    }
+    
+    mDoc = cleanedDoc;
+    
+    StrBuf dump;
+    TRACE2("cleaned config doc: ", CouchUtils::toString(mDoc, &dump));
+ 
     TRACE4("Overriding ", HiveFirmwareProperty, " with ", mVersionId.c_str());
     mDoc.setValue(HiveFirmwareProperty, mVersionId.c_str());
 
@@ -45,16 +72,16 @@ bool HiveConfig::setDoc(const CouchUtils::Doc &doc)
 }
 
 
-const char *HiveConfig::HiveIdProperty = "hive-id";
-const char *HiveConfig::HiveFirmwareProperty = "hive-version";
-const char *HiveConfig::TimestampProperty = "timestamp";
-const char *HiveConfig::SsidProperty = "ssid";
-const char *HiveConfig::SsidPswdProperty = "pswd";
-const char *HiveConfig::DbHostProperty = "db-host";
-const char *HiveConfig::DbPortProperty = "db-port";
-const char *HiveConfig::IsSslProperty = "is-ssl";
-const char *HiveConfig::DbUserProperty = "db-user";
-const char *HiveConfig::DbPswdProperty = "db-pswd";
+const Str HiveConfig::HiveIdProperty("hive-id");
+const Str HiveConfig::HiveFirmwareProperty("hive-version");
+const Str HiveConfig::TimestampProperty("timestamp");
+const Str HiveConfig::SsidProperty("ssid");
+const Str HiveConfig::SsidPswdProperty("pswd");
+const Str HiveConfig::DbHostProperty("db-host");
+const Str HiveConfig::DbPortProperty("db-port");
+const Str HiveConfig::IsSslProperty("is-ssl");
+const Str HiveConfig::DbUserProperty("db-user");
+const Str HiveConfig::DbPswdProperty("db-pswd");
 
 
 void HiveConfig::setDefault()
@@ -147,23 +174,35 @@ bool HiveConfig::isValid() const
 }
 
 
-const char *HiveConfig::getSSID() const {return mDoc[mDoc.lookup(SsidProperty)].getValue().getStr().c_str();}
-const char *HiveConfig::getPSWD() const {return mDoc[mDoc.lookup(SsidPswdProperty)].getValue().getStr().c_str();}
-const char *HiveConfig::getDbHost() const {return mDoc[mDoc.lookup(DbHostProperty)].getValue().getStr().c_str();}
-const char *HiveConfig::getDbUser() const {return mDoc[mDoc.lookup(DbUserProperty)].getValue().getStr().c_str();}
-const char *HiveConfig::getDbPswd() const {return mDoc[mDoc.lookup(DbPswdProperty)].getValue().getStr().c_str();}
+//const char *HiveConfig::getSSID() const {return mDoc[mDoc.lookup(SsidProperty)].getValue().getStr().c_str();}
+const Str &HiveConfig::getSSID() const {return mDoc[mDoc.lookup(SsidProperty)].getValue().getStr();}
+//const char *HiveConfig::getPSWD() const {return mDoc[mDoc.lookup(SsidPswdProperty)].getValue().getStr().c_str();}
+const Str &HiveConfig::getPSWD() const {return mDoc[mDoc.lookup(SsidPswdProperty)].getValue().getStr();}
+//const char *HiveConfig::getDbHost() const {return mDoc[mDoc.lookup(DbHostProperty)].getValue().getStr().c_str();}
+const Str &HiveConfig::getDbHost() const {return mDoc[mDoc.lookup(DbHostProperty)].getValue().getStr();}
+//const char *HiveConfig::getDbUser() const {return mDoc[mDoc.lookup(DbUserProperty)].getValue().getStr().c_str();}
+const Str &HiveConfig::getDbUser() const {return mDoc[mDoc.lookup(DbUserProperty)].getValue().getStr();}
+//const char *HiveConfig::getDbPswd() const {return mDoc[mDoc.lookup(DbPswdProperty)].getValue().getStr().c_str();}
+const Str &HiveConfig::getDbPswd() const {return mDoc[mDoc.lookup(DbPswdProperty)].getValue().getStr();}
 const int HiveConfig::getDbPort() const {return atoi(mDoc[mDoc.lookup(DbPortProperty)].getValue().getStr().c_str());}
 const int HiveConfig::isSSL() const {return strcmp(mDoc[mDoc.lookup(IsSslProperty)].getValue().getStr().c_str(),"true")==0;}
 
-const char *HiveConfig::getLogDbName() const {return "hive-sensor-log";}     // couchdb name
-const char *HiveConfig::getConfigDbName() const {return "hive-config";}      // couchdb name
-const char *HiveConfig::getChannelDbName() const {return "hive-channel";}    // couchdb name
-const char *HiveConfig::getDesignDocId() const {return "_design/SensorLog";} // couchdb design document
-const char *HiveConfig::getSensorByHiveViewName() const {return "by-hive-sensor";}
+//const char *HiveConfig::getLogDbName() const {return "hive-sensor-log";}
+const Str &HiveConfig::getLogDbName() const {static Str n("hive-sensor-log"); return n;}      // couchdb name
+//const char *HiveConfig::getConfigDbName() const {return "hive-config";}
+const Str &HiveConfig::getConfigDbName() const {static Str n("hive-config"); return n;}      // couchdb name
+//const char *HiveConfig::getChannelDbName() const {return "hive-channel";}
+const Str &HiveConfig::getChannelDbName() const {static Str c("hive-channel"); return c;}    // couchdb name
+//const char *HiveConfig::getDesignDocId() const {return "_design/SensorLog";} // couchdb design document
+const Str &HiveConfig::getDesignDocId() const {static Str d("_design/SensorLog"); return d;} // couchdb designt
+//const char *HiveConfig::getSensorByHiveViewName() const {return "by-hive-sensor";}
+const Str &HiveConfig::getSensorByHiveViewName() const {static Str v("by-hive-sensor"); return v;}
 
-const char *HiveConfig::getHiveId() const
+
+const Str &HiveConfig::getHiveId() const
 {
-    return PlatformUtils::singleton().serialNumber();
+    static Str id(PlatformUtils::singleton().serialNumber());
+    return id;
 }
 
 
@@ -195,13 +234,13 @@ bool HiveConfig::addProperty(const char *name, const char *value)
 }
 
 
-const char *HiveConfig::getProperty(const char *name) const
+const Str &HiveConfig::getProperty(const Str &name) const
 {
     int index = mDoc.lookup(name);
     if (index >= 0 && mDoc[index].getValue().isStr())
-        return mDoc[index].getValue().getStr().c_str();
+        return mDoc[index].getValue().getStr();
 
-    return NULL;
+    return sEmpty;
 }
 
 

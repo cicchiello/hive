@@ -9,11 +9,28 @@ class HttpCouchPost : private HttpCouchGet {
    HttpCouchPost(const char *ssid, const char *ssidPswd, 
 		 const char *host, int port, const char *page,
 		 const CouchUtils::Doc &content,
-		 const char *dbUser, const char *dbPswd, bool isSSL = false);
+		 const char *dbUser, const char *dbPswd, bool isSSL = false)
+     : HttpCouchGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
+       m_content(content)
+       {
+       }
+   HttpCouchPost(const Str &ssid, const Str &ssidPswd, 
+		 const Str &host, int port, const char *page,
+		 const CouchUtils::Doc &content,
+		 const Str &dbUser, const Str &dbPswd, bool isSSL = false)
+     : HttpCouchGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
+       m_content(content)
+       {
+       }
    HttpCouchPost(const char *ssid, const char *ssidPswd, 
 		 const IPAddress &hostip, int port, const char *page,
 		 const CouchUtils::Doc &content,
-		 const char *dbUser, const char *dbPswd, bool isSSL = false);
+		 const char *dbUser, const char *dbPswd, bool isSSL = false)
+     : HttpCouchGet(ssid, ssidPswd, hostip, port, page, dbUser, dbPswd, isSSL),
+       m_content(content)
+      {
+      }
+  
    ~HttpCouchPost() {}
 
    using HttpCouchGet::EventResult;

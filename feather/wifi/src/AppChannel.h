@@ -46,7 +46,7 @@ class AppChannel : public TimeProvider {
 
     const HiveConfig &mConfig;
     bool mInitialMsg, mHavePayload, mIsOnline, mHaveTimestamp;
-    Str mPrevMsgId, mNewMsgId, mPayload;
+    Str mPrevMsgId, mNewMsgId, mPayload, mChannelUrl;
     
     class AppChannelGetter *mGetter;
     Mutex *mWifiMutex, *mSdMutex;

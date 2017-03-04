@@ -31,7 +31,7 @@ bool HttpPutBaseTest::loop() {
     if (now > m_timeToAct && !m_didIt) {
         if (m_getter == NULL) {
 	    TRACE("creating getter");
-	    Str url;
+	    StrBuf url;
 	    CouchUtils::toURL(defaultDbName, getDocid(), &url);
 	    m_getter = new HttpCouchGet(ssid, pass, getDbHost(), getDbPort(),
 					url.c_str(), getDbUser(), getDbPswd(), getIsSSL());

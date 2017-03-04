@@ -3,6 +3,8 @@
 
 #include <couchutils.h>
 
+class StrBuf;
+
 class DocReader {
   public:
     DocReader(const char *filename);
@@ -15,7 +17,7 @@ class DocReader {
     bool loop();
 
     // error message iff loop returns false
-    const char *errMsg() const {return mErrMsg->c_str();}
+    const char *errMsg() const;
 
     bool hasDoc() const {return mHasDoc;}
 
@@ -23,7 +25,8 @@ class DocReader {
     
  private:
     CouchUtils::Doc mDoc;
-    Str *mErrMsg, *mFilename;
+    StrBuf *mErrMsg;
+    Str *mFilename;
     bool mHasDoc, mIsDone;
 };
 

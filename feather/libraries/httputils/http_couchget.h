@@ -10,13 +10,35 @@ class HttpCouchGet : public HttpGet {
  public:
    HttpCouchGet(const char *ssid, const char *ssidPswd, 
 		const char *host, int port, const char *page,
-		const char *dbuser, const char *dbpswd, 
-		bool isSSL = false);
+		const char *dbUser, const char *dbPswd, 
+		bool isSSL = false)
+     : HttpGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
+       m_consumer(getContext())
+       {
+	 init();
+       }
+  
+   HttpCouchGet(const Str &ssid, const Str &ssidPswd, 
+		const Str &host, int port, const Str &page,
+		const Str &dbUser, const Str &dbPswd, 
+		bool isSSL = false)
+     : HttpGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
+       m_consumer(getContext())
+       {
+	 init();
+       }
+  
    HttpCouchGet(const char *ssid, const char *ssidPswd, 
 		const IPAddress &hostip, int port, const char *page,
-		const char *dbuser, const char *dbpswd, 
-		bool isSSL = false);
-   ~HttpCouchGet();
+		const char *dbUser, const char *dbPswd, 
+		bool isSSL = false)
+     : HttpGet(ssid, ssidPswd, hostip, port, page, dbUser, dbPswd, isSSL),
+       m_consumer(getContext())
+       {
+	 init();
+       }
+  
+   ~HttpCouchGet() {}
    
    virtual HttpHeaderConsumer &getHeaderConsumer() {return m_consumer;}
    virtual const HttpHeaderConsumer &getHeaderConsumer() const {return m_consumer;}

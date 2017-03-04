@@ -24,11 +24,6 @@ HttpCouchConsumer::~HttpCouchConsumer()
 }
 
 
-void HttpCouchConsumer::init()
-{
-}
-
-
 void HttpCouchConsumer::reset()
 {
     init();
@@ -82,9 +77,10 @@ static inline const char *advanceToSequence(const char *start, char c0, char c1,
 void HttpCouchConsumer::cleanChunkedResult(const char *terminationMarker)
 {
     TF("HttpCouchConsumer::cleanChunkedResult");
-    Str cleaned;
+    TRACE("entry");
+    StrBuf cleaned;
     int i = 0;
-    const char *ptr = m_response.c_str();
+    const char *ptr = getResponse().c_str();
     bool syntaxError = false;
     const char *cr = advanceToSequence(ptr, 0x0d, 0x0a, 0x0d, 0x0a);
     syntaxError = (!cr || !*cr);
@@ -99,7 +95,7 @@ void HttpCouchConsumer::cleanChunkedResult(const char *terminationMarker)
 	ptr = cr;
 	
 	TRACE2("cleaned so far: ", cleaned.c_str());
-	while (!syntaxError && (i < m_response.len())) {
+	while (!syntaxError && (i < getResponse().len())) {
 	    cr = advanceTo(ptr, 0x0d);
 	    if (!cr || !*cr || (cr-ptr < 1) || (cr-ptr > 4) || !*(cr+1) || (*(cr+1) != 0x0a)) {
 	        TRACE("chunk parsing error");
@@ -121,7 +117,7 @@ void HttpCouchConsumer::cleanChunkedResult(const char *terminationMarker)
 		TRACE2("remaining according to ptr: ", ptr);
 		if (chunkSz == 0) {
 		    // should be done
-		    if ((cr != terminationMarker) || (i != m_response.len())) {
+		    if ((cr != terminationMarker) || (i != getResponse().len())) {
 		        TRACE("chunk parsing error");
 			syntaxError = true;
 		    }
@@ -132,8 +128,8 @@ void HttpCouchConsumer::cleanChunkedResult(const char *terminationMarker)
     if (!syntaxError) {
         TRACE2("Cleaned response: ", cleaned.c_str());
 	TRACE2("i: ", i);
-	assert(i == m_response.len(), "parsing programming error");
-	m_response = cleaned;
+	assert(i == getResponse().len(), "parsing programming error");
+	setResponse(cleaned.c_str());
     }
 }
 
@@ -153,12 +149,12 @@ bool HttpCouchConsumer::consume(unsigned long now)
 
 	    while (avail--) {
 	        char c = client.read();
-		m_response.add(c);
+		appendToResponse(c);
 	    }
 		
 	    if (isChunked()) {
 	        // check for chunked termination
-	        const char *term = advanceToSequence(m_response.c_str(), '0',0x0d,0x0a,0x0d,0x0a);
+	        const char *term = advanceToSequence(getResponse().c_str(), '0',0x0d,0x0a,0x0d,0x0a);
 		if (term && *term) {
 		    TRACE("Found chunk termination");
 

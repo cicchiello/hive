@@ -20,39 +20,39 @@ class HiveConfig {
     
     bool isValid() const;
 
-    static const char *HiveIdProperty;
-    static const char *HiveFirmwareProperty;
-    static const char *TimestampProperty;
-    static const char *SsidProperty;
-    static const char *SsidPswdProperty;
-    static const char *DbHostProperty;
-    static const char *DbPortProperty;
-    static const char *IsSslProperty;
-    static const char *DbUserProperty;
-    static const char *DbPswdProperty;
+    static const Str HiveIdProperty;
+    static const Str HiveFirmwareProperty;
+    static const Str TimestampProperty;
+    static const Str SsidProperty;
+    static const Str SsidPswdProperty;
+    static const Str DbHostProperty;
+    static const Str DbPortProperty;
+    static const Str IsSslProperty;
+    static const Str DbUserProperty;
+    static const Str DbPswdProperty;
  
-    const char *getHiveId() const;
+    const Str &getHiveId() const;
     unsigned long getConfigTimestamp() const;
     
-    const char *getSSID() const;
-    const char *getPSWD() const;
-    const char *getDbHost() const;
+    const Str &getSSID() const;
+    const Str &getPSWD() const;
+    const Str &getDbHost() const;
     const int getDbPort() const;
     const int isSSL() const;
-    const char *getDbUser() const;
-    const char *getDbPswd() const;
+    const Str &getDbUser() const;
+    const Str &getDbPswd() const;
 
-    const char *getLogDbName() const;
-    const char *getConfigDbName() const;
-    const char *getChannelDbName() const;
-    const char *getDesignDocId() const;
-    const char *getSensorByHiveViewName() const;
+    const Str &getLogDbName() const;
+    const Str &getConfigDbName() const;
+    const Str &getChannelDbName() const;
+    const Str &getDesignDocId() const;
+    const Str &getSensorByHiveViewName() const;
 
-    const char *getResetCause() const {return mRCause.c_str();}
-    const char *getVersionId() const {return mVersionId.c_str();}
+    const Str &getResetCause() const {return mRCause;}
+    const Str &getVersionId() const {return mVersionId;}
 
     bool addProperty(const char *name, const char *value);
-    const char *getProperty(const char *name) const;
+    const Str &getProperty(const Str &name) const;
 
     class UpdateFunctor {
     public:

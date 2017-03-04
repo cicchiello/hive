@@ -10,6 +10,7 @@
 
 
 #include <str.h>
+#include <strbuf.h>
 #include <strutils.h>
 
 
@@ -69,13 +70,10 @@ const char *Actuator::getName() const
 }
 
 
-Str Actuator::TAG(const char *memberfunc, const char *msg) const
+StrBuf Actuator::TAG(const char *memberfunc, const char *msg) const
 {
-    Str func = className();
-    func.append("(");
-    func.append(*mName);
-    func.append(")::");
-    func.append(memberfunc);
+    StrBuf func(className());
+    func.append("(").append(mName->c_str()).append(")::").append(memberfunc);
     return StringUtils::TAG(func.c_str(), msg);
 }
 

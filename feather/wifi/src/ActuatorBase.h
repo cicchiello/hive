@@ -50,7 +50,7 @@ class ActuatorBase : public Actuator {
     
     virtual void processResult(Getter *getter) = 0;
 
-    void buildStandardSensorEncodedUrl(const char *sensorName, Str *encodedUrl) const;
+    void buildStandardSensorEncodedUrl(const char *sensorName, StrBuf *encodedUrl) const;
     
     unsigned long setNextActionTime(unsigned long t);
     

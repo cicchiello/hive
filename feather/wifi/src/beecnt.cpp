@@ -122,18 +122,30 @@ bool BeeCounter::sensorSample(Str *value)
 
 void BeeCounter::pulse(unsigned long now)
 {
-    if (now <= mLastSampleTime)
-        return;
+    sample(now);
+}
 
-    if (now > mLastSampleTime+1) {
-        DL("BeeCounter::pulse called too infrequently!");
-	D("Last call was: "); D(now-mLastSampleTime); DL("ms ago");
+
+bool BeeCounter::sample(unsigned long now)
+{
+    TF("BeeCounter::pulse");
+
+    if (now <= mLastSampleTime)
+        return false;
+
+    bool tookTooLong = false;
+    if (!mFirstRead && (now > mLastSampleTime+10)) {
+        TRACE2("now: ", now);
+        PH3("BeeCounter::pulse called too infrequently; last call was : ", (now-mLastSampleTime),
+	    " ms ago");
+	tookTooLong = true;
     }
     mLastSampleTime = now;
 
     readReg();
   
     if (mFirstRead) {
+        TRACE2("First read; now: ", now);
 	mFirstRead = false;
 	
 	for (int i = 0; i < NUM_BYTES; i++)
@@ -255,4 +267,6 @@ void BeeCounter::pulse(unsigned long now)
 	    mOldBytes[b] = mBytes[b];
 	}
     }
+
+    return tookTooLong;
 }

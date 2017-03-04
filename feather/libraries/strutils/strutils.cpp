@@ -1,11 +1,14 @@
 #include <strutils.h>
 
-#include <str.h>
-
 #include <Arduino.h>
 
+#include <Trace.h>
+
+#include <str.h>
+#include <strbuf.h>
+
 /* STATIC */
-void StringUtils::consumeChar(char c, Str *buf)
+void StringUtils::consumeChar(char c, StrBuf *buf)
 {
     buf->add(c);
 }
@@ -30,7 +33,7 @@ const char *StringUtils::eatPunctuation(const char *ptr, char p)
 }
 
 /* STATIC */
-const char *StringUtils::getToken(const char *ptr, Str *buf)
+const char *StringUtils::getToken(const char *ptr, StrBuf *buf)
 {
     // let's take all chars starting at ptr that are in the following set as the token:
     // "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-+_."
@@ -42,24 +45,24 @@ const char *StringUtils::getToken(const char *ptr, Str *buf)
 	    ('-' == *ptr) || ('+' == *ptr)) {
 	buf->add(*ptr++);
     }
-    buf->add(0);
     return ptr;
 }
 
 /* STATIC */
-const char *StringUtils::unquote(const char *ptr, Str *ident)
+const char *StringUtils::unquote(const char *ptr, StrBuf *ident)
 {
-    if (*ptr != '"') 
+    TF("StringUtils::unquote");
+    if (*ptr != '"') {
         return getToken(ptr, ident);
+    }
     
     ptr = eatWhitespace(ptr+1);
     while ((*ptr != 0) && (*ptr != '"')) {
 	ident->add(*ptr++);
     }
-    ident->add(0);
     if (*ptr == '"')
         ptr++;
-    
+
     return ptr;
 }
 
@@ -169,9 +172,9 @@ void StringUtils::consumeNumber(Str *rsp)
 
 
 /* STATIC */
-Str StringUtils::TAG(const char *func, const char *msg) 
+StrBuf StringUtils::TAG(const char *func, const char *msg) 
 {
-    Str tag = func;
+    StrBuf tag(func);
     tag.append("; ");
     tag.append(msg);
     return tag;
@@ -195,10 +198,10 @@ int StringUtils::ahextoi(const char *hexascii, int len)
 
 
 /* STATIC */
-const char *StringUtils::replace(Str *result, const char *orig, const char *match, const char *repl)
+const char *StringUtils::replace(StrBuf *result, const char *orig, const char *match, const char *repl)
 {
     const char *src=orig; // points to current loc withini orig
-
+    
     while (true) {
         const char *ins = strstr(src, match);
 	if (ins == NULL) {
@@ -208,8 +211,7 @@ const char *StringUtils::replace(Str *result, const char *orig, const char *matc
 	} else {
 	    // copy everything before the match str
 	    for (const char *ptr = src; ptr < ins; ptr++)
-	        result->append(*ptr);
-	    result->append((char)0);   // make sure it's terminated
+	        result->add(*ptr);
 	    src += (ins-src) + strlen(match);     // advance src to loc just beyond match str
 	    result->append(repl);
 	}

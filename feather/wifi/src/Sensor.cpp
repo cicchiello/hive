@@ -13,6 +13,7 @@
 #include <TimeProvider.h>
 
 #include <str.h>
+#include <strbuf.h>
 #include <strutils.h>
 
 
@@ -45,11 +46,11 @@ bool Sensor::isItTimeYet(unsigned long now)
 }
 
 
-Str Sensor::TAG(const char *memberfunc, const char *msg) const
+StrBuf Sensor::TAG(const char *memberfunc, const char *msg) const
 {
-    Str func = className();
+    StrBuf func(className());
     func.append("(");
-    func.append(*mName);
+    func.append(mName->c_str());
     func.append(")::");
     func.append(memberfunc);
     return StringUtils::TAG(func.c_str(), msg);

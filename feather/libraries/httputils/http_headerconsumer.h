@@ -3,7 +3,7 @@
 
 #include <http_respconsumer.h>
 
-#include <str.h>
+#include <strbuf.h>
 
 class HttpHeaderConsumer : public HttpResponseConsumer {
 private:
@@ -14,7 +14,12 @@ private:
   unsigned long m_firstConsumeTime;
 
 protected:
-  Str m_response;
+  void setResponse(const char *newResponse);
+  void appendToResponse(char c);
+  void appendToResponse(const char *s);
+  
+private:
+  StrBuf m_response;
   
 public:
   static const char *TAGContentLength;
@@ -26,17 +31,17 @@ public:
 
   HttpHeaderConsumer(const WifiUtils::Context &ctxt);
 
-  ~HttpHeaderConsumer() {}
+  ~HttpHeaderConsumer();
   
   bool consume(unsigned long now);
   bool hasContentLength() const {return mHasContentLength;}
   bool isChunked() const {return mIsChunked;}
   int getContentLength() const {return m_contentLength;}
 
-  const Str &getResponse() const {return m_response;}
+  const StrBuf &getResponse() const {return m_response;}
   
   bool isError() const {return m_err;}
-  const Str &getErrmsg() const {return m_response;}
+  const StrBuf &getErrmsg() const {return m_response;}
   
   bool hasOk() const;
   bool hasNotFound() const;

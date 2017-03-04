@@ -17,6 +17,7 @@
 #include <TimeProvider.h>
 
 #include <str.h>
+#include <strbuf.h>
 
 
 #define FIRST_SAMPLE (15*1000l)
@@ -73,27 +74,27 @@ bool SensorBase::postImplementation(unsigned long now, Mutex *wifi)
 
 	    CouchUtils::Doc doc;
 	    doc.addNameValue(new CouchUtils::NameValuePair("hiveid",
-							   CouchUtils::Item(Str(mConfig.getHiveId()))));
+							   CouchUtils::Item(mConfig.getHiveId())));
 	    doc.addNameValue(new CouchUtils::NameValuePair("sensor",
 							   CouchUtils::Item(Str(getName()))));
 	    doc.addNameValue(new CouchUtils::NameValuePair("timestamp",
 							   CouchUtils::Item(timestampStr)));
 	    doc.addNameValue(new CouchUtils::NameValuePair("value",
 							   CouchUtils::Item(*mValueStr)));
-	    Str dump;
+	    StrBuf dump;
 	    CouchUtils::toString(doc, &dump);
 
-	    Str url("/");
-	    url.append(mConfig.getLogDbName());
+	    StrBuf url("/");
+	    url.append(mConfig.getLogDbName().c_str());
 	    
 	    TRACE2("creating POST with url: ", url.c_str());
-	    TRACE2("thru wifi: ", mConfig.getSSID());
-	    TRACE2("with pswd: ", mConfig.getPSWD());
-	    TRACE2("to host: ", mConfig.getDbHost());
+	    TRACE2("thru wifi: ", mConfig.getSSID().c_str());
+	    TRACE2("with pswd: ", mConfig.getPSWD().c_str());
+	    TRACE2("to host: ", mConfig.getDbHost().c_str());
 	    TRACE2("port: ", mConfig.getDbPort());
 	    TRACE2("using ssl? ", (mConfig.isSSL() ? "yes" : "no"));
-	    TRACE2("with dbuser: ", mConfig.getDbUser());
-	    TRACE2("with dbpswd: ", mConfig.getDbPswd());
+	    TRACE2("with dbuser: ", mConfig.getDbUser().c_str());
+	    TRACE2("with dbpswd: ", mConfig.getDbPswd().c_str());
 	    PH2("POSTing doc: ", dump.c_str());
 	    
 	    mPoster = new HttpCouchPost(mConfig.getSSID(), mConfig.getPSWD(),

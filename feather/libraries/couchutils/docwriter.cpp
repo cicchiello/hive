@@ -5,6 +5,7 @@
 #include <strutils.h>
 
 #include <str.h>
+#include <strbuf.h>
 
 #include <Trace.h>
 
@@ -21,7 +22,7 @@ DocWriter::DocWriter(const char *filename, const CouchUtils::Doc &config, Mutex 
 {
     TF("DocWriter::DocWriter");
     TRACE("trace");
-    mErrMsg = new Str("no error");
+    mErrMsg = new StrBuf("no error");
     TRACE("trace");
     mFilename = new Str(filename);
     TRACE("initializing DocWriter; doc: ");
@@ -75,7 +76,7 @@ bool writeDoc(SdFile &f, const CouchUtils::Doc &doc, int indent)
 }
 
 
-static bool writeFile(const char *filename, const CouchUtils::Doc &contents, Str *errMsg)
+static bool writeFile(const char *filename, const CouchUtils::Doc &contents, StrBuf *errMsg)
 {
     TF("::writeFile");
     TRACE("entry");
@@ -116,7 +117,7 @@ bool DocWriter::loop() {
 	}
 	
 	if (exists) {
-	    *mErrMsg = *mFilename;
+	    *mErrMsg = mFilename->c_str();
 	    mErrMsg->append(" exists and couldn't be deleted");
 	    TRACE(mErrMsg->c_str());
 	    mSdMutex->release(this);
@@ -139,3 +140,4 @@ bool DocWriter::loop() {
 }
 
 
+const char *DocWriter::errMsg() const {return mErrMsg->c_str();}

@@ -2,19 +2,18 @@
 #define string_utils_h
 
 
-#include <Arduino.h>
-
-
 class Str;
+class StrBuf;
+class Stream;
 
 class StringUtils {
 public:
-  static void consumeChar(char c, Str *buf);
+  static void consumeChar(char c, StrBuf *buf);
 
   static const char *eatWhitespace(const char *ptr);
   static const char *eatPunctuation(const char *ptr, char p);
-  static const char *getToken(const char *ptr, Str *buf);
-  static const char *unquote(const char *ptr, Str *ident);
+  static const char *getToken(const char *ptr, StrBuf *buf);
+  static const char *unquote(const char *ptr, StrBuf *ident);
 
   static bool isAtEOL(const Str &line);
   static bool hasEOL(const Str &line);
@@ -30,9 +29,9 @@ public:
 
   static void urlEncodePrint(Stream &stream, const char *msg);
 
-  static const char *replace(Str *result, const char *orig, const char *match, const char *repl);
+  static const char *replace(StrBuf *result, const char *orig, const char *match, const char *repl);
   
-  static Str TAG(const char *func, const char *msg);
+  static StrBuf TAG(const char *func, const char *msg);
 };
 
 #endif

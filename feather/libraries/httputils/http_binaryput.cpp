@@ -42,45 +42,6 @@ void dumpStats()
 #endif
 
 
-HttpBinaryPut::HttpBinaryPut(const char *ssid, const char *ssidPswd, 
-			     const char *host, int port, const char *page,
-			     const char *dbUser, const char *dbPswd, 
-			     bool isSSL, HttpDataProvider *provider, const char *contentType)
-  : HttpCouchGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
-    m_provider(provider), m_contentType(contentType), m_writtenCnt(0), mRetryFlush(false)
-{
-   TF("HttpBinaryPut::HttpBinaryPut");
-   TRACE2("Using ssid: ",ssid);
-   TRACE2("Using host: ",host);
-   TRACE2("Using port: ",port);
-   TRACE2("Using page: ",page);
-   TRACE2("Using dbuser: ", (dbUser?dbUser:"<null>"));
-   TRACE2("Using dbpswd: ", (dbPswd?dbPswd:"<null>"));
-   TRACE2("Using contentType: ", contentType);
-}
-
-HttpBinaryPut::HttpBinaryPut(const char *ssid, const char *ssidPswd, 
-			     const IPAddress &hostip, int port, const char *page,
-			     const char *dbUser, const char *dbPswd, 
-			     bool isSSL, HttpDataProvider *provider, const char *contentType)
-  : HttpCouchGet(ssid, ssidPswd, hostip, port, page, dbUser, dbPswd, isSSL),
-    m_provider(provider), m_contentType(contentType), m_writtenCnt(0)
-{
-   TF("HttpBinaryPut::HttpBinaryPut");
-   TRACE2("Using ssid: ",ssid);
-   uint32_t a = hostip;
-   TRACE2("Using host: ",a);
-   TRACE2("Using port: ",port);
-   TRACE2("Using page: ",page);
-   TRACE2("Using contentType: ", contentType);
-}
-
-
-HttpBinaryPut::~HttpBinaryPut()
-{
-}
-
-
 void HttpBinaryPut::resetForRetry()
 {
     TF("HttpBinaryPut::resetForRetry");

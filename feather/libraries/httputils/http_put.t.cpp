@@ -54,21 +54,21 @@ bool HttpPutTest::createPutter(const CouchUtils::Doc &originalDoc)
     int icontent = originalDoc.lookup("content");
     int att = originalDoc.lookup("_attachments");
     if ((irev >= 0) && (icontent >= 0)) {
-        CouchUtils::Doc updateDoc;
+        CouchUtils::Doc *updateDoc = new CouchUtils::Doc();
         const Str &revision = originalDoc[irev].getValue().getStr();
 	const Str &content = originalDoc[icontent].getValue().getStr();
-	updateDoc.addNameValue(new CouchUtils::NameValuePair("_rev", revision));
-	updateDoc.addNameValue(new CouchUtils::NameValuePair("content2", "Hi CouchDB!"));
-	updateDoc.addNameValue(new CouchUtils::NameValuePair("content", content));
+	updateDoc->addNameValue(new CouchUtils::NameValuePair("_rev", revision));
+	updateDoc->addNameValue(new CouchUtils::NameValuePair("content2", "Hi CouchDB!"));
+	updateDoc->addNameValue(new CouchUtils::NameValuePair("content", content));
 //	if (att >= 0) 
-//          updateDoc.addNameValue(new CouchUtils::Doc::NameValuePair(originalDoc[att]));
+//          updateDoc->addNameValue(new CouchUtils::Doc::NameValuePair(originalDoc[att]));
     
 #ifndef NDEBUG
 	PH("Here's the updated doc:");
-	CouchUtils::printDoc(updateDoc);
+	CouchUtils::printDoc(*updateDoc);
 #endif
 
-	Str url;
+	StrBuf url;
 	CouchUtils::toURL(defaultDbName, getDocid(), &url);
 
 	m_putter = new HttpCouchPut(ssid, pass, getDbHost(), getDbPort(),
@@ -80,22 +80,6 @@ bool HttpPutTest::createPutter(const CouchUtils::Doc &originalDoc)
 	CouchUtils::printDoc(originalDoc);
         return false;
     }
-
-
-
-    CouchUtils::Doc updateDoc;
-    if (createUpdateDoc(m_getter->getDoc(), &updateDoc));
-    
-
-
-
-    Str url;
-    CouchUtils::toURL(defaultDbName, getDocid(), &url);
-
-    m_putter = new HttpCouchPut(ssid, pass, getDbHost(), getDbPort(),
-				url.c_str(), updateDoc, getDbUser(), getDbPswd(), getIsSSL());
-
-    return m_putter != NULL;
 }
 
 

@@ -2,6 +2,7 @@
 #define actuator_h
 
 class Str;
+class StrBuf;
 class Mutex;
 
 
@@ -36,7 +37,7 @@ class Actuator {
     
     virtual const char *className() const = 0;
     
-    Str TAG(const char *memberfunc, const char *msg) const;
+    StrBuf TAG(const char *memberfunc, const char *msg) const;
 
     Str *mName;
     unsigned long mNextActionTime;

@@ -8,13 +8,29 @@ class HttpCouchPut : private HttpCouchGet {
  public:
    HttpCouchPut(const char *ssid, const char *ssidPswd, 
 		const char *host, int port, const char *page,
-		const CouchUtils::Doc &content,
-		const char *dbUser, const char *dbPswd, bool isSSL = false);
+		CouchUtils::Doc *content, // passing ownership
+		const char *dbUser, const char *dbPswd, bool isSSL = false)
+     : HttpCouchGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
+       m_content(content)
+       {
+       }
+   HttpCouchPut(const Str &ssid, const Str &ssidPswd, 
+		const Str &host, int port, const char *page,
+		CouchUtils::Doc *content, // passing ownership
+		const Str &dbUser, const Str &dbPswd, bool isSSL = false)
+     : HttpCouchGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
+       m_content(content)
+       {
+       }
    HttpCouchPut(const char *ssid, const char *ssidPswd, 
 		const IPAddress &hostip, int port, const char *page,
-		const CouchUtils::Doc &content,
-		const char *dbUser, const char *dbPswd, bool isSSL = false);
-   ~HttpCouchPut() {}
+		CouchUtils::Doc *content, // passing ownership
+		const char *dbUser, const char *dbPswd, bool isSSL = false)
+     : HttpCouchGet(ssid, ssidPswd, hostip, port, page, dbUser, dbPswd, isSSL),
+       m_content(content)
+       {
+       }
+   ~HttpCouchPut();
 
    using HttpCouchGet::EventResult;
    
@@ -34,7 +50,7 @@ class HttpCouchPut : private HttpCouchGet {
    
    bool testSuccess() const;
 
-   const CouchUtils::Doc m_content;
+   const CouchUtils::Doc *m_content;
 };
 
 

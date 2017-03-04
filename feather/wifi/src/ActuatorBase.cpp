@@ -14,6 +14,7 @@
 #include <RateProvider.h>
 
 #include <str.h>
+#include <strbuf.h>
 
 #include <http_couchget.h>
 
@@ -165,18 +166,18 @@ const Str *ActuatorBase::Getter::getSingleValue() const
 }
 
 
-void ActuatorBase::buildStandardSensorEncodedUrl(const char *sensorName, Str *encodedUrl) const
+void ActuatorBase::buildStandardSensorEncodedUrl(const char *sensorName, StrBuf *encodedUrl) const
 {
-    Str url;
-    url.append(getConfig().getDesignDocId());
+    StrBuf url;
+    url.append(getConfig().getDesignDocId().c_str());
     url.append("/_view/");
-    url.append(getConfig().getSensorByHiveViewName());
+    url.append(getConfig().getSensorByHiveViewName().c_str());
     url.append("?limit=1&start_key=[\"");
-    url.append(getConfig().getHiveId());
+    url.append(getConfig().getHiveId().c_str());
     url.append("\",\"");
     url.append(sensorName);
     url.append("\",\"9999999999\"]&end_key=[\"");
-    url.append(getConfig().getHiveId());
+    url.append(getConfig().getHiveId().c_str());
     url.append("\",\"");
     url.append(sensorName);
     url.append("\",\"1470000000\"]&descending=true");

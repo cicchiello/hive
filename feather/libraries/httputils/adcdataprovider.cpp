@@ -1,7 +1,8 @@
 #include <adcdataprovider.h>
 
+#include <Arduino.h>
 
-//#define NDEBUG
+#define NDEBUG
 #include <strutils.h>
 
 #include <Trace.h>

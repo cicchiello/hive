@@ -14,7 +14,6 @@
 #define NDEBUG
 
 #include <Trace.h>
-
 #include <SdFat.h>
 
 #include <platformutils.h>
@@ -62,7 +61,8 @@ HivePlatform::HivePlatform()
     sConsumers11K_stage = new PulseGenConsumer*[10];
     sConsumers22K_stage = new PulseGenConsumer*[10];
     for (int i = 0; i < 10; i++) {
-      sConsumers11K[i] = sConsumers22K[i] = sConsumers11K_stage[i] = sConsumers22K_stage[i] = 0;
+        sConsumers11K[i] = sConsumers22K[i] = 0;
+	sConsumers11K_stage[i] = sConsumers22K_stage[i] = 0;
     }
 }
 
@@ -83,7 +83,7 @@ void HivePlatform::stackDump()
 	    canWrite = false;
 	}
 	
-        P("INFO: "); PL(millis());
+        P("STACKDUMP TIME: "); PL(millis());
         PL("FAULT: Stack trace: ");
 	const TraceScope *s = TraceScope::sCurrScope;
 	while (s != NULL) {
@@ -178,20 +178,40 @@ void HivePlatform::error(const char *err)
 }
 
 
+static void registerPulseGenConsumer(PulseGenConsumer *consumer, PulseGenConsumer **arr, const char *msg)
+{
+    int i = 0;
+    while ((arr[i] != 0) && (arr[i] != consumer)) {
+        i++;
+    }
+    if (arr[i] == 0) {
+        D(msg); DL(i);
+        arr[i] = consumer;
+    }
+}
+
+
+static void unregisterPulseGenConsumer(PulseGenConsumer *consumer, PulseGenConsumer **arr, PulseGenConsumer **stage)
+{
+    int i = 0, j = 0;
+    while (arr[i]) {
+        if (arr[i] == consumer) i++;
+	else stage[j++] = arr[i++];
+    }
+    stage[j] = 0;
+
+    PulseGenConsumer **t = arr;
+    arr = stage;
+    stage = t;
+}
+
 
 void HivePlatform::registerPulseGenConsumer_11K(class PulseGenConsumer *consumer)
 {
     TF("HivePlatform::registerPulseGenConsumer_11K");
     TRACE("registering a consumer");
-    
-    int i = 0;
-    while ((sConsumers11K[i] != 0) && (sConsumers11K[i] != consumer)) {
-        i++;
-    }
-    if (sConsumers11K[i] == 0) {
-        D("Registered pulseGenConsumer 11K consumer "); DL(i);
-        sConsumers11K[i] = consumer;
-    }
+
+    registerPulseGenConsumer(consumer, sConsumers11K, "Registered pulseGenConsumer 11K consumer ");
 }
 
 
@@ -200,14 +220,7 @@ void HivePlatform::registerPulseGenConsumer_22K(class PulseGenConsumer *consumer
     TF("HivePlatform::registerPulseGenConsumer_22K");
     TRACE("registering a consumer");
     
-    int i = 0;
-    while ((sConsumers22K[i] != 0) && (sConsumers22K[i] != consumer)) {
-        i++;
-    }
-    if (sConsumers22K[i] == 0) {
-        D("Registered pulseGenConsumer 22K consumer "); DL(i);
-        sConsumers22K[i] = consumer;
-    }
+    registerPulseGenConsumer(consumer, sConsumers22K, "Registered pulseGenConsumer 22K consumer ");
 }
 
 
@@ -216,16 +229,7 @@ void HivePlatform::unregisterPulseGenConsumer_11K(class PulseGenConsumer *consum
     TF("HivePlatform::registerPulseGenConsumer_11K");
     TRACE("unregistering a consumer");
 
-    int i = 0, j = 0;
-    while (sConsumers11K[i]) {
-        if (sConsumers11K[i] == consumer) i++;
-	else sConsumers11K_stage[j++] = sConsumers11K[i++];
-    }
-    sConsumers11K_stage[j] = 0;
-
-    PulseGenConsumer **t = sConsumers11K;
-    sConsumers11K = sConsumers11K_stage;
-    sConsumers11K_stage = t;
+    unregisterPulseGenConsumer(consumer, sConsumers11K, sConsumers11K_stage);
 }
 
 
@@ -234,17 +238,9 @@ void HivePlatform::unregisterPulseGenConsumer_22K(class PulseGenConsumer *consum
     TF("HivePlatform::registerPulseGenConsumer_22K");
     TRACE("unregistering a consumer");
 
-    int i = 0, j = 0;
-    while (sConsumers22K[i]) {
-        if (sConsumers22K[i] == consumer) i++;
-	else sConsumers22K_stage[j++] = sConsumers22K[i++];
-    }
-    sConsumers22K_stage[j] = 0;
-
-    PulseGenConsumer **t = sConsumers22K;
-    sConsumers22K = sConsumers22K_stage;
-    sConsumers22K_stage = t;
+    unregisterPulseGenConsumer(consumer, sConsumers22K, sConsumers22K_stage);
 }
+
 
 
 static void notifyConsumers()

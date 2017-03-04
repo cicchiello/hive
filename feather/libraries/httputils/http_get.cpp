@@ -13,29 +13,6 @@
 #include <MyWiFi.h>
 
 
-HttpGet::HttpGet(const char *ssid, const char *ssidPswd, 
-		 const char *host, int port, const char *page,
-		 const char *dbUser, const char *dbPswd,
-		 bool isSSL)
-  : HttpOp(ssid, ssidPswd, host, port, dbUser, dbPswd, isSSL),
-    m_page(page)
-{
-    TF("HttpGet::HttpGet (1)");
-    TRACE2("host/port: ", Str(host).append(":").append(port).c_str());
-}
-
-HttpGet::HttpGet(const char *ssid, const char *ssidPswd, 
-		 const IPAddress &hostip, int port, const char *page,
-		 const char *dbUser, const char *dbPswd,
-		 bool isSSL)
-  : HttpOp(ssid, ssidPswd, hostip, port, dbUser, dbPswd, isSSL),
-    m_page(page)
-{
-    TF("HttpGet::HttpGet (2)");
-    TRACE3(hostip, ":", port);
-}
-
-
 HttpResponseConsumer &HttpGet::getResponseConsumer()
 {
     return getHeaderConsumer();

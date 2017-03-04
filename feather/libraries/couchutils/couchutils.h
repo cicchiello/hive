@@ -4,7 +4,7 @@
 #include <str.h>
 
 class IPAddress;
-
+class StrBuf;
 
 class CouchUtils {
 public:
@@ -103,6 +103,7 @@ public:
     
     void addNameValue(NameValuePair *nv);
     bool setValue(const char *name, const Item &value);
+    bool setValue(const Str &name, const Item &value);
 
     int getSz() const {return numNVs;}
     bool isEmpty() const {return numNVs == 0;}
@@ -121,15 +122,15 @@ public:
   static void printArr(const Arr &arr);
   static void printDoc(const Doc &doc);
 
-  static const char *toURL(const char *db, const char *docid, Str *page);
-  static const char *urlEncode(const char *msg, Str *url);
+  static const char *toURL(const char *db, const char *docid, StrBuf *page);
+  static const char *urlEncode(const char *msg, StrBuf *url);
   static const char *toAttachmentPutURL(const char *db, const char *docid, 
-					const char *attachName, const char *revision, Str *result);
+					const char *attachName, const char *revision, StrBuf *result);
   static const char *toAttachmentGetURL(const char *db, const char *docid, 
-					const char *attachName, Str *result);
+					const char *attachName, StrBuf *result);
 
-  static const char *toString(const Doc &doc, Str *buf);
-  static const char *toString(const Arr &arr, Str *buf);
+  static const char *toString(const Doc &doc, StrBuf *buf);
+  static const char *toString(const Arr &arr, StrBuf *buf);
 
  private:
   static const char *parseArr(const char *rawtext, Arr *arr);
