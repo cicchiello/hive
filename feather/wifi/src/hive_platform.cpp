@@ -21,7 +21,8 @@
 #include <sdutils.h>
 
 
-#define STACKTRACE_FILENAME "/STACK.LOG"
+/* STATIC */
+const char *HivePlatform::STACKTRACE_FILENAME = "/STACK.LOG";
 
 static HivePlatform *sPlatform = 0;
 static PulseGenConsumer **sConsumers11K = 0;

@@ -28,6 +28,8 @@ class HivePlatform {
     
     void pulseGen_22K_init();
 
+    static const char *STACKTRACE_FILENAME;
+    
  private:
     HivePlatform();
 };

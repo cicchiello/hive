@@ -8,7 +8,7 @@
 
 #include <Trace.h>
 
-#include <str.h>
+#include <strbuf.h>
 
 #include <StepperActuator.h>
 
@@ -21,10 +21,10 @@ StepperMonitor::StepperMonitor(const HiveConfig &config,
 			       const class StepperActuator &actuator,
 			       Mutex *wifiMutex)
   : SensorBase(config, name, rateProvider, timeProvider, now, wifiMutex),
-    mActuator(actuator)
+    mActuator(actuator), mPrevTarget(0), mNextAction(now+1500l), mDoPost(false)
 {
     TF("StepperMonitor::StepperMonitor");
-    mTarget = actuator.getTarget();
+    setNextSampleTime(now + 1000000000); // don't let the base class ever perform it's sample function
 }
 
 
@@ -37,34 +37,58 @@ StepperMonitor::~StepperMonitor()
 bool StepperMonitor::sensorSample(Str *value)
 {
     TF("StepperMonitor::sensorSample");
-    
-    int loc = mActuator.getLocation();
-	
-    char buf[10];
-    *value = itoa(loc, buf, 10);
-    return true;
+    assert(false, "Shouldn't get here 'cause I've taken over sample timing and explicity set the sample val");
+    return false;
 }
 
 
 bool StepperMonitor::isItTimeYet(unsigned long now)
 {
-    TF("StepperMonitor::isItTimeYet");
-    bool baseIsItTimeYet = SensorBase::isItTimeYet(now);
-    
-    int currTarget = mActuator.getTarget();
-    if (!baseIsItTimeYet && (mTarget != currTarget)) {
-        mTarget = currTarget;
-	unsigned long n = getNextSampleTime();
-	if (n > now + 100l) 
-	    setNextSampleTime(now + 100l); // force a sample soon (100ms) since the motor should now be running
-	unsigned long p = getNextPostTime();
-	if (p > now + 1000l)
-	    setNextPostTime(now + 1000l);
-	return false;
-    } else {
-        return baseIsItTimeYet;
-    }
+    return (now >= mNextAction) || mDoPost;
 }
 
+
+bool StepperMonitor::processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms)
+{
+    TF("StepperMonitor::processResult");
+    mDoPost = false;
+    return SensorBase::processResult(consumer, callMeBackIn_ms);
+}
+
+
+bool StepperMonitor::loop(unsigned long now)
+{
+    TF("StepperMonitor::loop");
+
+    if (now > mNextAction || mNextAction > now +200l) {
+        mNextAction = now + 200l;
+	setNextSampleTime(now + 1000000000); // don't let the base class ever perform it's sample function
+    }
+    
+    int target = mActuator.getTarget();
+    if (target != 0) {
+        StrBuf buf("moving");
+	buf.add(target > 0 ? '+' : '-');
+	buf.append(target);
+        mSensorValue = buf.c_str();
+    } else {
+        static Str stopped("stopped");
+        mSensorValue = stopped;
+    }
+    
+    if (target != mPrevTarget) {
+        setSample(mSensorValue);
+	setNextPostTime(now);   // force immediate POST attempt to make the app as responsive as possible
+	mDoPost = true;
+	mPrevTarget = target;
+    }
+      
+    bool callMeBack = true;
+    if (mDoPost) {
+        callMeBack = SensorBase::loop(now);
+    }
+
+    return callMeBack;
+}
 
 

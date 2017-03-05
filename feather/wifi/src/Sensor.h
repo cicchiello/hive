@@ -27,16 +27,39 @@ class Sensor {
     
     StrBuf TAG(const char *memberfunc, const char *msg) const;
     
-    unsigned long mNextSampleTime;
-
+    unsigned long getNextSampleTime() const;
+    void setNextSampleTime(unsigned long n);
+    
  private:
     Sensor(const Sensor&);  // unimplemented
     const Sensor &operator=(const Sensor &); // unimplemented
     
+    unsigned long mNextSampleTime;
+
     Str *mName;
     const class RateProvider &mRateProvider;
     const class TimeProvider &mTimeProvider;
 };
+
+
+inline
+bool Sensor::isItTimeYet(unsigned long now)
+{
+    return now >= mNextSampleTime;
+}
+
+
+inline
+unsigned long Sensor::getNextSampleTime() const
+{
+    return mNextSampleTime;
+}
+
+inline
+void Sensor::setNextSampleTime(unsigned long n)
+{
+    mNextSampleTime = n;
+}
 
 
 #endif

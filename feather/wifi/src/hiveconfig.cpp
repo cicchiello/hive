@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+#define HEADLESS
 #define NDEBUG
 
 #include <Trace.h>
@@ -43,11 +44,15 @@ bool HiveConfig::setDoc(const CouchUtils::Doc &doc)
 	for (int j = 0; !found && j < mDoc.getSz(); j++) {
 	    if (mDoc[j].getName().equals(doc[i].getName())) {
 	        found = true;
-		if (mDoc[j].getValue().isStr() && doc[i].getValue().isStr() &&
-		    mDoc[j].getValue().getStr().equals(doc[i].getValue().getStr())) {
-		    cleanedDoc.addNameValue(new CouchUtils::NameValuePair(mDoc[j]));
+		if (mDoc[j].getName().equals(HiveFirmwareProperty)) {
+		    cleanedDoc.addNameValue(new CouchUtils::NameValuePair(HiveFirmwareProperty, mVersionId));
 		} else {
-		    cleanedDoc.addNameValue(new CouchUtils::NameValuePair(mDoc[j].getName(), doc[i].getValue()));
+		    if (mDoc[j].getValue().isStr() && doc[i].getValue().isStr() &&
+			mDoc[j].getValue().getStr().equals(doc[i].getValue().getStr())) {
+		        cleanedDoc.addNameValue(new CouchUtils::NameValuePair(mDoc[j]));
+		    } else {
+		        cleanedDoc.addNameValue(new CouchUtils::NameValuePair(mDoc[j].getName(), doc[i].getValue()));
+		    }
 		}
 	    }
 	}
@@ -59,11 +64,8 @@ bool HiveConfig::setDoc(const CouchUtils::Doc &doc)
     mDoc = cleanedDoc;
     
     StrBuf dump;
-    TRACE2("cleaned config doc: ", CouchUtils::toString(mDoc, &dump));
+    PH2("cleaned config doc: ", CouchUtils::toString(mDoc, &dump));
  
-    TRACE4("Overriding ", HiveFirmwareProperty, " with ", mVersionId.c_str());
-    mDoc.setValue(HiveFirmwareProperty, mVersionId.c_str());
-
     if (mUpdateFunctor != NULL) {
         mUpdateFunctor->onUpdate(*this);
     }

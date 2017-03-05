@@ -15,7 +15,7 @@ LOCALOBJS= \
 	ListenSensor.o ListenActuator.o \
 	SensorBase.o StepperMonitor.o ActuatorBase.o StepperActuator.o \
 	beecnt.o latch.o AudioActuator.o Provision.o Indicator.o \
-	AppChannel.o AudioUpload.o
+	AppChannel.o AudioUpload.o AttachmentUpload.o CrashUpload.o
 #	ServoConfigActuator.o \
 
 MYPACKAGES=strutils couchutils platformutils DHT tests wifiutils \

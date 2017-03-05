@@ -183,12 +183,12 @@ bool ConfigUploader::processGetter(const HiveConfig &config, unsigned long now, 
     TRACE("getter is done"); // somehow, we're done getting -- see if and what more we can do
     bool retry = true; // more true cases than false
     if (mGetter->hasConfig()) {
-        const CouchUtils::Doc &configDoc = mGetter->getConfig();
+        const CouchUtils::Doc &configDoc = mGetter->getConfig(); // use getter's result just to get the revision
 	int revIndex = configDoc.lookup("_rev");
 	if ((revIndex >= 0) && configDoc[revIndex].getValue().isStr()) {
 	    const Str &rev = configDoc[revIndex].getValue().getStr();
 	    mDocToUpload = new CouchUtils::Doc();
-	    prepareDocToUpload(configDoc, mDocToUpload, now, rev.c_str());
+	    prepareDocToUpload(config.getDoc(), mDocToUpload, now, rev.c_str());
 	    retry = false;
 	} else {
 	    StrBuf dump;

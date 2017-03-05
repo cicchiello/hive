@@ -66,6 +66,9 @@ class HiveConfig {
     static bool docIsValidForConfig(const CouchUtils::Doc &d);
     
  private:
+    HiveConfig(const HiveConfig &); // intentionally unimplemented
+    HiveConfig &operator=(const HiveConfig &); // intentionally unimplemented
+    
     CouchUtils::Doc mDoc;
     Str mRCause, mVersionId;
 

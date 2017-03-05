@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
-#define HEADLESS
-#define NDEBUG
+//#define HEADLESS
+//#define NDEBUG
 
 #include <Trace.h>
 
@@ -12,13 +12,13 @@
 #include <Provision.h>
 #include <hiveconfig.h>
 #include <ConfigUploader.h>
+#include <CrashUpload.h>
 #include <docwriter.h>
 #include <SensorRateActuator.h>
 #include <TempSensor.h>
 #include <HumidSensor.h>
 #include <StepperMonitor.h>
 #include <StepperActuator.h>
-#include <AudioUpload.h>
 #include <beecnt.h>
 #include <Indicator.h>
 #include <Heartbeat.h>
@@ -83,7 +83,7 @@ public:
 };
 
 void HiveConfigPersister::onUpdate(const HiveConfig &c) {
-    if (s_provisioner && (&c == &s_provisioner->getConfig())) {
+    if (s_provisioner && (&c == &CNF)) {
         DocWriter writer(mFilename, c.getDoc(), &sSdMutex);
 	while (writer.loop()) {}
 	assert(writer.isDone(), "Couldn't write updated config to file");
@@ -99,7 +99,7 @@ public:
 };
 
 void HiveConfigUploader::onUpdate(const HiveConfig &c) {
-    if (s_configUploader && s_provisioner && (&c == &s_provisioner->getConfig())) {
+    if (s_configUploader && s_provisioner && (&c == &CNF)) {
         s_configUploader->upload();
     }
 
@@ -223,12 +223,12 @@ void loop(void)
 	persister->setPrevUpdater(CNF.onUpdate(persister));
 
 	// register sensors and actuators
-	SensorRateActuator *rate = new SensorRateActuator(&s_provisioner->getConfig(), "sample-rate", now);
+	SensorRateActuator *rate = new SensorRateActuator(&CNF, "sample-rate", now);
 	s_actuators[actuatorIndex++] = rate;
 
-	s_configUploader = new ConfigUploader(s_provisioner->getConfig(), *rate, *s_appChannel, now, &sWifiMutex);
+	s_configUploader = new ConfigUploader(CNF, *rate, *s_appChannel, now, &sWifiMutex);
 	s_sensors[sensorIndex++] = s_configUploader;
-	s_configUploader->upload(); // to force an initial upload one every run
+	s_configUploader->upload(); // to force an initial upload on every run
 	
 	s_sensors[sensorIndex++] = new HeartBeat(CNF, "heartbeat", *rate, *s_appChannel, now, &sWifiMutex);
 	s_sensors[sensorIndex++] = new TempSensor(CNF, "temp", *rate, *s_appChannel, now, &sWifiMutex);
@@ -256,6 +256,8 @@ void loop(void)
 	s_sensors[sensorIndex++] = listener;
 	s_actuators[actuatorIndex++] = listenControl;
 
+	s_sensors[sensorIndex++] = new CrashUpload(CNF, "crash-report", "report.txt", "text/plain",
+						   *rate, *s_appChannel, now, &sWifiMutex, &sSdMutex);
 	s_currSensor = 0;
 
 #if 0	
@@ -393,7 +395,7 @@ void rxLoop(unsigned long now)
 	    TRACE("If AppChannel cannot connect within 120s, will revert to Provisioning");
 	    TRACE2("now: ", now);
 	    s_indicator->setFlashMode(Indicator::TryingToConnect);
-	    s_appChannel = new AppChannel(s_provisioner->getConfig(), now, &sWifiMutex, &sSdMutex);
+	    s_appChannel = new AppChannel(CNF, now, &sWifiMutex, &sSdMutex);
 	} else if (!s_provisioner->isStarted()) {
 	    TRACE("No valid config; starting the Provisioner");
 	    s_indicator->setFlashMode(Indicator::Provisioning);
@@ -436,7 +438,7 @@ void rxLoop(unsigned long now)
     if (s_provisioner->isStarted()) {
         if (!s_provisioner->loop(now)) {
 	    StrBuf dump;
-	    TRACE2("Using Config: ", CouchUtils::toString(s_provisioner->getConfig().getDoc(), &dump));
+	    TRACE2("Using Config: ", CouchUtils::toString(CNF.getDoc(), &dump));
 	}
     }
 }
