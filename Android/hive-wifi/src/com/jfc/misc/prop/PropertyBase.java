@@ -1,43 +1,43 @@
-package com.jfc.srvc.cloud;
+package com.jfc.misc.prop;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import android.content.Context;
+import android.app.Activity;
 import android.util.Log;
+import android.widget.ImageButton;
+import android.widget.TextView;
 
-import com.jfc.apps.hive.HiveEnv;
-import com.jfc.apps.hive.MotorProperty;
-import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.DbCredentialsProperty;
+import com.jfc.srvc.cloud.CouchGetBackground;
+import com.jfc.srvc.cloud.CouchPostBackground;
+import com.jfc.srvc.cloud.CouchPutBackground;
 
-public class CouchCmdPush {
-	private static final String TAG = CouchCmdPush.class.getName();
 
-	private Context mCtxt;
-	private String mSensorName, mInstruction;
-	private OnCompletion mOnCompletion;
+public class PropertyBase {
+	private static final String TAG = PropertyBase.class.getName();
+
+	protected Activity mActivity;
+	protected TextView mTimestampTV;
+	protected TextView mValueTV;
+	protected String mHiveId;
+	protected ImageButton mButton;
 	
-	public interface OnCompletion {
-		public void success();
-		public void error(String msg);
-		public void serviceUnavailable(String msg);
-	}
-	
-	public CouchCmdPush(Context ctxt, String sensorName, String instruction, OnCompletion onCompletion) {
-		mCtxt = ctxt;
-		mSensorName = sensorName;
-		mInstruction = instruction;
-		mOnCompletion = onCompletion;
+	protected PropertyBase(Activity _activity, String _hiveId, TextView _valueTV, ImageButton _button, TextView _timestampTV) {
+		this.mActivity = _activity;
+		this.mValueTV = _valueTV;
+		this.mTimestampTV = _timestampTV;
+		this.mButton = _button;
+		this.mHiveId = _hiveId;
 	}
 
-	private void createNewMsgDoc(final String channelDocId, final String channelDocRev, String prevId) {
+	protected void createNewMsgDoc(final String channelDocId, final String channelDocRev, String sensor, String instruction, String prevId) {
 		try {
 			// create a new msg doc
-			final String dbUrl = DbCredentialsProperty.getCouchChannelDbUrl(mCtxt);
-			final String authToken = DbCredentialsProperty.getAuthToken(mCtxt);
+			final String dbUrl = DbCredentialsProperty.getCouchChannelDbUrl(mActivity);
+			final String authToken = DbCredentialsProperty.getAuthToken(mActivity);
 			String timestamp = Long.toString(System.currentTimeMillis()/1000);
-			String payload = mSensorName + "|" + mInstruction;
+			String payload = sensor + "|" + instruction;
 	
 			JSONObject msgDoc = new JSONObject();
 			msgDoc.put("prev-msg-id", prevId);
@@ -58,13 +58,9 @@ public class CouchCmdPush {
 						CouchPutBackground.OnCompletion putOnCompletion = new CouchPutBackground.OnCompletion() {
 					    	public void complete(JSONObject results) {
 					    		Log.i(TAG, "Channel Doc PUT success:  "+results.toString());
-					    		if (mOnCompletion != null)
-					    			mOnCompletion.success();
 					    	}
 					    	public void failed(String msg) {
 					    		Log.e(TAG, "Channel Doc PUT failed: "+msg);
-					    		if (mOnCompletion != null)
-					    			mOnCompletion.error(msg);
 					    	}
 						};
 						
@@ -84,12 +80,10 @@ public class CouchCmdPush {
 	}
 	
 	
-	public void execute() {
-		String ActiveHive = ActiveHiveProperty.getActiveHiveName(mCtxt);
-		String HiveId = HiveEnv.getHiveAddress(mCtxt, ActiveHive);
-		final String dbUrl = DbCredentialsProperty.getCouchChannelDbUrl(mCtxt);
+	protected void postToDb(final String sensor, final String instruction) {
+		final String dbUrl = DbCredentialsProperty.getCouchChannelDbUrl(mActivity);
 		String authToken = null;
-		final String channelDocId = HiveId + "-app";
+		final String channelDocId = mHiveId + "-app";
 		
 	    CouchGetBackground.OnCompletion channelDocOnCompletion = new CouchGetBackground.OnCompletion() {
 			@Override
@@ -98,21 +92,20 @@ public class CouchCmdPush {
 					String prevMsgId = currentChannelDoc.getString("msg-id");
 					final String currentChannelDocRev = currentChannelDoc.getString("_rev");
 					
-					createNewMsgDoc(channelDocId, currentChannelDocRev, prevMsgId);
+					createNewMsgDoc(channelDocId, currentChannelDocRev, sensor, instruction, prevMsgId);
 				} catch (JSONException je) {
 					Log.e(TAG, je.getMessage());
 				}
 			}
 			
 			@Override
-			public void objNotFound() {failed("Object Not Found");}
+			public void objNotFound() {
+				createNewMsgDoc(channelDocId, null, sensor, instruction, "0");
+			}
 			
 			@Override
 	    	public void failed(String msg) {
-				// probably first time -- so create it
 				Log.i(TAG, "Channel Doc GET failed: "+msg);
-				
-				createNewMsgDoc(channelDocId, null, "0");
 			}
 	    };
 
@@ -120,4 +113,16 @@ public class CouchCmdPush {
     	getter.execute();
 	}
 
+	// derived class should do whatever is necessary to determine if the Property hasn't been defined or ever touched
+	protected boolean isPropertyDefined() {return false;}
+	
+	// do whatever is necessary to display the undfined state in the ParentView
+	protected void displayUndefined() {};
+	
+	// do whatever is necessary to display the current state in the ParentView
+	protected void display() {}
+	
+	// do whatever is necessary to cleanup and/or save state when the owning activity is paused
+	public void onPause() {}
+	
 }

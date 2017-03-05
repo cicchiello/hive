@@ -10,6 +10,7 @@ import org.json.JSONTokener;
 import com.jfc.apps.hive.HiveEnv;
 import com.jfc.apps.hive.R;
 import com.jfc.apps.hive.SensorSampleRateProperty;
+import com.jfc.srvc.cloud.CouchGetBackground;
 import com.jfc.util.misc.SplashyText;
 
 import android.app.Activity;
@@ -97,7 +98,12 @@ public class UptimeProperty implements IPropertyMgr {
 		};
 		uptimeButton.setOnClickListener(ocl);
 		
-		HiveEnv.CouchGetConfig_onCompletion onCompletion = new HiveEnv.CouchGetConfig_onCompletion() {
+		CouchGetBackground.OnCompletion onCompletion =new CouchGetBackground.OnCompletion() {
+			@Override
+			public void objNotFound() {
+				failed("Object Not Found");
+			}
+			
 			@Override
 			public void failed(final String msg) {
 				mActivity.runOnUiThread(new Runnable() {public void run() {Toast.makeText(mActivity, msg, Toast.LENGTH_LONG).show();}});

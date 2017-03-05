@@ -23,6 +23,7 @@ public class StepsPerRevolutionProperty implements IPropertyMgr {
 
 	private static final String STEPS_PER_REV = "STEPS_PER_REV";
 	private static final int DEFAULT_STEPS_PER_REV = 200;
+	private static final int STEPS_PER_S = 200;
 	
     // created on constructions -- no need to save on pause
 	private TextView mStepsPerRevTv;
@@ -42,6 +43,10 @@ public class StepsPerRevolutionProperty implements IPropertyMgr {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt);
 		String valueStr = SP.getString(STEPS_PER_REV, Integer.toString(DEFAULT_STEPS_PER_REV));
 		return Integer.parseInt(valueStr);
+	}
+	
+	public static int getStepsPerSecond(Context ctxt) {
+		return STEPS_PER_S;
 	}
 	
 	public static void resetStepsPerRevolution(Context ctxt) {

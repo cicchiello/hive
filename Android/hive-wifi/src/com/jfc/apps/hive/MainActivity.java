@@ -13,7 +13,6 @@ import com.jfc.misc.prop.LatchProperty;
 import com.jfc.misc.prop.UptimeProperty;
 import com.jfc.srvc.cloud.CouchGetBackground;
 import com.jfc.srvc.cloud.PollSensorBackground;
-import com.jfc.srvc.cloud.PollSensorBackground.OnSaveValue;
 import com.jfc.util.misc.DbAlertHandler;
 import com.jfc.util.misc.DialogUtils;
 
@@ -154,21 +153,6 @@ public class MainActivity extends Activity {
 				 HumidProperty.isHumidPropertyDefined(this), 
 				 HumidProperty.getHumidDate(this));
 		
-		HiveEnv.setValue(this, R.id.motor0Text, R.id.motor0TimestampText,
-				 MotorProperty.getMotorAction(this, HiveId, 0), 
-				 MotorProperty.isMotorPropertyDefined(this, HiveId, 0), 
-				 MotorProperty.getMotorTimestamp(this, HiveId, 0));
-		
-		HiveEnv.setValue(this, R.id.motor1Text, R.id.motor1TimestampText,
-				 MotorProperty.getMotorAction(this, HiveId, 1), 
-				 MotorProperty.isMotorPropertyDefined(this, HiveId, 1), 
-				 MotorProperty.getMotorTimestamp(this, HiveId, 1));
-		
-		HiveEnv.setValue(this, R.id.motor2Text, R.id.motor2TimestampText,
-				 MotorProperty.getMotorAction(this, HiveId, 2), 
-				 MotorProperty.isMotorPropertyDefined(this, HiveId, 2), 
-				 MotorProperty.getMotorTimestamp(this, HiveId, 2));
-					
 		HiveEnv.setValue(this, R.id.beecntText, R.id.beecntTimestampText,
 				 BeeCntProperty.getBeeCntValue(this), 
 				 BeeCntProperty.isBeeCntPropertyDefined(this), 
@@ -181,36 +165,6 @@ public class MainActivity extends Activity {
 		UptimeProperty.display(this, HiveId, R.id.hiveUptimeText, R.id.hiveUptimeTimestampText);
 	}
 
-	private PollSensorBackground.ResultCallback getMotorOnCompletion(final int valueResid, final int timestampResid, final OnSaveValue saver) {
-		PollSensorBackground.ResultCallback onCompletion = new PollSensorBackground.ResultCallback() {
-			@Override
-	    	public void report(final String objId, String sensorType, final String timestampStr, final String actionStr) {
-				runOnUiThread(new Runnable() {
-					@Override
-					public void run() {
-						long timestampSeconds = Long.parseLong(timestampStr);
-						long timestampMillis = timestampSeconds*1000;
-						String action = actionStr.equals("stopped") ? actionStr : "moving";
-                        saver.save(MainActivity.this, objId, actionStr, timestampSeconds);
-						HiveEnv.setValueWithSplash(MainActivity.this, valueResid, timestampResid, action, true, timestampMillis);
-					}
-				});
-			}
-			
-			@Override
-			public void error(final String msg) {
-				String errMsg = "Attempt to get Motor location failed with this message: "+msg;
-				mDbAlert.informDbInaccessible(MainActivity.this, errMsg, valueResid);
-			}
-
-			@Override
-			public void dbAccessibleError(final String msg) {
-				mDbAlert.informDbInaccessible(MainActivity.this, msg, valueResid);
-			}
-		};
-		return onCompletion;
-	}
-	
 	
 	private void startPolling() {
 		synchronized (this) {
@@ -295,34 +249,9 @@ public class MainActivity extends Activity {
 						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "latch"), onCompletion).execute();
 
 
-						            
-									onCompletion = 
-											getMotorOnCompletion(R.id.motor0Text, R.id.motor0TimestampText, new OnSaveValue() {
-												@Override
-												public void save(Activity activity, String objId, String value, long timestamp) {
-													MotorProperty.setMotorProperty(MainActivity.this, HiveId, 0, value, timestamp);
-												}
-											});
-						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "motor0"), onCompletion).execute();
-
-									onCompletion = 
-											getMotorOnCompletion(R.id.motor1Text, R.id.motor1TimestampText, new OnSaveValue() {
-												@Override
-												public void save(Activity activity, String objId, String value, long timestamp) {
-													MotorProperty.setMotorProperty(MainActivity.this, HiveId, 1, value, timestamp);
-												}
-											});
-						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "motor1"), onCompletion).execute();
-						            
-									onCompletion = 
-											getMotorOnCompletion(R.id.motor2Text, R.id.motor2TimestampText, new OnSaveValue() {
-												@Override
-												public void save(Activity activity, String objId, String value, long timestamp) {
-													MotorProperty.setMotorProperty(MainActivity.this, HiveId, 2, value, timestamp);
-												}
-											});
-						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "motor2"), onCompletion).execute();
-
+						            m0.pollCloud();
+						            m1.pollCloud();
+						            m2.pollCloud();
 						            
 									onSaveValue = new PollSensorBackground.OnSaveValue() {
 										@Override
@@ -355,6 +284,7 @@ public class MainActivity extends Activity {
 														e.printStackTrace();
 													}
 												}
+												public void objNotFound() {failed("Object Not Found");}
 												public void failed(String msg) {
 													Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
 												}
@@ -393,6 +323,10 @@ public class MainActivity extends Activity {
 		
 		if (mAlert != null)
 			mAlert.dismiss();
+		
+		m0.onPause();
+		m1.onPause();
+		m2.onPause();
 		
 		if (audio != null) 
 			audio.onPause();

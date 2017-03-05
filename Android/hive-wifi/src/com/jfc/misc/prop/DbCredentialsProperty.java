@@ -23,6 +23,7 @@ import android.widget.Toast;
 import com.adobe.xmp.impl.Base64;
 import com.jfc.apps.hive.HiveEnv;
 import com.jfc.apps.hive.R;
+import com.jfc.srvc.cloud.CouchGetBackground;
 import com.jfc.srvc.cloud.CouchPutBackground;
 import com.jfc.util.misc.SplashyText;
 
@@ -237,7 +238,12 @@ public class DbCredentialsProperty implements IPropertyMgr {
 								  final String key, final String pswd) {
 		setDbCredentials(mCtxt, dbHost, usesSSL, configDbName, logDbName, channelDbName, key, pswd);
 		
-		HiveEnv.CouchGetConfig_onCompletion onCompletion = new HiveEnv.CouchGetConfig_onCompletion() {
+		CouchGetBackground.OnCompletion onCompletion =new CouchGetBackground.OnCompletion() {
+			@Override
+			public void objNotFound() {
+				failed("Object Not Found");
+			}
+			
 			@Override
 			public void failed(final String msg) {
 				mActivity.runOnUiThread(new Runnable() {
