@@ -7,7 +7,6 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
-import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.EditText;
@@ -19,7 +18,6 @@ import com.jfc.apps.hive.HiveEnv;
 import com.jfc.apps.hive.R;
 import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.IPropertyMgr;
-import com.jfc.srvc.cloud.PushEmbed;
 import com.jfc.util.misc.SplashyText;
 
 
@@ -90,12 +88,6 @@ public class ServoConfigProperty implements IPropertyMgr {
 		return msg;
 	}
 
-	public static void informHiveOfNewConfig(Context ctxt, String hiveId) {
-		String msg = "tx|"+hiveId.replace('-', ':')+"|"+getHiveUpdateCommand(ctxt, hiveId);
-		
-		new PushEmbed(msg);
-	}
-	
 	public ServoConfigProperty(final Activity activity, final TextView tv, ImageButton button) {
 		this.mCtxt = activity.getApplicationContext();
 		this.mActivity = activity;
@@ -131,8 +123,6 @@ public class ServoConfigProperty implements IPropertyMgr {
 		        		setTickUpper(tickUpper);
 		        		
 		        		SplashyText.highlightModifiedField(mActivity, mTripTempTv);
-		        		
-		        		informHiveOfNewConfig(mActivity, mHiveId);
 		        		
 						mAlert.dismiss(); 
 						mAlert = null;

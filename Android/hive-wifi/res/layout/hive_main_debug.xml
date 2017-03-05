@@ -845,86 +845,86 @@
 	    android:layout_height="2dip"
 	    android:background="#888888" />
 
-	    <LinearLayout
-	        android:layout_width="match_parent"
-	        android:layout_height="wrap_content"
-		    android:layout_marginStart="15dip"
-		    android:layout_marginLeft="15dip"
-	        android:orientation="horizontal" >
-			
-		    <LinearLayout
-		        android:layout_width="wrap_content"
-		        android:layout_height="match_parent"
-		        android:layout_weight="0.5"
-		        android:orientation="vertical" >
-		        
-		   		<TextView
-		   		    android:layout_width="wrap_content"
-		   		    android:layout_height="wrap_content"
-		   		    android:text="@string/audioSampleLabel"
-		   		    android:textAppearance="?android:attr/textAppearanceMedium"
-		   		    android:textStyle="bold" />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+	    android:layout_marginStart="15dip"
+	    android:layout_marginLeft="15dip"
+        android:orientation="horizontal" >
 		
-		   		<TextView
-			        android:id="@+id/audioSampleTimestampText"
-		   		    android:layout_width="wrap_content"
-		   		    android:layout_height="wrap_content"
-		   		    android:layout_marginLeft="15dip"
-		   		    android:layout_marginStart="15dip"
-		   		    android:text="@string/timestamp"
-		            android:background="#C9EAEA"
-		   		    android:textStyle="italic"
-		   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:orientation="vertical" >
+	        
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:text="@string/audioSampleLabel"
+	   		    android:textAppearance="?android:attr/textAppearanceMedium"
+	   		    android:textStyle="bold" />
 	
-	   		</LinearLayout>
-	   		
-			<LinearLayout
-		            android:layout_width="wrap_content"
-		            android:layout_height="match_parent"
-		            android:layout_weight="0.5"
-		            android:layout_gravity="right"
-		            android:orientation="vertical" >
-		        
-			  <TextView
-			      android:layout_width="match_parent"
-			      android:layout_height="1dip"
-			      android:layout_weight="0.5"
-			      android:text="@string/empty"
-			      android:textAppearance="?android:attr/textAppearanceSmall" />
-	
-			  <TextView
-			      android:layout_width="match_parent"
-			      android:layout_height="1dip"
-			      android:layout_weight="0.5"
-			      android:text="@string/empty"
-			      android:textAppearance="?android:attr/textAppearanceSmall" />
-				
-			  <TextView
-			      android:layout_width="match_parent"
-			      android:layout_height="1dip"
-			      android:layout_weight="0.5"
-			      android:visibility="invisible"
-			      android:text="@string/empty"
-			      android:textAppearance="?android:attr/textAppearanceSmall" />
-	
-			</LinearLayout>
+	   		<TextView
+		        android:id="@+id/audioSampleTimestampText"
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:layout_marginLeft="15dip"
+	   		    android:layout_marginStart="15dip"
+	   		    android:text="@string/timestamp"
+	            android:background="#C9EAEA"
+	   		    android:textStyle="italic"
+	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+   		</LinearLayout>
+   		
+		<LinearLayout
+	            android:layout_width="wrap_content"
+	            android:layout_height="match_parent"
+	            android:layout_weight="0.5"
+	            android:layout_gravity="right"
+	            android:orientation="vertical" >
+	        
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
 			
-			<ImageButton
-			    android:id="@+id/audioSampleButton"
-			    android:layout_width="wrap_content"
-			    android:layout_height="wrap_content"
-			    android:layout_gravity="end"
-			    android:layout_weight="0.1"
-			    android:contentDescription="@string/audioSampleDesc"
-			    android:src="@drawable/ic_rarrow"
-			    android:text="@string/empty" />
-	
+		  <TextView
+		      android:layout_width="match_parent"
+		      android:layout_height="1dip"
+		      android:layout_weight="0.5"
+		      android:visibility="invisible"
+		      android:text="@string/empty"
+		      android:textAppearance="?android:attr/textAppearanceSmall" />
+
 		</LinearLayout>
-	    	
-	    <View
-		    android:layout_width="fill_parent"
-		    android:layout_height="2dip"
-		    android:background="#888888" />
+		
+		<ImageButton
+		    android:id="@+id/audioSampleButton"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="end"
+		    android:layout_weight="0.1"
+		    android:contentDescription="@string/audioSampleLabel"
+		    android:src="@drawable/ic_rarrow"
+		    android:text="@string/empty" />
+
+	</LinearLayout>
+    	
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
 	
 	</LinearLayout>
 	

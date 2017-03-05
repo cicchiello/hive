@@ -56,14 +56,16 @@
             android:name="com.jfc.srvc.ble2cld.BluetoothPipeSrvc"
             android:exported="false"/>
         
-		<receiver  android:name="com.jfc.srvc.ble2cld.SimpleWakefulReceiver"
-		    	 android:exported="false">
-		    <intent-filter>
-		        <action android:name="android.intent.action.BOOT_COMPLETED"/>
-            	<action android:name="android.intent.action.REBOOT"/>
-		    </intent-filter>
-		</receiver >
-		
+		<provider
+            android:name="android.support.v4.content.FileProvider"
+            android:authorities="com.jfc.apps.hive.fileprovider"
+            android:grantUriPermissions="true"
+            android:exported="false">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/filepaths" />
+        </provider>	
+        	
     </application>
 
 </manifest>

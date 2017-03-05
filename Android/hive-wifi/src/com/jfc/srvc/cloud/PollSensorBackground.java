@@ -1,5 +1,6 @@
 package com.jfc.srvc.cloud;
 
+import android.app.Activity;
 import android.os.AsyncTask;
 import android.util.Log;
 
@@ -9,6 +10,10 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
+
+import com.jfc.apps.hive.HiveEnv;
+import com.jfc.apps.hive.R;
+import com.jfc.util.misc.DbAlertHandler;
 
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
@@ -32,7 +37,7 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
     private ResultCallback onCompletion;
 
     public interface ResultCallback {
-    	public void report(String sensorType, String timestampStr, String valueStr);
+    	public void report(String objId, String sensorType, String timestampStr, String valueStr);
     	public void error(String msg);
     	public void dbAccessibleError(String msg);
     };
@@ -46,6 +51,53 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
     public String getDocId() {return docId;}
     public String getRev() {return rev;}
     
+	public interface OnSaveValue {
+		public void save(Activity activity, String objId, String value, long timestamp);
+	};
+
+	static public String createQuery(String hiveId, String sensor) {
+		String rangeStartKeyClause = "[\"" + hiveId + "\",\""+sensor+"\",\"9999999999\"]";
+		String rangeEndKeyClause = "[\"" + hiveId + "\",\""+sensor+"\",\"0000000000\"]";
+		String query = "_design/SensorLog/_view/by-hive-sensor?endKey=" + rangeEndKeyClause + "&startkey=" + rangeStartKeyClause + "&descending=true&limit=1";
+		return query;
+	}
+	
+	static public ResultCallback getSensorOnCompletion(final Activity activity, 
+													   final String sensorName, 
+													   final int valueResid, final int timestampResid, 
+													   final DbAlertHandler dbAlert, 
+													   final OnSaveValue saver) {
+		PollSensorBackground.ResultCallback onCompletion = new PollSensorBackground.ResultCallback() {
+			@Override
+			public void report(final String objId, final String sensorType, final String timestampStr, final String valueStr) {
+				activity.runOnUiThread(new Runnable() {
+						@Override
+						public void run() {
+							if (sensorName.equals(sensorType)) {
+							long timestampSeconds = Long.parseLong(timestampStr);
+							long timestampMillis = timestampSeconds*1000;
+							HiveEnv.setValueWithSplash(activity, valueResid, timestampResid, valueStr, true, timestampMillis);
+							saver.save(activity, objId, valueStr, timestampSeconds);
+						}
+					}
+				});
+			}
+		
+			@Override
+			public void error(final String msg) {
+				String errMsg = "Attempt to get Sensor state failed with this message: "+msg;
+				dbAlert.informDbInaccessible(activity, errMsg, valueResid);
+			}
+			
+			@Override
+			public void dbAccessibleError(final String msg) {
+				dbAlert.informDbInaccessible(activity, activity.getString(R.string.db_inaccessible), valueResid);
+			}
+		};
+		return onCompletion;
+	}
+
+	
     interface ProcessResult {
     	public void onSuccess(JSONObject obj);
     	public void onError(String msg);
@@ -126,11 +178,12 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
 	            	JSONArray arr = obj.getJSONArray("rows");
 	            	if (!arr.isNull(0)) {
 	            		JSONArray v = arr.getJSONObject(0).getJSONArray("value");
+	            		String objId = arr.getJSONObject(0).getString("id");
 	            		String sensorStr = v.getString(1);
 	            		String timestampStr = v.getString(2);
 	            		String valueStr = v.getString(3);
 	            		if (onCompletion != null)
-	            			onCompletion.report(sensorStr, timestampStr, valueStr);
+	            			onCompletion.report(objId, sensorStr, timestampStr, valueStr);
 	            	} else {
 	            		Log.e(TAG, "Unexpected response from couchDb: "+obj.toString());
 	            		Log.e(TAG, "Response resulted from query: "+query);
