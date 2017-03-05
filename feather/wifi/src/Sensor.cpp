@@ -40,11 +40,6 @@ const char *Sensor::getName() const
     return mName->c_str();
 }
     
-bool Sensor::isItTimeYet(unsigned long now)
-{
-    return now >= mNextSampleTime;
-}
-
 
 StrBuf Sensor::TAG(const char *memberfunc, const char *msg) const
 {

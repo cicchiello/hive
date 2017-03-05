@@ -26,15 +26,19 @@
 //#define DELTA (30000l)
 
 
+/* STATIC */
+const Str SensorBase::UNDEF("NAN"); // used to indicate that SensorBase should not POST
+
+
 SensorBase::SensorBase(const HiveConfig &config,
 		       const char *name,
 		       const class RateProvider &rateProvider,
 		       const class TimeProvider &timeProvider,
 		       unsigned long now, Mutex *wifiMutex)
-  : Sensor(name, rateProvider, timeProvider, now), mValueStr(new Str("NAN")),
+  : Sensor(name, rateProvider, timeProvider, now), mValueStr(new Str(UNDEF)),
     mPoster(0), mConfig(config), mWifiMutex(wifiMutex)
 {
-    mNextSampleTime = now + FIRST_SAMPLE;
+    setNextSampleTime(now + FIRST_SAMPLE);
     mNextPostTime = now + FIRST_POST;
 }
 
@@ -125,20 +129,26 @@ bool SensorBase::postImplementation(unsigned long now, Mutex *wifi)
 }
 
 
+void SensorBase::setSample(const Str &value)
+{
+    *mValueStr = value;
+}
+
+
 bool SensorBase::loop(unsigned long now)
 {
     TF("SensorBase::loop");
     
-    if (now > mNextSampleTime) {
+    if (now >= getNextSampleTime()) {
         sensorSample(mValueStr);
         TRACE4("sampled sensor ", getName(), ": ", mValueStr->c_str());
-	mNextSampleTime = now + DELTA;
+	setNextSampleTime(now + DELTA);
     }
 
     const char *value = NULL;
     bool callMeBack = true; // normally want to be called back -- at some later pre-determined time
-    if ((now >= mNextPostTime) && (strcmp(mValueStr->c_str(),"NAN")!=0)) {
-        TRACE2("calling postImplementation for: ", getName());
+    if ((now >= mNextPostTime) && !mValueStr->equals(UNDEF)) {
+        //TRACE2("calling postImplementation for: ", getName());
         // let the postImplementation say whether we're totally done or not
         callMeBack = postImplementation(now, mWifiMutex);
     }

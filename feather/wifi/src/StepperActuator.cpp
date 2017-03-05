@@ -208,6 +208,7 @@ void StepperActuator::step()
 	    // remove this StepperActuator from the ISR handler list
 	    StepperActuatorPulseGenConsumer::nonConstSingleton()->removeStepper(this);
 
+	    mLoc = mTarget = 0;
 	    TRACE("Released the stepper motor");
 	}
     }
