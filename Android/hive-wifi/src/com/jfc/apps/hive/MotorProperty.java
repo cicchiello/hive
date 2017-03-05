@@ -30,15 +30,15 @@ import com.jfc.util.misc.SplashyText;
 public class MotorProperty {
 	private static final String TAG = MotorProperty.class.getName();
 
-	private static final String MOTOR_STEPS_PROPERTY = "MOTOR_VALUE_PROPERTY";
-	private static final String MOTOR_DATE_PROPERTY = "MOTOR_DATE_PROPERTY";
-	private static final String DEFAULT_MOTOR_STEPS = "0";
-	private static final String DEFAULT_MOTOR_DATE = "<TBD>";
+	private static final String MOTOR_ACTION_PROPERTY = "MOTOR_ACTION_PROPERTY";
+	private static final String MOTOR_TIMESTAMP_PROPERTY = "MOTOR_TIMESTAMP_PROPERTY";
+	private static final String DEFAULT_MOTOR_ACTION = "stopped";
+	private static final String DEFAULT_MOTOR_TIMESTAMP = "0";
 	
 	private AlertDialog alert;
 	private Activity activity;
 	private TextView value, timestamp;
-	private int index;
+	private int motorIndex;
 	private String hiveId;
 	
 	public static double stepsToLinearDistance(Activity activity, long steps) {
@@ -55,17 +55,17 @@ public class MotorProperty {
 		return (long) (steps+0.5);
 	}
 	
-	public MotorProperty(Activity _activity, int _index, TextView _value, ImageButton button, TextView _timestamp) {
+	public MotorProperty(Activity _activity, String _hiveId, int _motorIndex, TextView _value, ImageButton button, TextView _timestamp) {
 		this.activity = _activity;
 		this.value = _value;
 		this.timestamp = _timestamp;
-		this.index = _index;
-		this.hiveId = HiveEnv.getHiveAddress(activity, ActiveHiveProperty.getActiveHiveName(activity));
+		this.motorIndex = _motorIndex;
+		this.hiveId = _hiveId;
 
-		if (isMotorPropertyDefined(activity, index)) {
+		if (!isMotorPropertyDefined(activity, hiveId, motorIndex)) {
 			setUndefined();
 		} else {
-			display(getMotorValue(activity, index), getMotorDate(activity, index));
+			display(getMotorAction(activity, hiveId, motorIndex), getMotorTimestamp(activity, hiveId, motorIndex));
 		}
 		
     	button.setOnClickListener(new View.OnClickListener() {
@@ -75,7 +75,7 @@ public class MotorProperty {
 				
 				builder.setIcon(R.drawable.ic_hive);
 				builder.setView(R.layout.motor_dialog);
-				builder.setTitle("Motor "+Integer.toString(index+1)+" distance (mm)");
+				builder.setTitle("Motor "+Integer.toString(motorIndex+1)+" distance (mm)");
 				builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
 		        	@Override
 		        	public void onClick(DialogInterface dialog, int which) {
@@ -83,9 +83,16 @@ public class MotorProperty {
 						String linearDistanceMillimetersStr = et.getText().toString();
 						double linearDistanceMillimeters = Long.parseLong(linearDistanceMillimetersStr);
 						long steps = linearDistanceToSteps(activity, linearDistanceMillimeters/1000.0);
-						
-		        		postToDb(Long.toString(steps));
 
+						if (steps != 0) {
+							postToDb(Long.toString(steps));
+							String action = "moving"+(steps > 0 ? "+":"-")+Long.toString(steps);
+							long timestamp_s = System.currentTimeMillis()/1000;
+							String timestamp = Long.toString(timestamp_s);
+							MotorProperty.setMotorProperty(activity, hiveId, motorIndex, action, timestamp);
+							display(action, timestamp_s);
+						}
+						
 		        		alert.dismiss(); 
 		        		alert = null;
 		        	}
@@ -97,7 +104,7 @@ public class MotorProperty {
 		        alert = builder.show();
 		        
 		        EditText tv = (EditText) alert.findViewById(R.id.textValue);
-		        tv.setText(value.getText());
+		        tv.setText("0");
 
 		        alert.findViewById(R.id.plus).setOnClickListener(new View.OnClickListener() {public void onClick(View v) {inc();}});
 		        alert.findViewById(R.id.plusPlus).setOnClickListener(new View.OnClickListener() {public void onClick(View v) {inc100();}});
@@ -147,7 +154,7 @@ public class MotorProperty {
 			// create a new msg doc
 			final String dbUrl = DbCredentialsProperty.getCouchChannelDbUrl(activity);
 			final String authToken = DbCredentialsProperty.getAuthToken(activity);
-			final String sensor = "motor"+Integer.toString(index)+"-target";
+			final String sensor = "motor"+Integer.toString(motorIndex)+"-target";
 			String timestamp = Long.toString(System.currentTimeMillis()/1000);
 			String payload = sensor + "|" + instruction;
 	
@@ -226,50 +233,36 @@ public class MotorProperty {
 	}
 	
 	private void setUndefined() {
-		value.setText("????");
-		timestamp.setText("????");
+		Log.i(TAG, "Set display undefined");
+		long timestampMillis = 0;
+		String action = "stopped";
+		HiveEnv.setValueWithSplash(activity, value.getId(), timestamp.getId(), action, true, timestampMillis);
 	}
 	
-	private void display(String v, long t) {
-		boolean splashValue = !value.getText().equals(v);
-    	value.setText(v);
-    	if (splashValue) 
-    		SplashyText.highlightModifiedField(activity, value);
-		Calendar cal = Calendar.getInstance(Locale.ENGLISH);
-		cal.setTimeInMillis(t);
-		String timestampStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
-		boolean splashTimestamp = !timestamp.getText().equals(timestampStr);
-		timestamp.setText(timestampStr);
-		if (splashTimestamp) 
-			SplashyText.highlightModifiedField(activity, timestamp);
+	private void display(String actionStr, long timestampSeconds) {
+		long timestampMillis = timestampSeconds*1000;
+		String action = actionStr.equals("stopped") ? actionStr : "moving";
+		HiveEnv.setValueWithSplash(activity, value.getId(), timestamp.getId(), action, true, timestampMillis);
 	}
 
 	
-	public static boolean isMotorPropertyDefined(Activity activity, int index) {
+	private static String uniqueIdentifier(String base, String hiveId, int motorIndex) {
+		return base+"|"+hiveId+"|"+motorIndex;
+	}
+
+	
+	public static boolean isMotorPropertyDefined(Activity activity, String hiveId, int motorIndex) {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
-		if (SP.contains(MOTOR_STEPS_PROPERTY+Integer.toString(index)) && 
-			!SP.getString(MOTOR_STEPS_PROPERTY+Integer.toString(index), DEFAULT_MOTOR_STEPS).equals(DEFAULT_MOTOR_STEPS)) {
-			if (SP.contains(MOTOR_DATE_PROPERTY+Integer.toString(index)) &&
-				!SP.getString(MOTOR_DATE_PROPERTY+Integer.toString(index), DEFAULT_MOTOR_DATE).equals(DEFAULT_MOTOR_DATE)) 	
-				return true;
-			else
-				return false;
-		} else
-			return false;
+		return  (SP.contains(uniqueIdentifier(MOTOR_ACTION_PROPERTY, hiveId, motorIndex)) && 
+				 !SP.getString(uniqueIdentifier(MOTOR_ACTION_PROPERTY, hiveId, motorIndex), DEFAULT_MOTOR_ACTION).equals(DEFAULT_MOTOR_ACTION)) ||
+				(SP.contains(uniqueIdentifier(MOTOR_TIMESTAMP_PROPERTY, hiveId, motorIndex)) &&
+				 !SP.getString(uniqueIdentifier(MOTOR_TIMESTAMP_PROPERTY, hiveId, motorIndex), DEFAULT_MOTOR_TIMESTAMP).equals(DEFAULT_MOTOR_TIMESTAMP));
 	}
 	
 	
-	public static String getMotorValue(Activity activity, int index) {
+	public static long getMotorTimestamp(Activity activity, String hiveId, int motorIndex) {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
-		String stepsStr = SP.getString(MOTOR_STEPS_PROPERTY+Integer.toString(index), DEFAULT_MOTOR_STEPS);
-		double meters = stepsToLinearDistance(activity, Long.parseLong(stepsStr));
-		double millimeters = meters*1000.0;
-		return Long.toString((long) (millimeters+0.5));
-	}
-	
-	public static long getMotorDate(Activity activity, int index) {
-		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
-		String v = SP.getString(MOTOR_DATE_PROPERTY+Integer.toString(index), DEFAULT_MOTOR_DATE);
+		String v = SP.getString(uniqueIdentifier(MOTOR_TIMESTAMP_PROPERTY, hiveId, motorIndex), DEFAULT_MOTOR_TIMESTAMP);
 		try {
 			return Long.parseLong(v);
 		} catch (NumberFormatException nfe) {
@@ -277,29 +270,34 @@ public class MotorProperty {
 		}
 	}
 	
-	public static void resetMotorProperty(Activity activity, int index) {
-		setMotorProperty(activity, index, DEFAULT_MOTOR_STEPS, DEFAULT_MOTOR_DATE);
+    public static String getMotorAction(Activity activity, String hiveId, int motorIndex) {
+    	SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
+    	return SP.getString(uniqueIdentifier(MOTOR_ACTION_PROPERTY, hiveId, motorIndex), DEFAULT_MOTOR_ACTION);
+    }
+    
+	public static void resetMotorProperty(Activity activity, String hiveId, int motorIndex) {
+		setMotorProperty(activity, hiveId, motorIndex, DEFAULT_MOTOR_ACTION, DEFAULT_MOTOR_TIMESTAMP);
 	}
 	
-	public static void setMotorProperty(Activity activity, int index, String steps, long date) {
-		setMotorProperty(activity, index, steps, date==0 ? DEFAULT_MOTOR_DATE : Long.toString(date));
+	public static void setMotorProperty(Activity activity, String hiveId, int motorIndex, String action, long date) {
+		setMotorProperty(activity, hiveId, motorIndex, action, date==0 ? DEFAULT_MOTOR_TIMESTAMP : Long.toString(date));
 	}
-
-	private static void setMotorProperty(Activity activity, int index, String steps, String date) {
+	
+	private static void setMotorProperty(Activity activity, String hiveId, int motorIndex, String action, String date) {
 		{
 			SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
-			if (!SP.getString(MOTOR_STEPS_PROPERTY+Integer.toString(index), DEFAULT_MOTOR_STEPS).equals(steps)) {
+			if (!SP.getString(uniqueIdentifier(MOTOR_ACTION_PROPERTY, hiveId, motorIndex), DEFAULT_MOTOR_ACTION).equals(action)) {
 				SharedPreferences.Editor editor = SP.edit();
-				editor.putString(MOTOR_STEPS_PROPERTY+Integer.toString(index), steps);
+				editor.putString(uniqueIdentifier(MOTOR_ACTION_PROPERTY, hiveId, motorIndex), action);
 				editor.commit();
 			}
 		}
 		
 		{
 			SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
-			if (!SP.getString(MOTOR_DATE_PROPERTY+Integer.toString(index), DEFAULT_MOTOR_DATE).equals(date)) {
+			if (!SP.getString(uniqueIdentifier(MOTOR_TIMESTAMP_PROPERTY, hiveId, motorIndex), DEFAULT_MOTOR_TIMESTAMP).equals(date)) {
 				SharedPreferences.Editor editor = SP.edit();
-				editor.putString(MOTOR_DATE_PROPERTY+Integer.toString(index), date);
+				editor.putString(uniqueIdentifier(MOTOR_TIMESTAMP_PROPERTY, hiveId, motorIndex), date);
 				editor.commit();
 			}
 		}

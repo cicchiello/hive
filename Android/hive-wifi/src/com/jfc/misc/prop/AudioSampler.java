@@ -6,7 +6,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
-import java.net.URI;
 import java.net.URL;
 import java.util.Calendar;
 import java.util.Locale;
@@ -38,7 +37,6 @@ import android.util.Log;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ImageView;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -47,10 +45,12 @@ public class AudioSampler {
 	private static final String TAG = AudioSampler.class.getName();
 
 	private static final String AUDIO_OBJID_PROPERTY = "AUDIO_OBJID_PROPERTY";
+	private static final String AUDIO_REQUEST_TIMESTAMP_PROPERTY = "AUDIO_REQUEST_TIMESTAMP_PROPERTY";
 	private static final String AUDIO_ATTACHMENT_PROPERTY = "AUDIO_ATTACHMENT_PROPERTY";
 	private static final String AUDIO_ATTACHMENT_TIMESTAMP_PROPERTY = "AUDIO_ATTACHMENT_TIMESTAMP_PROPERTY";
 	private static final String DEFAULT_AUDIO_OBJID = "<unknown>";
 	private static final String DEFAULT_AUDIO_ATTACHMENT = "<unknown>";
+	private static final String DEFAULT_AUDIO_REQUEST_TIMESTAMP = "0";
 	private static final String DEFAULT_AUDIO_ATTACHMENT_TIMESTAMP = "0";
 	
 	private AtomicBoolean mDownloadDone = new AtomicBoolean(false);
@@ -64,10 +64,14 @@ public class AudioSampler {
 	private Thread mPollerThread = null;
 	private File storageDir = null;
 	private DbAlertHandler mDbAlert = null;
-
-	public AudioSampler(Activity _activity, ImageButton sampleButton, DbAlertHandler _dbAlert) {
+	private ImageButton mSampleButton = null;
+	private String mHiveId;
+	
+	public AudioSampler(Activity _activity, final String hiveId, ImageButton _sampleButton, DbAlertHandler _dbAlert) {
 		mActivity = _activity;
 		mDbAlert = _dbAlert;
+		mSampleButton = _sampleButton;
+		mHiveId = hiveId;
 		
 	    if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())) {
 	        //RUNTIME PERMISSION Android M
@@ -78,7 +82,7 @@ public class AudioSampler {
 	        	m.requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
 	        }    
 	    }
-		
+
 		View.OnClickListener ocl = new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
@@ -93,67 +97,90 @@ public class AudioSampler {
 		        });
 		        mAlert = builder.show();
 
-				setPlaybackState(false, getAttName(mActivity, ActiveHiveProperty.getActiveHiveIndex(mActivity)));
+				setPlaybackState(false, getAttName(mActivity, hiveId));
 			}
 		};
-		sampleButton.setOnClickListener(ocl);
+		
+		mSampleButton.setOnClickListener(ocl);
 	}
 
+	static private String uniqueIdentifier(String base, String hiveId) {
+		return base + "|" + hiveId;
+	}
 	
-	public static boolean isAudioPropertyDefined(Context ctxt, int hiveIndex) {
+
+	public static boolean isAudioPropertyDefined(Context ctxt, String hiveId) {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt);
-		if (SP.contains(AUDIO_OBJID_PROPERTY+Integer.toString(hiveIndex)) && 
-			!SP.getString(AUDIO_OBJID_PROPERTY+Integer.toString(hiveIndex), DEFAULT_AUDIO_OBJID).equals(DEFAULT_AUDIO_OBJID) &&
-			SP.contains(AUDIO_ATTACHMENT_PROPERTY+Integer.toString(hiveIndex)) && 
-			!SP.getString(AUDIO_ATTACHMENT_PROPERTY+Integer.toString(hiveIndex), DEFAULT_AUDIO_ATTACHMENT).equals(DEFAULT_AUDIO_ATTACHMENT) &&
-			SP.contains(AUDIO_ATTACHMENT_TIMESTAMP_PROPERTY+Integer.toString(hiveIndex)) &&
-			!SP.getString(AUDIO_ATTACHMENT_TIMESTAMP_PROPERTY+Integer.toString(hiveIndex), DEFAULT_AUDIO_ATTACHMENT_TIMESTAMP).equals(DEFAULT_AUDIO_ATTACHMENT_TIMESTAMP)) {
+		if ((SP.contains(uniqueIdentifier(AUDIO_OBJID_PROPERTY,hiveId)) &&
+			 !SP.getString(uniqueIdentifier(AUDIO_OBJID_PROPERTY,hiveId), DEFAULT_AUDIO_OBJID).equals(DEFAULT_AUDIO_OBJID)) ||
+			(SP.contains(uniqueIdentifier(AUDIO_ATTACHMENT_PROPERTY,hiveId)) &&
+			 !SP.getString(uniqueIdentifier(AUDIO_ATTACHMENT_PROPERTY,hiveId), DEFAULT_AUDIO_ATTACHMENT).equals(DEFAULT_AUDIO_ATTACHMENT)) ||
+			(SP.contains(uniqueIdentifier(AUDIO_ATTACHMENT_TIMESTAMP_PROPERTY,hiveId)) &&
+			 !SP.getString(uniqueIdentifier(AUDIO_ATTACHMENT_TIMESTAMP_PROPERTY,hiveId), DEFAULT_AUDIO_ATTACHMENT_TIMESTAMP).equals(DEFAULT_AUDIO_ATTACHMENT_TIMESTAMP)) ||
+			(SP.contains(uniqueIdentifier(AUDIO_REQUEST_TIMESTAMP_PROPERTY,hiveId)) &&
+			 !SP.getString(uniqueIdentifier(AUDIO_REQUEST_TIMESTAMP_PROPERTY,hiveId), DEFAULT_AUDIO_REQUEST_TIMESTAMP).equals(DEFAULT_AUDIO_REQUEST_TIMESTAMP))) {
 			return true;
 		} else {
 			return false;
 		}
 	}
 	
-	public static String getAttName(Context ctxt, int hiveIndex) {
+	public static String getAttName(Context ctxt, String hiveId) {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt.getApplicationContext());
-		return SP.getString(AUDIO_ATTACHMENT_PROPERTY+Integer.toString(hiveIndex), DEFAULT_AUDIO_ATTACHMENT);
+		return SP.getString(uniqueIdentifier(AUDIO_ATTACHMENT_PROPERTY,hiveId), DEFAULT_AUDIO_ATTACHMENT);
 	}
 	
-	public static String getObjId(Context ctxt, int hiveIndex) {
+	public static String getObjId(Context ctxt, String hiveId) {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt.getApplicationContext());
-		return SP.getString(AUDIO_OBJID_PROPERTY+Integer.toString(hiveIndex), DEFAULT_AUDIO_OBJID);
+		return SP.getString(uniqueIdentifier(AUDIO_OBJID_PROPERTY,hiveId), DEFAULT_AUDIO_OBJID);
 	}
 	
-	public static long getTimestamp(Context ctxt, int hiveIndex) {
+	public static long getReqTimestamp(Context ctxt, String hiveId) {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt.getApplicationContext());
-		String v = SP.getString(AUDIO_ATTACHMENT_TIMESTAMP_PROPERTY+Integer.toString(hiveIndex), DEFAULT_AUDIO_ATTACHMENT_TIMESTAMP);
+		String v = SP.getString(uniqueIdentifier(AUDIO_REQUEST_TIMESTAMP_PROPERTY,hiveId), DEFAULT_AUDIO_REQUEST_TIMESTAMP);
 		return Long.parseLong(v);
 	}
 
-	public static void setAttachment(Context ctxt, int hiveIndex, String objId, String attName, long timestamp) {
+	public static long getTimestamp(Context ctxt, String hiveId) {
+		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt.getApplicationContext());
+		String v = SP.getString(uniqueIdentifier(AUDIO_ATTACHMENT_TIMESTAMP_PROPERTY,hiveId), DEFAULT_AUDIO_ATTACHMENT_TIMESTAMP);
+		return Long.parseLong(v);
+	}
+
+	public static void setRequestTimestamp(Context ctxt, String hiveId, long timestamp) {
 		String timestampStr = Long.toString(timestamp);
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt.getApplicationContext());
-		if (!SP.getString(AUDIO_OBJID_PROPERTY+Integer.toString(hiveIndex), DEFAULT_AUDIO_OBJID).equals(objId)) {
+		if (!SP.getString(uniqueIdentifier(AUDIO_REQUEST_TIMESTAMP_PROPERTY,hiveId), DEFAULT_AUDIO_REQUEST_TIMESTAMP).equals(timestampStr)) {
 			SharedPreferences.Editor editor = SP.edit();
-			editor.putString(AUDIO_OBJID_PROPERTY+Integer.toString(hiveIndex), objId);
+			editor.putString(uniqueIdentifier(AUDIO_REQUEST_TIMESTAMP_PROPERTY,hiveId), timestampStr);
 			editor.commit();
 		}
-		if (!SP.getString(AUDIO_ATTACHMENT_PROPERTY+Integer.toString(hiveIndex), DEFAULT_AUDIO_ATTACHMENT).equals(attName)) {
+	}
+	
+	public static void setAttachment(Context ctxt, String hiveId, String objId, String attName, long timestamp) {
+		String timestampStr = Long.toString(timestamp);
+		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt.getApplicationContext());
+		if (!SP.getString(uniqueIdentifier(AUDIO_OBJID_PROPERTY,hiveId), DEFAULT_AUDIO_OBJID).equals(objId)) {
 			SharedPreferences.Editor editor = SP.edit();
-			editor.putString(AUDIO_ATTACHMENT_PROPERTY+Integer.toString(hiveIndex), attName);
+			editor.putString(uniqueIdentifier(AUDIO_OBJID_PROPERTY,hiveId), objId);
 			editor.commit();
 		}
-		if (!SP.getString(AUDIO_ATTACHMENT_TIMESTAMP_PROPERTY+Integer.toString(hiveIndex), DEFAULT_AUDIO_ATTACHMENT_TIMESTAMP).equals(timestampStr)) {
+		if (!SP.getString(uniqueIdentifier(AUDIO_ATTACHMENT_PROPERTY,hiveId), DEFAULT_AUDIO_ATTACHMENT).equals(attName)) {
 			SharedPreferences.Editor editor = SP.edit();
-			editor.putString(AUDIO_ATTACHMENT_TIMESTAMP_PROPERTY+Integer.toString(hiveIndex), timestampStr);
+			editor.putString(uniqueIdentifier(AUDIO_ATTACHMENT_PROPERTY,hiveId), attName);
+			editor.commit();
+		}
+		if (!SP.getString(uniqueIdentifier(AUDIO_ATTACHMENT_TIMESTAMP_PROPERTY,hiveId), DEFAULT_AUDIO_ATTACHMENT_TIMESTAMP).equals(timestampStr)) {
+			SharedPreferences.Editor editor = SP.edit();
+			editor.putString(uniqueIdentifier(AUDIO_ATTACHMENT_TIMESTAMP_PROPERTY,hiveId), timestampStr);
 			editor.commit();
 		}
 	}
 
-	static public void display(final Activity activity, final int audioResid, final int audioTimestampResid) {
-		final int hiveIndex = ActiveHiveProperty.getActiveHiveIndex(activity);
-		if (AudioSampler.isAudioPropertyDefined(activity, hiveIndex)) {
-			final String attName = AudioSampler.getAttName(activity, hiveIndex);
+	static public void updateParentUI(final Activity activity, final String hiveId, final int audioResid, 
+									  final int audioTimestampResid, final int buttonResid) {
+		if (AudioSampler.isAudioPropertyDefined(activity, hiveId)) {
+			final String attName = AudioSampler.getAttName(activity, hiveId);
 			String timestampStr = attName.substring(attName.indexOf('_')+1,attName.indexOf('.'));
 			final CharSequence since = DateUtils.getRelativeTimeSpanString(Long.parseLong(timestampStr)*1000,
 					System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE);
@@ -172,6 +199,19 @@ public class AudioSampler {
 					if (!timestampStr.equals(audioTimestampTv.getText().toString())) {
 						audioTimestampTv.setText(timestampStr);
 						SplashyText.highlightModifiedField(activity, audioTimestampTv);
+					}
+
+				    // if there's no audio clip in flight, then enable the button and attach a click listener
+					long lastRequestTimestamp = getReqTimestamp(activity, hiveId);
+					long lastAttachmentTimestamp = getTimestamp(activity, hiveId);
+		    		ImageButton sampleButton = (ImageButton) activity.findViewById(buttonResid);
+					if (lastAttachmentTimestamp > lastRequestTimestamp ||
+						System.currentTimeMillis() > (lastRequestTimestamp + 4*60)*1000) {
+						sampleButton.setImageResource(R.drawable.ic_rarrow);
+						sampleButton.setEnabled(true);
+					} else {
+						sampleButton.setImageResource(R.drawable.ic_rarrow_disabled);
+						sampleButton.setEnabled(false);
 					}
 				}
 			});
@@ -239,99 +279,101 @@ public class AudioSampler {
 
 	
 	private void setPlaybackState(boolean isRecording, final String attName) {
-        final ImageView recordIv = (ImageView) mAlert.findViewById(R.id.record_button);
-		ImageView playIv = (ImageView) mAlert.findViewById(R.id.play_button);
-		ImageView shareIv = (ImageView) mAlert.findViewById(R.id.share_button);
-		TextView recordingTimestampTv = (TextView) mAlert.findViewById(R.id.recordingTimestamp);
-		if (isRecording) {
-			if (recordIv == null) {
-				Log.e(TAG, "problem");
-			}
-			recordIv.setImageResource(R.drawable.recording);
-			
-			mProgress = new ProgressDialog(mAlert.getContext());
-			mProgress.setTitle("Recording and Uploading...");
-			mProgress.setMessage("Working (will take over 2 minutes)...");
-			mProgress.setCancelable(false); // disable dismiss by tapping outside of the dialog
-			mProgress.show();
-		} else {
-			if (mProgress != null)
-				mProgress.dismiss();
-	        
-			recordIv.setImageResource(R.drawable.record);
-	        recordIv.setOnClickListener(new View.OnClickListener() {
-				@Override
-				public void onClick(View v) {
-					final String attName = "LISTEN_"+System.currentTimeMillis()/1000+".WAV";
-	        		CouchCmdPush.OnCompletion onCompletion = new CouchCmdPush.OnCompletion() {
-						@Override
-						public void success() {
-							mActivity.runOnUiThread(new Runnable() {
-								@Override
-								public void run() {
-									setPlaybackState(true, attName);
-									waitForPlayback(20, attName);
-								}
-							});
-						}
-						@Override
-						public void error(final String msg) {
-							mActivity.runOnUiThread(new Runnable() {
-								@Override
-								public void run() {
-									Runnable cancelAction = new Runnable() {public void run() {mAlert.dismiss(); mAlert = null;}};
-									mAlert = DialogUtils.createAndShowErrorDialog(mActivity, msg, android.R.string.cancel, cancelAction);
-								}
-							});
-						}
-						@Override
-						public void serviceUnavailable(final String msg) {mDbAlert.informDbInaccessible(mActivity, msg, 0);}
-					};
-	
-					new CouchCmdPush(mActivity, "listen-ctrl", "start|20|"+attName, onCompletion).execute();
-				}
-			});
-		}
+		if (mAlert != null) {
+	        final ImageView recordIv = (ImageView) mAlert.findViewById(R.id.record_button);
+			ImageView playIv = (ImageView) mAlert.findViewById(R.id.play_button);
+			ImageView shareIv = (ImageView) mAlert.findViewById(R.id.share_button);
+			TextView recordingTimestampTv = (TextView) mAlert.findViewById(R.id.recordingTimestamp);
+			if (isRecording) {
+				recordIv.setImageResource(R.drawable.recording);
+				
+				mProgress = new ProgressDialog(mAlert.getContext());
+				mProgress.setTitle("Recording and Uploading...");
+				mProgress.setMessage("Working (will take over 2 minutes)...");
+				mProgress.setCancelable(false); // disable dismiss by tapping outside of the dialog
+				mProgress.show();
+			} else {
+				if (mProgress != null)
+					mProgress.dismiss();
+		        
+				recordIv.setImageResource(R.drawable.record);
+		        recordIv.setOnClickListener(new View.OnClickListener() {
+					@Override
+					public void onClick(View v) {
+						final long requestTimestamp = System.currentTimeMillis()/1000;
+						final String attName = "LISTEN_"+requestTimestamp+".WAV";
+		        		CouchCmdPush.OnCompletion onCompletion = new CouchCmdPush.OnCompletion() {
+							@Override
+							public void success() {
+								mActivity.runOnUiThread(new Runnable() {
+									@Override
+									public void run() {
+										setPlaybackState(true, attName);
+										setRequestTimestamp(mActivity, mHiveId, requestTimestamp);
+										mSampleButton.setImageResource(R.drawable.ic_rarrow_disabled);
+										mSampleButton.setEnabled(false);
+										waitForPlayback(20, attName);
+									}
+								});
+							}
+							@Override
+							public void error(final String msg) {
+								mActivity.runOnUiThread(new Runnable() {
+									@Override
+									public void run() {
+										Runnable cancelAction = new Runnable() {public void run() {mAlert.dismiss(); mAlert = null;}};
+										mAlert = DialogUtils.createAndShowErrorDialog(mActivity, msg, android.R.string.cancel, cancelAction);
+									}
+								});
+							}
+							@Override
+							public void serviceUnavailable(final String msg) {mDbAlert.informDbInaccessible(mActivity, msg, 0);}
+						};
 		
-		if (attName != null && !attName.equals(DEFAULT_AUDIO_ATTACHMENT)) {
-			shareIv.setImageResource(R.drawable.ic_action_share);
-			playIv.setImageResource(R.drawable.ic_play);
-			Calendar cal = Calendar.getInstance(Locale.ENGLISH);
-			cal.setTimeInMillis(Long.parseLong(attName.substring(attName.indexOf('_')+1,attName.indexOf('.')))*1000);
-			String recordingTimestampStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
-			if (!recordingTimestampTv.getText().toString().equals(recordingTimestampStr)) {
-				recordingTimestampTv.setText(recordingTimestampStr);
-				SplashyText.highlightModifiedField(mActivity, recordingTimestampTv);
+						new CouchCmdPush(mActivity, "listen-ctrl", "start|20|"+attName, onCompletion).execute();
+					}
+				});
 			}
-			final String objId = getObjId(mActivity, ActiveHiveProperty.getActiveHiveIndex(mActivity));
-			View.OnClickListener ocl = new View.OnClickListener() {
-				@Override
-				public void onClick(View v) {
-					Intent intent = new Intent(android.content.Intent.ACTION_VIEW);
-					String urlStr = DbCredentialsProperty.getCouchLogDbUrl(mActivity) + "/" +objId + "/" + attName;
-					intent.setDataAndType(Uri.parse(urlStr), "audio/wav");  
-					mActivity.startActivity(intent);			
+		
+			if (attName != null && !attName.equals(DEFAULT_AUDIO_ATTACHMENT)) {
+				shareIv.setImageResource(R.drawable.ic_action_share);
+				playIv.setImageResource(R.drawable.ic_play);
+				Calendar cal = Calendar.getInstance(Locale.ENGLISH);
+				cal.setTimeInMillis(Long.parseLong(attName.substring(attName.indexOf('_')+1,attName.indexOf('.')))*1000);
+				String recordingTimestampStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
+				if (!recordingTimestampTv.getText().toString().equals(recordingTimestampStr)) {
+					recordingTimestampTv.setText(recordingTimestampStr);
+					SplashyText.highlightModifiedField(mActivity, recordingTimestampTv);
 				}
-			};
-			playIv.setOnClickListener(ocl);
-			ocl = new View.OnClickListener() {
-				@Override
-				public void onClick(View v) {
-					downloadAndShareClip(objId, attName);
-				}
-			};
-			shareIv.setOnClickListener(ocl);
-		} else {
-			shareIv.setImageResource(R.drawable.ic_action_share_disabled);
-			playIv.setImageResource(R.drawable.ic_play_disabled);
-			recordingTimestampTv.setText("");
+				final String objId = getObjId(mActivity, mHiveId);
+				View.OnClickListener ocl = new View.OnClickListener() {
+					@Override
+					public void onClick(View v) {
+						Intent intent = new Intent(android.content.Intent.ACTION_VIEW);
+						String urlStr = DbCredentialsProperty.getCouchLogDbUrl(mActivity) + "/" +objId + "/" + attName;
+						intent.setDataAndType(Uri.parse(urlStr), "audio/wav");  
+						mActivity.startActivity(intent);			
+					}
+				};
+				playIv.setOnClickListener(ocl);
+				ocl = new View.OnClickListener() {
+					@Override
+					public void onClick(View v) {
+						downloadAndShareClip(objId, attName);
+					}
+				};
+				shareIv.setOnClickListener(ocl);
+			} else {
+				shareIv.setImageResource(R.drawable.ic_action_share_disabled);
+				playIv.setImageResource(R.drawable.ic_play_disabled);
+				recordingTimestampTv.setText("");
+			}
 		}
 	}
 
 	
 	private void waitForPlayback(final int recordingDuration_s, final String attName) {
-		final int hiveIndex = ActiveHiveProperty.getActiveHiveIndex(mActivity);
-		final String startingAttName = getAttName(mActivity, hiveIndex);
+		final String startingAttName = getAttName(mActivity, mHiveId);
 		mPoller = new Runnable() {
 			@Override
 			public void run() {
@@ -347,10 +389,10 @@ public class AudioSampler {
 					}
 					
 					if (!mStopPoller.get())
-						done = !startingAttName.equals(getAttName(mActivity, hiveIndex)) || (timeout-- <= 0);
+						done = !startingAttName.equals(getAttName(mActivity, mHiveId)) || (timeout-- <= 0);
 				}
 				mActivity.runOnUiThread(new Runnable() {
-					public void run() {setPlaybackState(false, getAttName(mActivity, hiveIndex));}
+					public void run() {setPlaybackState(false, getAttName(mActivity, mHiveId));}
 				});
 			}
 		};
