@@ -223,9 +223,12 @@ const char *StringUtils::replace(StrBuf *result, const char *orig, const char *m
 
 bool StringUtils::isNumber(const char *s) {
   bool foundAtLeastOne = false;
-  while (s && *s && (*s >= '0') && (*s <= '9')) {
-      foundAtLeastOne = true;
+  if (s && *s && ((*s == '+') || (*s == '-') || ((*s >= '0') && (*s <= '9')))) {
       s++;
+      while (s && *s && (*s >= '0') && (*s <= '9')) {
+	  foundAtLeastOne = true;
+	  s++;
+      }
   }
   return foundAtLeastOne;
 }

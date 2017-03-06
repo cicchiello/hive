@@ -1,3 +1,5 @@
+#ifndef ARDUINO
+
 #include <str.h>
 
 //#define HEADLESS
@@ -76,3 +78,5 @@ int main()
   
   PH("That's all folks!");
 }
+
+#endif
