@@ -1,45 +1,39 @@
 package com.jfc.apps.hive;
 
-import java.util.Calendar;
-import java.util.Locale;
-
-import org.json.JSONException;
-import org.json.JSONObject;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
-import android.text.format.DateFormat;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
-import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.DbCredentialsProperty;
+import com.jfc.misc.prop.PropertyBase;
 import com.jfc.misc.prop.StepsPerRevolutionProperty;
 import com.jfc.misc.prop.ThreadsPerMeterProperty;
-import com.jfc.srvc.cloud.CouchGetBackground;
-import com.jfc.srvc.cloud.CouchPostBackground;
-import com.jfc.srvc.cloud.CouchPutBackground;
+import com.jfc.srvc.cloud.PollSensorBackground;
+import com.jfc.srvc.cloud.PollSensorBackground.OnSaveValue;
+import com.jfc.util.misc.DbAlertHandler;
 import com.jfc.util.misc.SplashyText;
 
-public class MotorProperty {
+public class MotorProperty extends PropertyBase {
 	private static final String TAG = MotorProperty.class.getName();
 
-	private static final String MOTOR_STEPS_PROPERTY = "MOTOR_VALUE_PROPERTY";
-	private static final String MOTOR_DATE_PROPERTY = "MOTOR_DATE_PROPERTY";
-	private static final String DEFAULT_MOTOR_STEPS = "0";
-	private static final String DEFAULT_MOTOR_DATE = "<TBD>";
+	private static final String MOTOR_ACTION_PROPERTY = "MOTOR_ACTION_PROPERTY";
+	private static final String MOTOR_TIMESTAMP_PROPERTY = "MOTOR_TIMESTAMP_PROPERTY";
+	private static final String DEFAULT_MOTOR_ACTION = "stopped";
+	private static final String DEFAULT_MOTOR_TIMESTAMP = "0";
 	
-	private AlertDialog alert;
-	private Activity activity;
-	private TextView value, timestamp;
-	private int index;
-	private String hiveId;
+	private AlertDialog mAlert;
+	private int mMotorIndex;
+	private DbAlertHandler mDbAlertHandler;
 	
 	public static double stepsToLinearDistance(Activity activity, long steps) {
 		double lsteps = steps;
@@ -52,224 +46,266 @@ public class MotorProperty {
 		double threadsPerMeter = ThreadsPerMeterProperty.getThreadsPerMeter(activity);
 		double stepsPerThread = StepsPerRevolutionProperty.getStepsPerRevolution(activity);
 		double steps = distanceMeters*threadsPerMeter*stepsPerThread;
-		return (long) (steps+0.5);
+		return steps >= 0 ? (long) (steps+0.5) : (long) (steps -0.5);
 	}
 	
-	public MotorProperty(Activity _activity, int _index, TextView _value, ImageButton button, TextView _timestamp) {
-		this.activity = _activity;
-		this.value = _value;
-		this.timestamp = _timestamp;
-		this.index = _index;
-		this.hiveId = HiveEnv.getHiveAddress(activity, ActiveHiveProperty.getActiveHiveName(activity));
+	public MotorProperty(Activity _activity, String _hiveId, int _motorIndex, TextView _valueTV, ImageButton button, TextView _timestampTV) {
+		super(_activity, _hiveId, _valueTV, button, _timestampTV);
+		this.mMotorIndex = _motorIndex;
 
-		if (isMotorPropertyDefined(activity, index)) {
-			setUndefined();
-		} else {
-			display(getMotorValue(activity, index), getMotorDate(activity, index));
-		}
-		
+		if (!isPropertyDefined())
+			displayUndefined();
+		else 
+			display();
+
+		// must be called from the *thread* that creates any of the valueResid views that will eventually be modified
+		mDbAlertHandler = new DbAlertHandler();
+
+		// make sure the motor is known to be stopped
+		MotorProperty.setMotorProperty(mActivity, mHiveId, mMotorIndex, "stopped", System.currentTimeMillis()/1000);
+
     	button.setOnClickListener(new View.OnClickListener() {
 			@Override
-			public void onClick(View v) {
-				AlertDialog.Builder builder = new AlertDialog.Builder(activity);
-				
-				builder.setIcon(R.drawable.ic_hive);
-				builder.setView(R.layout.motor_dialog);
-				builder.setTitle("Motor "+Integer.toString(index+1)+" distance (mm)");
-				builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-		        	@Override
-		        	public void onClick(DialogInterface dialog, int which) {
-						EditText et = (EditText) alert.findViewById(R.id.textValue);
-						String linearDistanceMillimetersStr = et.getText().toString();
-						double linearDistanceMillimeters = Long.parseLong(linearDistanceMillimetersStr);
-						long steps = linearDistanceToSteps(activity, linearDistanceMillimeters/1000.0);
-						
-		        		postToDb(Long.toString(steps));
-
-		        		alert.dismiss(); 
-		        		alert = null;
-		        	}
-		        });
-		        builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
-		            @Override
-		            public void onClick(DialogInterface dialog, int which) {alert.dismiss(); alert = null;}
-		        });
-		        alert = builder.show();
-		        
-		        EditText tv = (EditText) alert.findViewById(R.id.textValue);
-		        tv.setText(value.getText());
-
-		        alert.findViewById(R.id.plus).setOnClickListener(new View.OnClickListener() {public void onClick(View v) {inc();}});
-		        alert.findViewById(R.id.plusPlus).setOnClickListener(new View.OnClickListener() {public void onClick(View v) {inc100();}});
-		        alert.findViewById(R.id.minus).setOnClickListener(new View.OnClickListener() {public void onClick(View v) {dec();}});
-		        alert.findViewById(R.id.minusMinus).setOnClickListener(new View.OnClickListener() {public void onClick(View v) {dec100();}});
-
-			}
+			public void onClick(View v) {showDialog();}
 		});
 	}
 
-	public AlertDialog getAlertDialog() {return alert;}
+	
+	private void showDialog() {
+		AlertDialog.Builder builder = new AlertDialog.Builder(mActivity);
+		
+		builder.setIcon(R.drawable.ic_hive);
+		builder.setView(R.layout.motor_dialog);
+		builder.setTitle("Motor "+Integer.toString(mMotorIndex+1)+" distance (mm)");
+		builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+        	@Override
+        	public void onClick(DialogInterface dialog, int which) {
+				EditText et = (EditText) mAlert.findViewById(R.id.textValue);
+				String linearDistanceMillimetersStr = et.getText().toString();
+				double linearDistanceMillimeters = Long.parseLong(linearDistanceMillimetersStr);
+				long steps = linearDistanceToSteps(mActivity, linearDistanceMillimeters/1000.0);
 
+				if (steps != 0) {
+					String sensor = "motor"+Integer.toString(mMotorIndex)+"-target";
+					postToDb(sensor, Long.toString(steps));
+					String action = "moving"+(steps > 0 ? "+":"-")+Long.toString(steps);
+					long timestamp_s = System.currentTimeMillis()/1000;
+					String timestamp = Long.toString(timestamp_s);
+					MotorProperty.setMotorProperty(mActivity, mHiveId, mMotorIndex, action, timestamp);
+					display();
+					startPolling(Math.abs(steps)/StepsPerRevolutionProperty.getStepsPerSecond(mActivity));
+				}
+				
+				mAlert.dismiss(); 
+				mAlert = null;
+        	}
+        });
+        builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {mAlert.dismiss(); mAlert = null;}
+        });
+        mAlert = builder.show();
+        
+        EditText tv = (EditText) mAlert.findViewById(R.id.textValue);
+        tv.setText("0");
+
+        mAlert.findViewById(R.id.plus).setOnClickListener(new View.OnClickListener() {public void onClick(View v) {inc();}});
+        mAlert.findViewById(R.id.plusPlus).setOnClickListener(new View.OnClickListener() {public void onClick(View v) {inc100();}});
+        mAlert.findViewById(R.id.minus).setOnClickListener(new View.OnClickListener() {public void onClick(View v) {dec();}});
+        mAlert.findViewById(R.id.minusMinus).setOnClickListener(new View.OnClickListener() {public void onClick(View v) {dec100();}});
+	}
+	
+	public void pollCloud() {
+		String dbUrl = DbCredentialsProperty.getCouchLogDbUrl(mActivity);
+		PollSensorBackground.ResultCallback onCompletion = 
+			getMotorOnCompletion(mValueTV.getId(), mTimestampTV.getId(), new OnSaveValue() {
+				@Override
+				public void save(Activity activity, String objId, String value, long timestamp) {
+					MotorProperty.setMotorProperty(mActivity, mHiveId, mMotorIndex, value, timestamp);
+				}
+			});
+		new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(mHiveId, "motor"+Integer.toString(mMotorIndex)), 
+				onCompletion).execute();
+	}
+
+	
 	private void inc() {
-		EditText tv = (EditText) getAlertDialog().findViewById(R.id.textValue);
+		EditText tv = (EditText) mAlert.findViewById(R.id.textValue);
 		String valueStr = tv.getText().toString();
 		int n = Integer.parseInt(valueStr)+1;
 		tv.setText(Integer.toString(n));
-		SplashyText.highlightModifiedField(activity, tv);
+		SplashyText.highlightModifiedField(mActivity, tv);
 	}
 	
 	private void inc100() {
-		EditText tv = (EditText) getAlertDialog().findViewById(R.id.textValue);
+		EditText tv = (EditText) mAlert.findViewById(R.id.textValue);
 		String valueStr = tv.getText().toString();
 		int n = Integer.parseInt(valueStr)+100;
 		tv.setText(Integer.toString(n));
-		SplashyText.highlightModifiedField(activity, tv);
+		SplashyText.highlightModifiedField(mActivity, tv);
 	}
 	
 	private void dec() {
-		EditText tv = (EditText) getAlertDialog().findViewById(R.id.textValue);
+		EditText tv = (EditText) mAlert.findViewById(R.id.textValue);
 		String valueStr = tv.getText().toString();
 		int n = Integer.parseInt(valueStr)-1;
 		tv.setText(Integer.toString(n));
-		SplashyText.highlightModifiedField(activity, tv);
+		SplashyText.highlightModifiedField(mActivity, tv);
 	}
 	
 	private void dec100() {
-		EditText tv = (EditText) getAlertDialog().findViewById(R.id.textValue);
+		EditText tv = (EditText) mAlert.findViewById(R.id.textValue);
 		String valueStr = tv.getText().toString();
 		int n = Integer.parseInt(valueStr)-100;
 		tv.setText(Integer.toString(n));
-		SplashyText.highlightModifiedField(activity, tv);
+		SplashyText.highlightModifiedField(mActivity, tv);
 	}
 
-	private void createNewMsgDoc(final String channelDocId, final String channelDocRev, String instruction, String prevId) {
-		try {
-			// create a new msg doc
-			final String dbUrl = DbCredentialsProperty.getCouchChannelDbUrl(activity);
-			final String authToken = DbCredentialsProperty.getAuthToken(activity);
-			final String sensor = "motor"+Integer.toString(index)+"-target";
-			String timestamp = Long.toString(System.currentTimeMillis()/1000);
-			String payload = sensor + "|" + instruction;
 	
-			JSONObject msgDoc = new JSONObject();
-			msgDoc.put("prev-msg-id", prevId);
-			msgDoc.put("payload", payload);
-			msgDoc.put("timestamp", timestamp);
-			
-		    CouchPostBackground.OnCompletion postOnCompletion = new CouchPostBackground.OnCompletion() {
-		    	public void onSuccess(String msgId, String msgRev) {
-		    		try {
-		    			String timestamp = Long.toString(System.currentTimeMillis()/1000);
-					
-						JSONObject newChannelDoc = new JSONObject();
-						if (channelDocRev != null)
-							newChannelDoc.put("_rev", channelDocRev);
-						newChannelDoc.put("msg-id", msgId);
-						newChannelDoc.put("timestamp", timestamp);
-		
-						CouchPutBackground.OnCompletion putOnCompletion = new CouchPutBackground.OnCompletion() {
-					    	public void complete(JSONObject results) {
-					    		Log.i(TAG, "Channel Doc PUT success:  "+results.toString());
-					    	}
-					    	public void failed(String msg) {
-					    		Log.e(TAG, "Channel Doc PUT failed: "+msg);
-					    	}
-						};
-						
-			    	    new CouchPutBackground(dbUrl+"/"+channelDocId, authToken, newChannelDoc.toString(), putOnCompletion).execute();
-					} catch (JSONException je) {
-						Log.e(TAG, je.getMessage());
+	private AtomicBoolean mStopPoller = new AtomicBoolean(false);
+	private AtomicInteger mPollCounter = new AtomicInteger(0);
+	private Runnable mPoller = null;
+	private Thread mPollerThread = null;
+	private void startPolling(final double startPollingIn_s) {
+		if (mPoller == null) {
+			mPoller = new Runnable() {
+				@Override
+				public void run() {
+					// first wait a while -- since I know how long the motor should run, no use polling until around when it 
+					// should be done
+
+					// 95ms*10==950ms -- nearly 1s
+					// 95ms*(10*startPollingIn_s) == desired wait before polling
+					mPollCounter.set(0);
+					while (!mStopPoller.get() && (mPollCounter.getAndIncrement() < 10*startPollingIn_s)) {
+						try {
+							Thread.sleep(95);
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
 					}
-		    	}
-		    	public void onFailure(String msg) {
-		    		Log.e(TAG, "Msg Doc POST failed: "+msg);
-		    	}
-		    };
-		    new CouchPostBackground(dbUrl, authToken, msgDoc.toString(), postOnCompletion).execute();
-		} catch (JSONException je) {
-			Log.e(TAG, je.getMessage());
+
+					// now poll the db once every 3s, but give up if it goes a full minute
+					long started = System.currentTimeMillis();
+					mPollCounter.set(0);
+					boolean done = false;
+					while (!done && !mStopPoller.get()) {
+						try {
+							Thread.sleep(95);
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						
+						// 95ms*5*10==4750ms
+						if (mPollCounter.getAndIncrement() >= 3*10) {
+							mPollCounter.set(0);
+
+							pollCloud();
+							done = getMotorAction(mActivity, mHiveId, mMotorIndex).equals("stopped") ||
+									   (System.currentTimeMillis()-started > 60000);
+						}
+					}
+					Log.i(TAG, "Done");
+					cancelPoller();
+				}
+			};
+			mStopPoller.set(false);
+			mPollerThread = new Thread(mPoller, "MotorCompletionPoller");
+			mPollerThread.start();
 		}
 	}
 	
+	private void cancelPoller() {
+		mStopPoller.set(true);
+		mPollerThread = null;
+		mPoller = null;
+	}
 	
-	private void postToDb(final String instruction) {
-		String ActiveHive = ActiveHiveProperty.getActiveHiveName(activity);
-		String HiveId = HiveEnv.getHiveAddress(activity, ActiveHive);
-		final String dbUrl = DbCredentialsProperty.getCouchChannelDbUrl(activity);
-		String authToken = null;
-		final String channelDocId = HiveId + "-app";
-		
-	    CouchGetBackground.OnCompletion channelDocOnCompletion = new CouchGetBackground.OnCompletion() {
+	public void onPause() {
+		cancelPoller();
+		if (mAlert != null)
+			mAlert.dismiss();
+		mAlert = null;
+	}
+
+	
+	// derived class should do whatever is necessary to determine if the Property hasn't been defined or ever touched
+	protected boolean isPropertyDefined() {
+		return isMotorPropertyDefined(mActivity, mHiveId, mMotorIndex);
+	}
+	
+	// do whatever is necessary to display the undefined state in the ParentView
+	protected void displayUndefined() {
+		Log.i(TAG, "Set display undefined");
+		long timestampMillis = 0;
+		String action = "stopped";
+		HiveEnv.setValueWithSplash(mActivity, mValueTV.getId(), mTimestampTV.getId(), action, false, timestampMillis);
+	};
+	
+	// do whatever is necessary to display the current state in the ParentView
+	protected void display() {
+		long timestampMillis = getMotorTimestamp(mActivity, mHiveId, mMotorIndex)*1000;
+		boolean isStopped = getMotorAction(mActivity, mHiveId, mMotorIndex).equals("stopped");
+		String action = null;
+		if (isStopped) {
+			action = "stopped";
+			mButton.setImageResource(R.drawable.ic_rarrow);
+	    	mButton.setEnabled(true);
+		} else {
+			action = "moving";
+			mButton.setImageResource(R.drawable.ic_rarrow_disabled);
+	    	mButton.setEnabled(false);
+		}
+		HiveEnv.setValueWithSplash(mActivity, mValueTV.getId(), mTimestampTV.getId(), action, true, timestampMillis);
+	}
+
+	private PollSensorBackground.ResultCallback getMotorOnCompletion(final int valueResid, final int timestampResid, 
+			final OnSaveValue saver) {
+		PollSensorBackground.ResultCallback onCompletion = new PollSensorBackground.ResultCallback() {
 			@Override
-	    	public void complete(JSONObject currentChannelDoc) {
-				try {
-					String prevMsgId = currentChannelDoc.getString("msg-id");
-					final String currentChannelDocRev = currentChannelDoc.getString("_rev");
-					
-					createNewMsgDoc(channelDocId, currentChannelDocRev, instruction, prevMsgId);
-				} catch (JSONException je) {
-					Log.e(TAG, je.getMessage());
-				}
+	    	public void report(final String objId, String sensorType, final String timestampStr, final String actionStr) {
+				mActivity.runOnUiThread(new Runnable() {
+					@Override
+					public void run() {
+                        saver.save(mActivity, objId, actionStr, Long.parseLong(timestampStr));
+                        display();
+					}
+				});
 			}
 			
 			@Override
-	    	public void failed(String msg) {
-				// probably first time -- so create it
-				Log.i(TAG, "Channel Doc GET failed: "+msg);
-				
-				createNewMsgDoc(channelDocId, null, instruction, "0");
+			public void error(final String msg) {
+				String errMsg = "Attempt to get Motor location failed with this message: "+msg;
+				mDbAlertHandler.informDbInaccessible(mActivity, errMsg, valueResid);
 			}
-	    };
 
-    	final CouchGetBackground getter = new CouchGetBackground(dbUrl+"/"+channelDocId, authToken, channelDocOnCompletion);
-    	getter.execute();
+			@Override
+			public void dbAccessibleError(final String msg) {
+				mDbAlertHandler.informDbInaccessible(mActivity, msg, valueResid);
+			}
+		};
+		return onCompletion;
 	}
-	
-	private void setUndefined() {
-		value.setText("????");
-		timestamp.setText("????");
-	}
-	
-	private void display(String v, long t) {
-		boolean splashValue = !value.getText().equals(v);
-    	value.setText(v);
-    	if (splashValue) 
-    		SplashyText.highlightModifiedField(activity, value);
-		Calendar cal = Calendar.getInstance(Locale.ENGLISH);
-		cal.setTimeInMillis(t);
-		String timestampStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
-		boolean splashTimestamp = !timestamp.getText().equals(timestampStr);
-		timestamp.setText(timestampStr);
-		if (splashTimestamp) 
-			SplashyText.highlightModifiedField(activity, timestamp);
+
+	private static String uniqueIdentifier(String base, String hiveId, int motorIndex) {
+		return base+"|"+hiveId+"|"+motorIndex;
 	}
 
 	
-	public static boolean isMotorPropertyDefined(Activity activity, int index) {
+	public static boolean isMotorPropertyDefined(Activity activity, String hiveId, int motorIndex) {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
-		if (SP.contains(MOTOR_STEPS_PROPERTY+Integer.toString(index)) && 
-			!SP.getString(MOTOR_STEPS_PROPERTY+Integer.toString(index), DEFAULT_MOTOR_STEPS).equals(DEFAULT_MOTOR_STEPS)) {
-			if (SP.contains(MOTOR_DATE_PROPERTY+Integer.toString(index)) &&
-				!SP.getString(MOTOR_DATE_PROPERTY+Integer.toString(index), DEFAULT_MOTOR_DATE).equals(DEFAULT_MOTOR_DATE)) 	
-				return true;
-			else
-				return false;
-		} else
-			return false;
+		return  (SP.contains(uniqueIdentifier(MOTOR_ACTION_PROPERTY, hiveId, motorIndex)) && 
+				 !SP.getString(uniqueIdentifier(MOTOR_ACTION_PROPERTY, hiveId, motorIndex), DEFAULT_MOTOR_ACTION).equals(DEFAULT_MOTOR_ACTION)) ||
+				(SP.contains(uniqueIdentifier(MOTOR_TIMESTAMP_PROPERTY, hiveId, motorIndex)) &&
+				 !SP.getString(uniqueIdentifier(MOTOR_TIMESTAMP_PROPERTY, hiveId, motorIndex), DEFAULT_MOTOR_TIMESTAMP).equals(DEFAULT_MOTOR_TIMESTAMP));
 	}
 	
 	
-	public static String getMotorValue(Activity activity, int index) {
+	public static long getMotorTimestamp(Activity activity, String hiveId, int motorIndex) {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
-		String stepsStr = SP.getString(MOTOR_STEPS_PROPERTY+Integer.toString(index), DEFAULT_MOTOR_STEPS);
-		double meters = stepsToLinearDistance(activity, Long.parseLong(stepsStr));
-		double millimeters = meters*1000.0;
-		return Long.toString((long) (millimeters+0.5));
-	}
-	
-	public static long getMotorDate(Activity activity, int index) {
-		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
-		String v = SP.getString(MOTOR_DATE_PROPERTY+Integer.toString(index), DEFAULT_MOTOR_DATE);
+		String v = SP.getString(uniqueIdentifier(MOTOR_TIMESTAMP_PROPERTY, hiveId, motorIndex), DEFAULT_MOTOR_TIMESTAMP);
 		try {
 			return Long.parseLong(v);
 		} catch (NumberFormatException nfe) {
@@ -277,29 +313,34 @@ public class MotorProperty {
 		}
 	}
 	
-	public static void resetMotorProperty(Activity activity, int index) {
-		setMotorProperty(activity, index, DEFAULT_MOTOR_STEPS, DEFAULT_MOTOR_DATE);
+    public static String getMotorAction(Activity activity, String hiveId, int motorIndex) {
+    	SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
+    	return SP.getString(uniqueIdentifier(MOTOR_ACTION_PROPERTY, hiveId, motorIndex), DEFAULT_MOTOR_ACTION);
+    }
+    
+	public static void resetMotorProperty(Activity activity, String hiveId, int motorIndex) {
+		setMotorProperty(activity, hiveId, motorIndex, DEFAULT_MOTOR_ACTION, DEFAULT_MOTOR_TIMESTAMP);
 	}
 	
-	public static void setMotorProperty(Activity activity, int index, String steps, long date) {
-		setMotorProperty(activity, index, steps, date==0 ? DEFAULT_MOTOR_DATE : Long.toString(date));
+	public static void setMotorProperty(Activity activity, String hiveId, int motorIndex, String action, long date) {
+		setMotorProperty(activity, hiveId, motorIndex, action, date==0 ? DEFAULT_MOTOR_TIMESTAMP : Long.toString(date));
 	}
-
-	private static void setMotorProperty(Activity activity, int index, String steps, String date) {
+	
+	private static void setMotorProperty(Activity activity, String hiveId, int motorIndex, String action, String date) {
 		{
 			SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
-			if (!SP.getString(MOTOR_STEPS_PROPERTY+Integer.toString(index), DEFAULT_MOTOR_STEPS).equals(steps)) {
+			if (!SP.getString(uniqueIdentifier(MOTOR_ACTION_PROPERTY, hiveId, motorIndex), DEFAULT_MOTOR_ACTION).equals(action)) {
 				SharedPreferences.Editor editor = SP.edit();
-				editor.putString(MOTOR_STEPS_PROPERTY+Integer.toString(index), steps);
+				editor.putString(uniqueIdentifier(MOTOR_ACTION_PROPERTY, hiveId, motorIndex), action);
 				editor.commit();
 			}
 		}
 		
 		{
 			SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
-			if (!SP.getString(MOTOR_DATE_PROPERTY+Integer.toString(index), DEFAULT_MOTOR_DATE).equals(date)) {
+			if (!SP.getString(uniqueIdentifier(MOTOR_TIMESTAMP_PROPERTY, hiveId, motorIndex), DEFAULT_MOTOR_TIMESTAMP).equals(date)) {
 				SharedPreferences.Editor editor = SP.edit();
-				editor.putString(MOTOR_DATE_PROPERTY+Integer.toString(index), date);
+				editor.putString(uniqueIdentifier(MOTOR_TIMESTAMP_PROPERTY, hiveId, motorIndex), date);
 				editor.commit();
 			}
 		}

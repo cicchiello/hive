@@ -30,6 +30,7 @@ public class CouchGetBackground extends AsyncTask<Void,Void,Boolean> {
 
     public interface OnCompletion {
     	public void complete(JSONObject results);
+    	public void objNotFound();
     	public void failed(String msg);
     };
     
@@ -55,6 +56,11 @@ public class CouchGetBackground extends AsyncTask<Void,Void,Boolean> {
             HttpResponse response = client.execute(getter);
 
             //System.err.println("Response: "+response.getStatusLine());
+            if (response.getStatusLine().getStatusCode() == 404) {
+            	onCompletion.objNotFound();
+            	return false;
+            }
+            
             if (response.getStatusLine().getStatusCode() != 200) {
                 System.err.println("CouchDb GET failed; HTTP error code : " + response.getStatusLine().getStatusCode());
                 onCompletion.failed(response.getStatusLine().toString());

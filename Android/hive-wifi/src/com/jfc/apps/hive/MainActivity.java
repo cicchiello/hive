@@ -13,7 +13,6 @@ import com.jfc.misc.prop.LatchProperty;
 import com.jfc.misc.prop.UptimeProperty;
 import com.jfc.srvc.cloud.CouchGetBackground;
 import com.jfc.srvc.cloud.PollSensorBackground;
-import com.jfc.srvc.cloud.PollSensorBackground.OnSaveValue;
 import com.jfc.util.misc.DbAlertHandler;
 import com.jfc.util.misc.DialogUtils;
 
@@ -96,12 +95,9 @@ public class MainActivity extends Activity {
     	
     }
 
-	private void requestPermission(MainActivity mainActivity) {
-		// TODO Auto-generated method stub
-	}
-
 	private void setInitialValues() {
-		int hiveIndex = ActiveHiveProperty.getActiveHiveIndex(this);
+		String ActiveHive = ActiveHiveProperty.getActiveHiveName(MainActivity.this);
+		final String HiveId = HiveEnv.getHiveAddress(MainActivity.this, ActiveHive);
 		
 		if (DEBUG) {
 			((TextView) findViewById(R.id.cpuTempText)).setText("?");
@@ -117,28 +113,28 @@ public class MainActivity extends Activity {
 		latch = new LatchProperty(this, (TextView) findViewById(R.id.latch_text), 
 								  (TextView) findViewById(R.id.latchTimestampText));
 		
-		m0 = new MotorProperty(this, 0, 
+		m0 = new MotorProperty(this, HiveId, 0, 
 							   (TextView) findViewById(R.id.motor0Text), 
 							   (ImageButton) findViewById(R.id.selectMotor0Button),
 							   (TextView) findViewById(R.id.motor0TimestampText));
 		
-		m1 = new MotorProperty(this, 1, 
+		m1 = new MotorProperty(this, HiveId, 1, 
 							   (TextView) findViewById(R.id.motor1Text), 
 							   (ImageButton) findViewById(R.id.selectMotor1Button),
 							   (TextView) findViewById(R.id.motor1TimestampText));
 
-		m2 = new MotorProperty(this, 2, 
+		m2 = new MotorProperty(this, HiveId, 2, 
 							   (TextView) findViewById(R.id.motor2Text), 
 							   (ImageButton) findViewById(R.id.selectMotor2Button),
 							   (TextView) findViewById(R.id.motor2TimestampText));
 
 		
-		uptime = new UptimeProperty(this,
+		uptime = new UptimeProperty(this, HiveId, 
 									(TextView) findViewById(R.id.hiveUptimeText), 
 									(ImageButton) findViewById(R.id.selectHiveUptimeButton),
 									(TextView) findViewById(R.id.hiveUptimeTimestampText));
 		
-		audio = new AudioSampler(this, (ImageButton) findViewById(R.id.audioSampleButton), new DbAlertHandler());
+		audio = new AudioSampler(this, HiveId, (ImageButton) findViewById(R.id.audioSampleButton), new DbAlertHandler());
 		
 		if (DEBUG) {
 			HiveEnv.setValue(this, R.id.cpuTempText, R.id.cpuTempTimestampText,
@@ -157,21 +153,6 @@ public class MainActivity extends Activity {
 				 HumidProperty.isHumidPropertyDefined(this), 
 				 HumidProperty.getHumidDate(this));
 		
-		HiveEnv.setValue(this, R.id.motor0Text, R.id.motor0TimestampText,
-				 MotorProperty.getMotorValue(this, 0), 
-				 MotorProperty.isMotorPropertyDefined(this, 0), 
-				 MotorProperty.getMotorDate(this, 0));
-		
-		HiveEnv.setValue(this, R.id.motor1Text, R.id.motor1TimestampText,
-				 MotorProperty.getMotorValue(this, 1), 
-				 MotorProperty.isMotorPropertyDefined(this, 1), 
-				 MotorProperty.getMotorDate(this, 1));
-		
-		HiveEnv.setValue(this, R.id.motor2Text, R.id.motor2TimestampText,
-				 MotorProperty.getMotorValue(this, 2), 
-				 MotorProperty.isMotorPropertyDefined(this, 2), 
-				 MotorProperty.getMotorDate(this, 2));
-					
 		HiveEnv.setValue(this, R.id.beecntText, R.id.beecntTimestampText,
 				 BeeCntProperty.getBeeCntValue(this), 
 				 BeeCntProperty.isBeeCntPropertyDefined(this), 
@@ -179,43 +160,11 @@ public class MainActivity extends Activity {
 					
 		HiveEnv.setValue(this, R.id.hiveUptimeText, R.id.hiveUptimeTimestampText,
 				 "TBD", 
-				 UptimeProperty.isUptimePropertyDefined(this, hiveIndex), 
-				 UptimeProperty.getUptime(this, hiveIndex));
-		UptimeProperty.display(this, R.id.hiveUptimeText, R.id.hiveUptimeTimestampText);
+				 UptimeProperty.isUptimePropertyDefined(this, HiveId), 
+				 UptimeProperty.getUptime(this, HiveId));
+		UptimeProperty.display(this, HiveId, R.id.hiveUptimeText, R.id.hiveUptimeTimestampText);
 	}
 
-	private PollSensorBackground.ResultCallback getMotorOnCompletion(final int valueResid, final int timestampResid, final OnSaveValue saver) {
-		PollSensorBackground.ResultCallback onCompletion = new PollSensorBackground.ResultCallback() {
-			@Override
-	    	public void report(final String objId, String sensorType, final String timestampStr, final String stepsStr) {
-				runOnUiThread(new Runnable() {
-					@Override
-					public void run() {
-						long timestampSeconds = Long.parseLong(timestampStr);
-						long timestampMillis = timestampSeconds*1000;
-						double linearDistanceMeters = MotorProperty.stepsToLinearDistance(MainActivity.this, Long.parseLong(stepsStr));
-						double linearDistanceMillimeters = linearDistanceMeters*1000.0;
-						String linearDistanceStr = Long.toString((long)(linearDistanceMillimeters+0.5));
-						HiveEnv.setValueWithSplash(MainActivity.this, valueResid, timestampResid, linearDistanceStr, true, timestampMillis);
-						saver.save(MainActivity.this, objId, linearDistanceStr, timestampSeconds);
-					}
-				});
-			}
-			
-			@Override
-			public void error(final String msg) {
-				String errMsg = "Attempt to get Motor location failed with this message: "+msg;
-				mDbAlert.informDbInaccessible(MainActivity.this, errMsg, valueResid);
-			}
-
-			@Override
-			public void dbAccessibleError(final String msg) {
-				mDbAlert.informDbInaccessible(MainActivity.this, msg, valueResid);
-			}
-		};
-		return onCompletion;
-	}
-	
 	
 	private void startPolling() {
 		synchronized (this) {
@@ -240,7 +189,6 @@ public class MainActivity extends Activity {
 								
 								String ActiveHive = ActiveHiveProperty.getActiveHiveName(MainActivity.this);
 								final String HiveId = HiveEnv.getHiveAddress(MainActivity.this, ActiveHive);
-								final int hiveIndex = ActiveHiveProperty.getActiveHiveIndex(MainActivity.this);
 								boolean haveHiveId = HiveId != null;
 								
 								if (haveHiveId) {
@@ -301,40 +249,15 @@ public class MainActivity extends Activity {
 						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "latch"), onCompletion).execute();
 
 
-						            
-									onCompletion = 
-											getMotorOnCompletion(R.id.motor0Text, R.id.motor0TimestampText, new OnSaveValue() {
-												@Override
-												public void save(Activity activity, String objId, String value, long timestamp) {
-													MotorProperty.setMotorProperty(MainActivity.this, 0, value, timestamp);
-												}
-											});
-						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "motor0"), onCompletion).execute();
-
-									onCompletion = 
-											getMotorOnCompletion(R.id.motor1Text, R.id.motor1TimestampText, new OnSaveValue() {
-												@Override
-												public void save(Activity activity, String objId, String value, long timestamp) {
-													MotorProperty.setMotorProperty(MainActivity.this, 1, value, timestamp);
-												}
-											});
-						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "motor1"), onCompletion).execute();
-						            
-									onCompletion = 
-											getMotorOnCompletion(R.id.motor2Text, R.id.motor2TimestampText, new OnSaveValue() {
-												@Override
-												public void save(Activity activity, String objId, String value, long timestamp) {
-													MotorProperty.setMotorProperty(MainActivity.this, 2, value, timestamp);
-												}
-											});
-						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "motor2"), onCompletion).execute();
-
+						            m0.pollCloud();
+						            m1.pollCloud();
+						            m2.pollCloud();
 						            
 									onSaveValue = new PollSensorBackground.OnSaveValue() {
 										@Override
 										public void save(Activity activity, String objId, String value, long timestamp) {
-											UptimeProperty.setUptimeProperty(activity, hiveIndex, Long.parseLong(value), timestamp);
-											UptimeProperty.display(activity, R.id.hiveUptimeText, R.id.hiveUptimeTimestampText);
+											UptimeProperty.setUptimeProperty(activity, HiveId, Long.parseLong(value), timestamp);
+											UptimeProperty.display(activity, HiveId, R.id.hiveUptimeText, R.id.hiveUptimeTimestampText);
 										}
 									};
 									onCompletion = PollSensorBackground.getSensorOnCompletion(MainActivity.this, 
@@ -350,14 +273,18 @@ public class MainActivity extends Activity {
 													try {
 														if (results.has("_attachments")) {
 															String attName = results.getJSONObject("_attachments").keys().next();
-															AudioSampler.setAttachment(activity, hiveIndex, objId, attName, timestamp);
+															AudioSampler.setAttachment(activity, HiveId, objId, attName, timestamp);
 														}
-														AudioSampler.display(activity, R.id.audioSampleText, R.id.audioSampleTimestampText);
+														AudioSampler.updateParentUI(activity, HiveId, 
+																					R.id.audioSampleText, 
+																					R.id.audioSampleTimestampText, 
+																					R.id.audioSampleButton);
 													} catch (JSONException e) {
 														// TODO Auto-generated catch block
 														e.printStackTrace();
 													}
 												}
+												public void objNotFound() {failed("Object Not Found");}
 												public void failed(String msg) {
 													Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
 												}
@@ -396,6 +323,10 @@ public class MainActivity extends Activity {
 		
 		if (mAlert != null)
 			mAlert.dismiss();
+		
+		m0.onPause();
+		m1.onPause();
+		m2.onPause();
 		
 		if (audio != null) 
 			audio.onPause();

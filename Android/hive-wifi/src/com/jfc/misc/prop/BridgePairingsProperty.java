@@ -275,6 +275,11 @@ public class BridgePairingsProperty implements IPropertyMgr {
 					}});
 			}
 			
+			@Override 
+			public void objNotFound() {
+				failed("Object Not Found");
+			}
+			
 			@Override
 			public void complete(final JSONObject results) {
 				try {
@@ -289,17 +294,27 @@ public class BridgePairingsProperty implements IPropertyMgr {
 								mActivity.runOnUiThread(new Runnable() {
 									@Override
 									public void run() {
-										String hiveName = "<unnamed>";
-										for( Pair<String,String> p : mExistingPairs) {
-											if (p.second.equals(hiveId)) 
-												hiveName = p.first;
+										try {
+											String hiveName = "<TBD> on " + hiveConfigDoc.getString("ssid");
+											for( Pair<String,String> p : mExistingPairs) {
+												if (p.second.equals(hiveId)) 
+													hiveName = p.first;
+											}
+											
+											mKnownHiveIds.add(hiveId);
+											mDiscoveredDevices.add(new Pair<String,String>(hiveName,hiveId));
+											mDiscoveredDevices.notifyDataSetChanged();
+										} catch (JSONException e) {
+											// TODO Auto-generated catch block
+											e.printStackTrace();
 										}
-										
-										mKnownHiveIds.add(hiveId);
-										mDiscoveredDevices.add(new Pair<String,String>(hiveName,hiveId));
-										mDiscoveredDevices.notifyDataSetChanged();
 									}
 								});
+							}
+							
+							@Override
+							public void objNotFound() {
+								failed("Object Not Found");
 							}
 							
 							@Override

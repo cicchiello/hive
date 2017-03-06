@@ -21,6 +21,7 @@ import android.widget.Toast;
 
 import com.jfc.apps.hive.HiveEnv;
 import com.jfc.apps.hive.R;
+import com.jfc.srvc.cloud.CouchGetBackground;
 import com.jfc.srvc.cloud.CouchPutBackground;
 import com.jfc.util.misc.SplashyText;
 
@@ -79,7 +80,12 @@ public class WifiAPProperty implements IPropertyMgr {
     	}
 		mSsidTv.setBackgroundColor(HiveEnv.ModifiableFieldBackgroundColor);
 		
-		HiveEnv.CouchGetConfig_onCompletion ssidOnCompletion = new HiveEnv.CouchGetConfig_onCompletion() {
+		CouchGetBackground.OnCompletion ssidOnCompletion =new CouchGetBackground.OnCompletion() {
+			@Override
+			public void objNotFound() {
+				failed("Object Not Found");
+			}
+			
 			@Override
 			public void failed(final String msg) {
 				mActivity.runOnUiThread(new Runnable() {public void run() {Toast.makeText(mActivity, msg, Toast.LENGTH_LONG).show();}});
@@ -100,7 +106,12 @@ public class WifiAPProperty implements IPropertyMgr {
     	button.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				HiveEnv.CouchGetConfig_onCompletion onCompletion = new HiveEnv.CouchGetConfig_onCompletion() {
+				CouchGetBackground.OnCompletion onCompletion =new CouchGetBackground.OnCompletion() {
+					@Override
+					public void objNotFound() {
+						failed("Object Not Found");
+					}
+					
 					@Override
 					public void failed(final String msg) {
 						mActivity.runOnUiThread(new Runnable() {

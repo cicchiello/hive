@@ -49,24 +49,9 @@ public class HiveEnv {
     	}
 	}
 	
-	public interface CouchGetConfig_onCompletion {
-		public void failed(String msg);
-		public void complete(JSONObject doc);
-	}
-
-	public static void couchGetConfig(Context ctxt, final CouchGetConfig_onCompletion onCompletion) {
+	public static void couchGetConfig(Context ctxt, final CouchGetBackground.OnCompletion onCompletion) {
 		if (ActiveHiveProperty.isActiveHivePropertyDefined(ctxt)) {
-	    	CouchGetBackground.OnCompletion couchOnCompletion = new CouchGetBackground.OnCompletion() {
-				@Override
-				public void failed(final String msg) {
-					onCompletion.failed(msg);
-				}
-				
-				@Override
-				public void complete(JSONObject resultDoc) {
-					onCompletion.complete(resultDoc);
-				}
-			};
+	    	CouchGetBackground.OnCompletion couchOnCompletion = onCompletion;
 			String dbUrl = DbCredentialsProperty.getCouchConfigDbUrl(ctxt);
 			String authToken = null;
 			String hiveId = PairedHiveProperty.getPairedHiveId(ctxt, ActiveHiveProperty.getActiveHiveIndex(ctxt));
