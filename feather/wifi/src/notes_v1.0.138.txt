@@ -1,27 +1,26 @@
 Release notes for version 1.0.138:
 
 Please plan on installing the following firmware as soon as you change to the wifi MCU:
-[JFC]   http://jfcenterprises.cloudant.com/...
+   https://jfcenterprises.cloudant.com/transfer/hive-1.0.138/hive.bin
 
-It's the same process as before to place the firmware on the MCU module.  Download the file,
-connect your PC to the USB, put the MCU in firmware upload mode (double-press the tiny button
-next to the USB connector), then run the bossac program as before.
+   It's the same process as before to place the firmware on the MCU module.  Download the file,
+   connect your PC to the USB, put the MCU in firmware upload mode (double-press the tiny button
+   next to the USB connector), then run the bossac program as before.
 
-I think I've written about this process a couple times; here's one of them:
-
-   https://docs.google.com/document/d/1W1DZwI7sake5m6TDdBS6u3deZZ_eG_eNkR4GXV3UOy4/edit
+   I think I've written about this process a couple times; here's one of them:
+     https://docs.google.com/document/d/1W1DZwI7sake5m6TDdBS6u3deZZ_eG_eNkR4GXV3UOy4/edit
 
 
 Also, please update the Android app.  They work together, and must be in sync.  The Google Play
-Store link for alpha access is:
-[JFC]   https://....
+Store link for alpha access is:  https://play.google.com/apps/testing/com.jfc.apps.hive
+
 
 
 Things to be aware of:
 
 Motor User Interface changes:
-  I've changed it becuase it was always confusing to see the App report some distance, with a
-  bit lag, without any certainty that it was meaningful anyway.  If you wish to turn this
+  I've changed it because it was always confusing to see the App report some distance, with a
+  big lag, without any certainty that it was meaningful anyway.  If you wish to turn this
   system into an autonomous one, it *must* know about the location of the object being moved.
   But until then, and while it's in prototyping, I think we're better off assuming you're
   there watching it.  And if you're watching it, it's not important that the app know exactly
@@ -65,21 +64,20 @@ Provisioning and the Indicator LED:
 
 
 Known Issues:
-[JFC]  - Latch (Servo) isn't currently enabled -- it hasn't been converted from the BLE version
-           yet
-     - There's an annoying delay (often, but not always) when the MCU tries to get requiest from
-       the db.  Sometimes it will seem very responsive to what's done on the app; other times
-       it might take as much as 10s.  This is because every attempt to communicated with the db
+     - Latch (Servo) isn't currently enabled -- it hasn't been converted from the BLE version yet
+     - There's an annoying delay (often, but not always) when the MCU tries to access the db.
+       Sometimes it will seem very responsive to what's done on the app; other times it might
+       take as much as 10s.  This is because every attempt to communicated with the db
        involves starting from scratch on the wifi connection, http request to the db, read/write
        from the db, then shutdown everything in reverse.  I'd rather leave the wifi connection
        active indefinitely, but I had trouble early on with it getting into a bad state that I
-       couldn't recover from at all.  Now that nearly everything is functional, I'm tempted to
-       revisit this question.  I'm optimistic the wifi connection can remain indefinitely, and
-       then all the activity will seem very responsive.  I'll be trying in the next day or so.
+       couldn't recover from.  Now that nearly everything is functional, I'm tempted to revisit
+       this question.  I'm optimistic the wifi connection can remain indefinitely, and then
+       all the activity will seem very responsive.  I'll be trying in the next day or so.
      - Beecounter: because of that problem I mentioned with the wifi delays, the beecounter
        sometimes doesn't poll the sensors frequently enough to catch all transitions.  Solving
        the wifi delay will solve this problem
-     - Another problem with the Beecounter is that I do not currently have a work BeeCount
+     - Another problem with the Beecounter is that I do not currently have a working BeeCount
        circuit -- I sent you the only one I had after I burned myself!  So, my conversion of
        the code to move to Wifi could have introduced bugs that I cannot see.  I'll have to
        build another one here before I can be certain, and I'm not sure you can be certain
@@ -88,7 +86,7 @@ Known Issues:
        unevenly (easier to tell by the vibration than by watching), speeds aren't very precise,
        and they consume quite a bit of the MCU's cpu cycles (also distracting from things like
        the beecounter).  I have a working solution to this that I'm not done testing yet.  In
-       fact, the Adafruit library developers took the easy way out -- there's a chip on the
+       fact, the Adafruit library developers took a shortcut -- there's a chip on the
        motor driver shield that can handle almost all the work, requiring just a startup and
        stop instruction from the MCU.  Instead, they wrote their library to have the MCU talk
        to the motor drive circuit for *every* step -- and there are 200 per revolution, per
