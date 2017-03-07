@@ -46,6 +46,8 @@ bool HiveConfig::setDoc(const CouchUtils::Doc &doc)
 	        found = true;
 		if (mDoc[j].getName().equals(HiveFirmwareProperty)) {
 		    cleanedDoc.addNameValue(new CouchUtils::NameValuePair(HiveFirmwareProperty, mVersionId));
+		} else if (mDoc[j].getName().equals(HiveIdProperty)) {
+		    cleanedDoc.addNameValue(new CouchUtils::NameValuePair(HiveIdProperty, getHiveId()));
 		} else {
 		    if (mDoc[j].getValue().isStr() && doc[i].getValue().isStr() &&
 			mDoc[j].getValue().getStr().equals(doc[i].getValue().getStr())) {
@@ -64,7 +66,7 @@ bool HiveConfig::setDoc(const CouchUtils::Doc &doc)
     mDoc = cleanedDoc;
     
     StrBuf dump;
-    PH2("cleaned config doc: ", CouchUtils::toString(mDoc, &dump));
+    TRACE2("cleaned config doc: ", CouchUtils::toString(mDoc, &dump));
  
     if (mUpdateFunctor != NULL) {
         mUpdateFunctor->onUpdate(*this);
@@ -111,31 +113,37 @@ void HiveConfig::print() const
 }
 
 
+#ifndef HEADLESS
+#define T(exp) if(!(exp)) {PH2("config is invalid due to: ", #exp );}
+#else
+#define T(exp) TRACE(exp)
+#endif
+
 bool HiveConfig::docIsValidForConfig(const CouchUtils::Doc &d)
 {
     TF("HiveConfig::docIsValidForConfig");
-    TRACE(d.lookup(HiveIdProperty) >= 0);
-    TRACE(d.lookup(HiveFirmwareProperty) >= 0);
-    TRACE(d.lookup(TimestampProperty) >= 0);
-    TRACE(d.lookup(SsidProperty) >= 0);
-    TRACE(d.lookup(SsidPswdProperty) >= 0);
-    TRACE(d.lookup(DbHostProperty) >= 0);
-    TRACE(d.lookup(DbPortProperty) >= 0);
-    TRACE(d.lookup(DbUserProperty) >= 0);
-    TRACE(d.lookup(DbPswdProperty) >= 0);
-    TRACE(d.lookup(IsSslProperty) >= 0);
-    TRACE(d[d.lookup(HiveIdProperty)].getValue().isStr());
-    TRACE(d[d.lookup(HiveFirmwareProperty)].getValue().isStr());
-    TRACE(d[d.lookup(TimestampProperty)].getValue().isStr());
-    TRACE(d[d.lookup(SsidProperty)].getValue().isStr());
-    TRACE(d[d.lookup(SsidPswdProperty)].getValue().isStr());
-    TRACE(d[d.lookup(DbHostProperty)].getValue().isStr());
-    TRACE(d[d.lookup(DbUserProperty)].getValue().isStr());
-    TRACE(d[d.lookup(DbPswdProperty)].getValue().isStr());
-    TRACE(d[d.lookup(DbPortProperty)].getValue().isStr());
-    TRACE(StringUtils::isNumber(d[d.lookup(DbPortProperty)].getValue().getStr().c_str()));
-    TRACE(d[d.lookup(IsSslProperty)].getValue().isStr());
-    TRACE((strcmp(d[d.lookup(IsSslProperty)].getValue().getStr().c_str(),"true") == 0) ||
+    T(d.lookup(HiveIdProperty) >= 0);
+    T(d.lookup(HiveFirmwareProperty) >= 0);
+    T(d.lookup(TimestampProperty) >= 0);
+    T(d.lookup(SsidProperty) >= 0);
+    T(d.lookup(SsidPswdProperty) >= 0);
+    T(d.lookup(DbHostProperty) >= 0);
+    T(d.lookup(DbPortProperty) >= 0);
+    T(d.lookup(DbUserProperty) >= 0);
+    T(d.lookup(DbPswdProperty) >= 0);
+    T(d.lookup(IsSslProperty) >= 0);
+    T(d[d.lookup(HiveIdProperty)].getValue().isStr());
+    T(d[d.lookup(HiveFirmwareProperty)].getValue().isStr());
+    T(d[d.lookup(TimestampProperty)].getValue().isStr());
+    T(d[d.lookup(SsidProperty)].getValue().isStr());
+    T(d[d.lookup(SsidPswdProperty)].getValue().isStr());
+    T(d[d.lookup(DbHostProperty)].getValue().isStr());
+    T(d[d.lookup(DbUserProperty)].getValue().isStr());
+    T(d[d.lookup(DbPswdProperty)].getValue().isStr());
+    T(d[d.lookup(DbPortProperty)].getValue().isStr());
+    T(StringUtils::isNumber(d[d.lookup(DbPortProperty)].getValue().getStr().c_str()));
+    T(d[d.lookup(IsSslProperty)].getValue().isStr());
+    T((strcmp(d[d.lookup(IsSslProperty)].getValue().getStr().c_str(),"true") == 0) ||
 	  (strcmp(d[d.lookup(IsSslProperty)].getValue().getStr().c_str(),"false") == 0));
     
     return d.lookup(HiveIdProperty) >= 0 &&
@@ -169,7 +177,7 @@ bool HiveConfig::docIsValidForConfig(const CouchUtils::Doc &d)
 bool HiveConfig::isValid() const
 {
     TF("HiveConfig::isValid");
-    TRACE(mDoc[mDoc.lookup("hive-id")].getValue().getStr().equals(getHiveId()));
+    T(mDoc[mDoc.lookup("hive-id")].getValue().getStr().equals(getHiveId()));
 
     return docIsValidForConfig(mDoc) && 
       mDoc[mDoc.lookup(HiveIdProperty)].getValue().getStr().equals(getHiveId());

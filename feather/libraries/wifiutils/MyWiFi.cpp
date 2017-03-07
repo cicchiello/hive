@@ -106,22 +106,60 @@ MyWiFi::DNS_State MyWiFi::dnsNoWait(const char* aHostname, IPAddress& aResult)
 	}
 }
 
+extern "C" {
+static TraceScope *s1 = NULL;
+static TraceScope *s2 = NULL;
+static TraceScope *s3 = NULL;
+static TraceScope *s4 = NULL;
+static TraceScope *s5 = NULL;
+static TraceScope *s6 = NULL;
+static TraceScope *s7 = NULL;
+static TraceScope *s8 = NULL;
+static TraceScope *s9 = NULL;
+static TraceScope *s10 = NULL;
+static TraceScope *s11 = NULL;
+void trace1CTOR() {s1 = new TraceScope("::trace1xTOR", __FILE__, __LINE__);}
+void trace1DTOR() {delete s1; s1 = NULL;}
+void trace2CTOR() {s2 = new TraceScope("::trace2xTOR", __FILE__, __LINE__);}
+void trace2DTOR() {delete s2; s2 = NULL;}
+void trace3CTOR() {s3 = new TraceScope("::trace3xTOR", __FILE__, __LINE__);}
+void trace3DTOR() {delete s3; s3 = NULL;}
+void trace4CTOR() {s4 = new TraceScope("::trace4xTOR", __FILE__, __LINE__);}
+void trace4DTOR() {delete s4; s4 = NULL;}
+void trace5CTOR() {s5 = new TraceScope("::trace5xTOR", __FILE__, __LINE__);}
+void trace5DTOR() {delete s5; s5 = NULL;}
+void trace6CTOR() {s6 = new TraceScope("::trace6xTOR", __FILE__, __LINE__);}
+void trace6DTOR() {delete s6; s6 = NULL;}
+void trace7CTOR() {s7 = new TraceScope("::trace7xTOR", __FILE__, __LINE__);}
+void trace7DTOR() {delete s7; s7 = NULL;}
+void trace8CTOR() {s8 = new TraceScope("::trace8xTOR", __FILE__, __LINE__);}
+void trace8DTOR() {delete s8; s8 = NULL;}
+void trace9CTOR() {s9 = new TraceScope("::trace9xTOR", __FILE__, __LINE__);}
+void trace9DTOR() {delete s9; s9 = NULL;}
+void trace10CTOR() {s10 = new TraceScope("::trace10xTOR", __FILE__, __LINE__);}
+void trace10DTOR() {delete s10; s10 = NULL;}
+void trace11CTOR() {s11 = new TraceScope("::trace11xTOR", __FILE__, __LINE__);}
+void trace11DTOR() {delete s11; s11 = NULL;}
+};
+
 MyWiFi::DNS_State MyWiFi::dnsCheck(IPAddress& aResult)
 {
-  Serial.println("dnsCheck; 1");
+    TF("MyWiFi::dnsCheck");
+    
     m2m_wifi_handle_events(NULL);
-  Serial.println("dnsCheck; 2");
 
-    if (_resolve == 0) {
-  Serial.println("dnsCheck; 3");
+    {
+      TF("MyWiFi::dnsCheck; after m2m_wifi_handle_events call");
+      
+      if (_resolve == 0) {
+        TF("MyWiFi::dnsCheck; _resolve==0");
         return DNS_RETRY;
-    }
+      }
 
-  Serial.println("dnsCheck; 4");
-    aResult = _resolve;
-  Serial.println("dnsCheck; 5");
-    _resolve = 0;
-    return DNS_SUCCESS;
+      aResult = _resolve;
+      _resolve = 0;
+      return DNS_SUCCESS;
+    }
 }
 
 void MyWiFi::dnsFailed()

@@ -1,7 +1,9 @@
+#ifndef ARDUINO
+
 #include <str.h>
 
-//#define HEADLESS
-//#define NDEBUG
+#define HEADLESS
+#define NDEBUG
 
 #include <CygwinTrace.h>
 
@@ -76,3 +78,5 @@ int main()
   
   PH("That's all folks!");
 }
+
+#endif

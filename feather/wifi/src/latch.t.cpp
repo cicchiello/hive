@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
-//#define HEADLESS
-//#define NDEBUG
+#define HEADLESS
+#define NDEBUG
 
 #include <Trace.h>
 
