@@ -1,4 +1,17 @@
+/SdFat
+/Adafruit_BluefruitLE_nRF51
+/Adafruit_Motor_Shield_V2_Library-master
+/Adafruit_Motorshield
+/WiFi101
 /SPI
+/adcutils
+/cloudpipe
+/dacutils
+/httputils
+/listener
+/sdutils
+/wifiutils
+/rtc
 /arduino_zero
 /strutils
 /platformutils

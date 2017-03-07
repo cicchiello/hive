@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
-//#define HEADLESS
-//#define NDEBUG
+#define HEADLESS
+#define NDEBUG
 
 #include <Trace.h>
 
@@ -15,6 +15,7 @@
 #include <CrashUpload.h>
 #include <docwriter.h>
 #include <SensorRateActuator.h>
+//#include <ServoConfigActuator.h>
 #include <TempSensor.h>
 #include <HumidSensor.h>
 #include <StepperMonitor.h>
@@ -140,13 +141,6 @@ void setup(void)
 
     pinMode(5, OUTPUT);
     
-    pinMode(19, INPUT);               // used for preventing runnaway on reset
-    while (digitalRead(19) == HIGH) {
-        delay(500);
-	PL("within the runnaway prevention loop");
-    }
-    PL("digitalRead(19) returned LOW");
-
     //pinMode(5, OUTPUT);         // for debugging: used to indicate ISR invocations for motor drivers
     
     delay(500);
@@ -260,7 +254,7 @@ void loop(void)
 						   *rate, *s_appChannel, now, &sWifiMutex, &sSdMutex);
 	s_currSensor = 0;
 
-#if 0	
+#ifdef foo
 	ServoConfigActuator *servoConfig = new ServoConfigActuator("latch-config", now);
 	s_actuators[4] = servoConfig;
 	Latch *latch = new Latch("latch", *rate, now, LATCH_SERVO_PIN, *tempSensor, *servoConfig);
