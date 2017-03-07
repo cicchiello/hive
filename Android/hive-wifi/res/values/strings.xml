@@ -57,7 +57,7 @@
 	
 	<string name="audioSampleLabel">Audio Sample</string>
 	<string name="audio_dialog_title">Audio Sample</string>
-	<string name="audioSampleRecordDesc">New 20s Sample:</string>
+	<string name="audioSampleRecordDesc">Record 20s Sample:</string>
 	<string name="audioSamplePlayDesc">Most recent:</string>
 	<string name="record_label">Record</string>
 	<string name="play_label">Play</string>

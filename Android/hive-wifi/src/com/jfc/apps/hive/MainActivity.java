@@ -134,7 +134,8 @@ public class MainActivity extends Activity {
 									(ImageButton) findViewById(R.id.selectHiveUptimeButton),
 									(TextView) findViewById(R.id.hiveUptimeTimestampText));
 		
-		audio = new AudioSampler(this, HiveId, (ImageButton) findViewById(R.id.audioSampleButton), new DbAlertHandler());
+		audio = new AudioSampler(this, HiveId, (ImageButton) findViewById(R.id.audioSampleButton), 
+								 (TextView) findViewById(R.id.audioSampleText), new DbAlertHandler());
 		
 		if (DEBUG) {
 			HiveEnv.setValue(this, R.id.cpuTempText, R.id.cpuTempTimestampText,
