@@ -30,6 +30,8 @@ static unsigned long timeToAct = 1000l;
 static bool success = true;
 
 bool SDCardRead2::loop() {
+    TF("SDCardRead2::loop");
+    
     unsigned long now = millis();
     if (now > timeToAct && !m_didIt) {
 	m_didIt = true;

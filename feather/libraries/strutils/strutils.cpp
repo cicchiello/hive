@@ -161,7 +161,7 @@ bool StringUtils::isAtEOL(const Str &line)
 
 
 /* STATIC */
-void StringUtils::consumeNumber(Str *rsp)
+void StringUtils::consumeNumber(StrBuf *rsp)
 {
     const char *c = rsp->c_str();
     while (*c && (((*c >= '0') && (*c <= '9')) || (*c == '-')))

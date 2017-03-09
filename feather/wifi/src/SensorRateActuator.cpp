@@ -15,7 +15,7 @@
 #include <strutils.h>
 
 
-#define SENSOR_RATE_PROPNAME "sensor-rate-seconds"
+static Str SENSOR_RATE_PROPNAME("sensor-rate-seconds");
 
 
 SensorRateActuator::SensorRateActuator(HiveConfig *config, const char *name, unsigned long now)
@@ -26,6 +26,10 @@ SensorRateActuator::SensorRateActuator(HiveConfig *config, const char *name, uns
     mSeconds(5*60)
 #endif  
 {
+    if (mConfig.hasProperty(SENSOR_RATE_PROPNAME)) {
+        const char *value = mConfig.getProperty(SENSOR_RATE_PROPNAME).c_str();
+	mSeconds = StringUtils::isNumber(value) ? atoi(value) : mSeconds;
+    }
 }
 
 
@@ -38,14 +42,9 @@ bool SensorRateActuator::loop(unsigned long now)
 int SensorRateActuator::secondsBetweenSamples() const
 {
     TF("SensorRateActuator::secondsBetweenSamples");
-    
-    const char *value = mConfig.getProperty(SENSOR_RATE_PROPNAME).c_str();
-    if (value == NULL || *value == 0) 
-        return mSeconds;
 
-    int s = StringUtils::isNumber(value) ? atoi(value) : mSeconds;
-    TRACE2("Reporting secondsBetweenSamples of: ", s);
-    return s;
+    PH2("Reporting secondsBetweenSamples of: ", mSeconds);
+    return mSeconds;
 }
 
 
@@ -66,10 +65,11 @@ void SensorRateActuator::processMsg(unsigned long now, const char *msg)
     msg += tokenlen;
     assert2(StringUtils::isNumber(msg), InvalidMsg, msg);
 
-    int seconds = atoi(msg);
+    mSeconds = atoi(msg);
+    
     StrBuf secondsStr;
-    secondsStr.append(seconds);
-    PH4("setting HiveConfig property ", SENSOR_RATE_PROPNAME, " to ", secondsStr.c_str());
+    secondsStr.append(mSeconds);
+    PH4("setting HiveConfig property ", SENSOR_RATE_PROPNAME.c_str(), " to ", secondsStr.c_str());
     mConfig.addProperty(SENSOR_RATE_PROPNAME, secondsStr.c_str());
 }
 

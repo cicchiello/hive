@@ -16,6 +16,7 @@
 #include <Trace.h>
 #include <SdFat.h>
 
+#include <strbuf.h>
 #include <platformutils.h>
 
 #include <sdutils.h>
@@ -83,15 +84,22 @@ void HivePlatform::stackDump()
 	if (!f.open(STACKTRACE_FILENAME, O_CREAT | O_WRITE)) {
 	    canWrite = false;
 	}
-	
-        P("STACKDUMP TIME: "); PL(millis());
-        PL("FAULT: Stack trace: ");
+
+	StrBuf note1("STACKDUMP TIME: ");
+	note1.append(millis());
+	P(note1.c_str());
+	f.write(note1.c_str(), note1.len()+1);
+	f.write("\n", 1);
+	StrBuf note2("FAULT: Stack trace: ");
+	PL(note2.c_str());
+	f.write(note2.c_str(), note2.len());
+	f.write("\n", 1);
 	const TraceScope *s = TraceScope::sCurrScope;
 	while (s != NULL) {
 	    PL(s->getFunc());
 	    if (canWrite) {
 	        f.write(s->getFunc(), strlen(s->getFunc()));
-		f.write("\n", 2);
+		f.write("\n", 1);
 	    }
 	    s = s->getParent();
 	}

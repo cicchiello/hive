@@ -2,34 +2,6 @@
 #define trace_h
 
 
-#ifndef HEADLESS
-#define P(args) Serial.print(args)
-#define PL(args) Serial.println(args)
-#define _PWHERE(FILE,LINE) P("INFO; " ); P(FILE); P("; line: "); P(LINE); P("; ")
-#define PH(arg) _PWHERE(__FILE__,__LINE__); PL(arg);
-#define PH2(arg1,arg2) _PWHERE(__FILE__,__LINE__); P(arg1); PL(arg2);
-#define PH3(arg1,arg2,arg3) _PWHERE(__FILE__,__LINE__); P(arg1); P(arg2); PL(arg3);
-#define PH4(arg1,arg2,arg3,arg4) _PWHERE(__FILE__,__LINE__); P(arg1); P(arg2); P(arg3); PL(arg4);
-#else
-#ifndef NDEBUG
-#   define NDEBUG
-#endif
-#define P(args) do {} while (0)
-#define PL(args) do {} while (0)
-#define PH(args) do {} while (0)
-#define PH2(arg1,arg2) do {} while (0)
-#define PH3(arg1,arg2,arg3) do {} while (0)
-#define PH4(arg1,arg2,arg3,arg4) do {} while (0)
-#endif
-
-#ifndef NDEBUG
-#define D(args) P(args)
-#define DL(args) PL(args)
-#else
-#define D(args)
-#define DL(args)
-#endif
-
 class TraceScope {
   private:
     TraceScope *parent;
@@ -54,6 +26,38 @@ class TraceScope {
 };
 
 #define TF(f) TraceScope tscope(f,__FILE__,__LINE__);
+
+
+
+#ifndef HEADLESS
+#define P(args) Serial.print(args)
+#define PL(args) Serial.println(args)
+#define _PWHERE_FUNC(FUNC,LINE) P("INFO; " ); P(FUNC); P("; line: "); P(LINE); P("; ")
+#define _PWHERE_FILE(FILE,LINE) P("INFO; " ); P(FILE); P("; line: "); P(LINE); P("; ")
+#define _PWHERE(FUNC,FILE,LINE) if((FUNC)==0){_PWHERE_FILE(FILE,LINE);}else{_PWHERE_FUNC((FUNC),LINE);}
+#define PH(arg) _PWHERE(tscope.getFunc(),__FILE__,__LINE__); PL(arg);
+#define PH2(arg1,arg2) _PWHERE(tscope.getFunc(),__FILE__,__LINE__); P(arg1); PL(arg2);
+#define PH3(arg1,arg2,arg3) _PWHERE(tscope.getFunc(),__FILE__,__LINE__); P(arg1); P(arg2); PL(arg3);
+#define PH4(arg1,arg2,arg3,arg4) _PWHERE(tscope.getFunc(),__FILE__,__LINE__); P(arg1); P(arg2); P(arg3); PL(arg4);
+#else
+#ifndef NDEBUG
+#   define NDEBUG
+#endif
+#define P(args) do {} while (0)
+#define PL(args) do {} while (0)
+#define PH(args) do {} while (0)
+#define PH2(arg1,arg2) do {} while (0)
+#define PH3(arg1,arg2,arg3) do {} while (0)
+#define PH4(arg1,arg2,arg3,arg4) do {} while (0)
+#endif
+
+#ifndef NDEBUG
+#define D(args) P(args)
+#define DL(args) PL(args)
+#else
+#define D(args)
+#define DL(args)
+#endif
 
 
 #ifndef NDEBUG

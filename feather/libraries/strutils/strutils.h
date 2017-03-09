@@ -20,7 +20,7 @@ public:
   
   static void consumeEOL(Str *line);
   static void consumeToEOL(Str *line);
-  static void consumeNumber(Str *line);
+  static void consumeNumber(StrBuf *line);
   
   static void itoahex(char buf[2], char i);
   static int ahextoi(const char *hexascii, int len);

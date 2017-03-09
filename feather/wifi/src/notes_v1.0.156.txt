@@ -1,0 +1,83 @@
+Release notes for version 1.0.156:
+
+For this release, I was first trying to just update the Android App, but I soon found several
+cases where the MCU didn't handle provisioning and connection problems cleanly.  So, I've updated
+both software packages.
+
+
+Please plan on installing the following firmware as soon as you change to the wifi MCU:
+   https://jfcenterprises.cloudant.com/transfer/hive-1.0.156/hive.bin
+
+   It's the same process as before to place the firmware on the MCU module.  Download the file,
+   connect your PC to the USB, put the MCU in firmware upload mode (double-press the tiny button
+   next to the USB connector), then run the bossac program as before.
+
+   I think I've written about this process a couple times; here's one of them:
+     https://docs.google.com/document/d/1W1DZwI7sake5m6TDdBS6u3deZZ_eG_eNkR4GXV3UOy4/edit
+
+
+Also, please update the Android app to version 1.4.  They work together, and must be in
+sync.  The Google Play Store link for alpha access is:
+      https://play.google.com/apps/testing/com.jfc.apps.hive
+
+
+
+Fixes:
+     - Added Wifi Access Point settings UI to the Android app.  This is so that you can switch
+       the MCU to some other network without somehow forcing it to revert to Provisioning mode
+       by disabling your router (or something similarly extreme).  Note, if you give it info
+       that is somehow incorrect, you it will lose connection completely until one of the
+       following fixes kicks in...
+     - If the MCU determines, for any reason, that it cannot communicate with the db for over
+       2 minutes straight, it will stop trying and revert to Provisioning mode (i.e. turn on
+       it's own Access Point at HIVEWIZ_192.168.1.1)
+     - If it sits in Provisioning mode for 2 minutes, it will revert back to trying to connect
+       with the credentials it had most recently.  So, it will bounce back and forth between
+       the AP- and Provision-modes, 2 minutes at a time until it manages to connect
+       Unfortunately, testing and debugging these features has proven very time consuming!
+     - Enhanced the Uptime UI to indicate in red when the Hivewiz hasn't communicated
+       with the db recently.
+     - Added several more points where diagnostics will be sent (if possible) in unexpected
+       situations.
+     - fixed a few spots in the App where it wasn't properly keeping track of which Hivewiz
+       MCU it was working with.
+     - Latch (Servo) is now enabled -- though I'm not happy with how mine works!  I'll worry
+       about that after we get some of the other features working well.
+     - Added "About" menu to the App so we can be certain what version we're using.
+       
+       
+
+Still to be done: 
+     - There's an annoying delay (often, but not always) when the MCU tries to access the db.
+       Sometimes it will seem very responsive to what's done on the app; other times it might
+       take as much as 10s.  This is because every attempt to communicated with the db
+       involves starting from scratch on the wifi connection, http request to the db, read/write
+       from the db, then shutdown everything in reverse.  I'd rather leave the wifi connection
+       active indefinitely, but I had trouble early on with it getting into a bad state that I
+       couldn't recover from.  Now that nearly everything is functional, I'm tempted to revisit
+       this question.  I'm optimistic the wifi connection can remain indefinitely, and then
+       all the activity will seem very responsive.  I'll be trying in the next day or so.
+     - Beecounter: because of that problem I mentioned with the wifi delays, the beecounter
+       sometimes doesn't poll the sensors frequently enough to catch all transitions.  Solving
+       the wifi delay will solve this problem
+     - Angus requested changing the beecounter to keep in/out counts distinctly, and to reset
+       at midnight.
+     - Another problem with the Beecounter is that I do not currently have a working BeeCount
+       circuit -- I sent you the only one I had after I burned myself!  So, my conversion of
+       the code to move to Wifi could have introduced bugs that I cannot see.  I'll have to
+       build another one here before I can be certain, and I'm not sure you can be certain
+       from your end since the numbers will always be a bit "fuzzy".  (I should note that it
+       does seem to be working to some extent.)
+     - The StepperMotors still suffer from a troublesome driver approach.  They run a bit
+       unevenly (easier to tell by the vibration than by watching), speeds aren't very precise,
+       and they consume quite a bit of the MCU's cpu cycles (also distracting from things like
+       the beecounter).  I have a working solution to this that I'm not done testing yet.  In
+       fact, the Adafruit library developers took a shortcut -- there's a chip on the
+       motor driver shield that can handle almost all the work, requiring just a startup and
+       stop instruction from the MCU.  Instead, they wrote their library to have the MCU talk
+       to the motor drive circuit for *every* step -- and there are 200 per revolution, per
+       motor!
+     - The Wifi Provisioning that I described above is messy...  for production something more
+       sophisticated should be developed, but this should serve for prototype.
+     - I'm sure your testing will find other issues!
+

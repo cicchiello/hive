@@ -74,17 +74,6 @@ class PlatformUtils {
 };
 
 
-#ifdef trace_h
-#   ifndef NDEBUG
-#      undef TF
-#      define TF(f) TraceScope tscope(f,__FILE__,__LINE__); WDT_TRACE(f);
-#   else
-#      undef TF
-#      define TF(f) do {} while (0); WDT_TRACE(f);
-#   endif
-#endif
-
-
 extern void WDT_TRACE(const char *msg);
 
 
