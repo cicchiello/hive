@@ -11,7 +11,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 
-import com.jfc.apps.hive.HiveEnv;
 import com.jfc.apps.hive.R;
 import com.jfc.util.misc.DbAlertHandler;
 
@@ -64,7 +63,7 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
 	
 	static public ResultCallback getSensorOnCompletion(final Activity activity, 
 													   final String sensorName, 
-													   final int valueResid, final int timestampResid, 
+													   final int valueResid, 
 													   final DbAlertHandler dbAlert, 
 													   final OnSaveValue saver) {
 		PollSensorBackground.ResultCallback onCompletion = new PollSensorBackground.ResultCallback() {
@@ -76,7 +75,6 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
 							if (sensorName.equals(sensorType)) {
 							long timestampSeconds = Long.parseLong(timestampStr);
 							long timestampMillis = timestampSeconds*1000;
-							HiveEnv.setValueWithSplash(activity, valueResid, timestampResid, valueStr, true, timestampMillis);
 							saver.save(activity, objId, valueStr, timestampSeconds);
 						}
 					}

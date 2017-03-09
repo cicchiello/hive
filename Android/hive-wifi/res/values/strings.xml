@@ -3,9 +3,14 @@
 
     <string name="app_name">Hivewiz</string>
     <string name="action_settings">App settings&#8230;</string>
-    <string name="action_wifi_settings">Hivewiz WiFi settings&#8230;</string>
+    <string name="action_about">About&#8230;</string>
+    <string name="action_wifi_settings">WiFi settings&#8230;</string>
     <string name="action_motor_settings">Motor settings&#8230;</string>
     
+	<string name="about_dialog_title">About Hivewiz</string>
+	<string name="version_label">App Version:</string>
+    <string name="app_version">1.4</string>
+
     <string name="settings">Settings&#8230;</string>
     
     <string name="active_hive">Active Hivewiz</string>

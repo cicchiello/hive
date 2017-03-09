@@ -7,6 +7,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
+import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.EditText;
@@ -18,6 +19,9 @@ import com.jfc.apps.hive.HiveEnv;
 import com.jfc.apps.hive.R;
 import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.IPropertyMgr;
+import com.jfc.srvc.cloud.CouchCmdPush;
+import com.jfc.util.misc.DbAlertHandler;
+import com.jfc.util.misc.DialogUtils;
 import com.jfc.util.misc.SplashyText;
 
 
@@ -38,6 +42,7 @@ public class ServoConfigProperty implements IPropertyMgr {
 	private Activity mActivity;
 	private Context mCtxt;
 	private String mHiveId;
+	private DbAlertHandler mDbAlert;
 	private boolean mAlertDirIsClockwise;
 
 	// transient variables -- no need to save on pause
@@ -78,20 +83,20 @@ public class ServoConfigProperty implements IPropertyMgr {
 		displayTripTemp(DEFAULT_TRIP_TEMP_C);
 	}
 	
-	public static String getHiveUpdateCommand(Context ctxt, String hiveId) {
+	public static String getHiveUpdateInstruction(Context ctxt, String hiveId) {
 		String tempStr = Integer.toString((int) (getTripTemp(ctxt)+0.5));
 		String clockwiseStr = getIsClockwise(ctxt) ? "CW" : "CCW";
 		String minTicks = Integer.toString(getLowerTick(ctxt));
 		String maxTicks = Integer.toString(getUpperTick(ctxt));
-		String sensor = "latch-config";
-		String msg = "action|"+sensor+"|temp|dir|minTicks|maxTicks|"+tempStr+"|"+clockwiseStr+"|"+minTicks+"|"+maxTicks;
+		String msg = "temp|dir|minTicks|maxTicks|"+tempStr+"|"+clockwiseStr+"|"+minTicks+"|"+maxTicks;
 		return msg;
 	}
 
-	public ServoConfigProperty(final Activity activity, final TextView tv, ImageButton button) {
+	public ServoConfigProperty(final Activity activity, final TextView tv, ImageButton button, DbAlertHandler _dbAlert) {
 		this.mCtxt = activity.getApplicationContext();
 		this.mActivity = activity;
 		this.mTripTempTv = tv;
+		this.mDbAlert = _dbAlert;
 		this.mHiveId = HiveEnv.getHiveAddress(activity, ActiveHiveProperty.getActiveHiveName(activity));
 		
 		if (isDefined(activity)) {
@@ -124,6 +129,36 @@ public class ServoConfigProperty implements IPropertyMgr {
 		        		
 		        		SplashyText.highlightModifiedField(mActivity, mTripTempTv);
 		        		
+		        		CouchCmdPush.OnCompletion onCompletion = new CouchCmdPush.OnCompletion() {
+							@Override
+							public void success() {
+								mActivity.runOnUiThread(new Runnable() {
+									@Override
+									public void run() {
+										Log.i(TAG, "success");
+									}
+								});
+							}
+							@Override
+							public void error(final String msg) {
+								mActivity.runOnUiThread(new Runnable() {
+									@Override
+									public void run() {
+										Runnable cancelAction = new Runnable() {public void run() {mAlert.dismiss(); mAlert = null;}};
+										mAlert = DialogUtils.createAndShowErrorDialog(mActivity, msg, android.R.string.cancel, cancelAction);
+									}
+								});
+							}
+							@Override
+							public void serviceUnavailable(final String msg) {
+								mDbAlert.informDbInaccessible(mActivity, msg, mTripTempTv.getId());
+							}
+						};
+
+						String instruction = getHiveUpdateInstruction(mCtxt, mHiveId);
+						String sensor = "latch-config";
+						new CouchCmdPush(mCtxt, sensor, instruction, onCompletion).execute();
+						
 						mAlert.dismiss(); 
 						mAlert = null;
 		        	}

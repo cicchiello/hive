@@ -99,7 +99,7 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 									@Override
 									public void run() {
 										Runnable cancelAction = new Runnable() {public void run() {mAlert.dismiss(); mAlert = null;}};
-										mAlert = DialogUtils.createAndShowErrorDialog(mCtxt, msg, android.R.string.cancel, cancelAction);
+										mAlert = DialogUtils.createAndShowErrorDialog(mActivity, msg, android.R.string.cancel, cancelAction);
 									}
 								});
 							}

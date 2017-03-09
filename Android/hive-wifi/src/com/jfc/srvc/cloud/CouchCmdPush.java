@@ -1,10 +1,12 @@
 package com.jfc.srvc.cloud;
 
+import org.acra.ACRA;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import android.content.Context;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.jfc.apps.hive.HiveEnv;
 import com.jfc.apps.hive.MotorProperty;
@@ -105,14 +107,15 @@ public class CouchCmdPush {
 			}
 			
 			@Override
-			public void objNotFound() {failed("Object Not Found");}
+			public void objNotFound() {
+				createNewMsgDoc(channelDocId, null, "0");
+			}
 			
 			@Override
 	    	public void failed(String msg) {
 				// probably first time -- so create it
 				Log.i(TAG, "Channel Doc GET failed: "+msg);
-				
-				createNewMsgDoc(channelDocId, null, "0");
+				ACRA.getErrorReporter().handleException(new Exception(msg));
 			}
 	    };
 

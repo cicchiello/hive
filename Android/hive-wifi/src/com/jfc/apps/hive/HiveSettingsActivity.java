@@ -7,6 +7,7 @@ import com.jfc.misc.prop.DbCredentialsProperty;
 import com.jfc.misc.prop.HiveFactoryResetProperty;
 import com.jfc.misc.prop.IPropertyMgr;
 import com.jfc.misc.prop.ServoConfigProperty;
+import com.jfc.misc.prop.WifiAPProperty;
 import com.jfc.util.misc.DbAlertHandler;
 import com.jfc.util.misc.LocalStorageHandler;
 
@@ -90,8 +91,9 @@ public class HiveSettingsActivity extends Activity {
         };
         
         mMgrs.add(new DbCredentialsProperty(this, (TextView) findViewById(R.id.db_text), (ImageButton) findViewById(R.id.db_button)));
+        mMgrs.add(new WifiAPProperty(this, (TextView) findViewById(R.id.ap_text), apButton, mDbAlert));
         mMgrs.add(new SensorSampleRateProperty(this, (TextView) findViewById(R.id.sample_rate_text), (ImageButton) findViewById(R.id.sample_rate_button), mDbAlert));
-        mMgrs.add(new ServoConfigProperty(this, (TextView) findViewById(R.id.servo_trip_temp_text), (ImageButton) findViewById(R.id.servo_config_button)));
+        mMgrs.add(new ServoConfigProperty(this, (TextView) findViewById(R.id.servo_trip_temp_text), (ImageButton) findViewById(R.id.servo_config_button), mDbAlert));
         mMgrs.add(pairing);
 
         if (DEBUG) 

@@ -1,7 +1,6 @@
 package com.jfc.misc.prop;
 
-import java.util.Iterator;
-
+import org.acra.ACRA;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -21,8 +20,10 @@ import android.widget.Toast;
 
 import com.jfc.apps.hive.HiveEnv;
 import com.jfc.apps.hive.R;
+import com.jfc.srvc.cloud.CouchCmdPush;
 import com.jfc.srvc.cloud.CouchGetBackground;
-import com.jfc.srvc.cloud.CouchPutBackground;
+import com.jfc.util.misc.DbAlertHandler;
+import com.jfc.util.misc.DialogUtils;
 import com.jfc.util.misc.SplashyText;
 
 
@@ -41,6 +42,7 @@ public class WifiAPProperty implements IPropertyMgr {
 	private TextView mSsidTv;
 	private Activity mActivity;
 	private Context mCtxt;
+	private DbAlertHandler mDbAlert;
 
 	// transient variables -- no need to save on pause
 	private AlertDialog mAlert;
@@ -68,10 +70,11 @@ public class WifiAPProperty implements IPropertyMgr {
 		setAP(activity, DEFAULT_SSID, DEFAULT_PASSWORD);
 	}
 	
-	public WifiAPProperty(final Activity activity, final TextView ssidTv, ImageButton button) {
+	public WifiAPProperty(final Activity activity, final TextView ssidTv, ImageButton button, DbAlertHandler _dbAlert) {
 		this.mActivity = activity;
 		this.mCtxt = activity.getApplicationContext();
 		this.mSsidTv = ssidTv;
+		this.mDbAlert = _dbAlert;
 		
 		if (isAPDefined(mCtxt)) {
 			displayAP(getSSID(mCtxt), getPSWD(mCtxt));
@@ -83,12 +86,17 @@ public class WifiAPProperty implements IPropertyMgr {
 		CouchGetBackground.OnCompletion ssidOnCompletion =new CouchGetBackground.OnCompletion() {
 			@Override
 			public void objNotFound() {
-				failed("Object Not Found");
+				failed("Object Not Found (config AP)");
 			}
 			
 			@Override
 			public void failed(final String msg) {
-				mActivity.runOnUiThread(new Runnable() {public void run() {Toast.makeText(mActivity, msg, Toast.LENGTH_LONG).show();}});
+				mActivity.runOnUiThread(new Runnable() {
+					public void run() {
+						Toast.makeText(mActivity, msg+"; sending a report to my developer", Toast.LENGTH_LONG).show();
+						ACRA.getErrorReporter().handleException(new Exception(msg));
+					}
+				});
 			}
 
 			@Override
@@ -109,13 +117,16 @@ public class WifiAPProperty implements IPropertyMgr {
 				CouchGetBackground.OnCompletion onCompletion =new CouchGetBackground.OnCompletion() {
 					@Override
 					public void objNotFound() {
-						failed("Object Not Found");
+						failed("Object Not Found (config)");
 					}
 					
 					@Override
 					public void failed(final String msg) {
 						mActivity.runOnUiThread(new Runnable() {
-							public void run() {Toast.makeText(mActivity, msg, Toast.LENGTH_LONG).show();}
+							public void run() {
+								Toast.makeText(mActivity, msg+"; sending a report to my developer", Toast.LENGTH_LONG).show();
+								ACRA.getErrorReporter().handleException(new Exception(msg));
+							}
 						});
 					}
 
@@ -147,52 +158,38 @@ public class WifiAPProperty implements IPropertyMgr {
 		builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
         	@Override
         	public void onClick(DialogInterface dialog, int which) {
-        		String newSsid = ((EditText) mAlert.findViewById(R.id.ssid_text)).getText().toString();
-        		String newPswd = ((EditText) mAlert.findViewById(R.id.pswd_text)).getText().toString();
+        		final String newSsid = ((EditText) mAlert.findViewById(R.id.ssid_text)).getText().toString();
+        		final String newPswd = ((EditText) mAlert.findViewById(R.id.pswd_text)).getText().toString();
 
-        		JSONObject newDoc = new JSONObject();
-				try {
-	        		Iterator<String> it = doc.keys();
-	        		while (it.hasNext()) {
-	        			String k = it.next();
-	        			if (k.equals("ssid")) {
-	        				newDoc.put(k, newSsid);
-	        			} else if (k.equals("pswd")) {
-	        				newDoc.put(k, newPswd);
-	        			} else if (k.equals("timestamp")) {
-	        				newDoc.put(k, Long.toString(System.currentTimeMillis()/1000));
-	        			} else if (!k.equals("_id")) {
-	        				newDoc.put(k, doc.get(k));
-	        			}
-	        		}
-				} catch (JSONException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-        		
-        		String hiveId = PairedHiveProperty.getPairedHiveId(mActivity, ActiveHiveProperty.getActiveHiveIndex(mActivity));
-        		String dbUrl = DbCredentialsProperty.getCouchConfigDbUrl(mActivity)+"/"+hiveId;
-    			String authToken = DbCredentialsProperty.getAuthToken(mCtxt);
-        		
-        		CouchPutBackground.OnCompletion onCompletion = new CouchPutBackground.OnCompletion() {
+        		CouchCmdPush.OnCompletion onCompletion = new CouchCmdPush.OnCompletion() {
 					@Override
-					public void complete(JSONObject results) {
-						mActivity.runOnUiThread(new Runnable() {public void run() {
-							Toast.makeText(mActivity, "Save Successful", Toast.LENGTH_LONG).show();
-						}});
+					public void success() {
+						mActivity.runOnUiThread(new Runnable() {
+							@Override
+							public void run() {
+				        		setAP(newSsid, newPswd);
+				        		SplashyText.highlightModifiedField(mActivity, mSsidTv);
+							}
+						});
 					}
 					@Override
-					public void failed(String msg) {
-						mActivity.runOnUiThread(new Runnable() {public void run() {
-							Toast.makeText(mActivity, "Save Failed", Toast.LENGTH_LONG).show();
-						}});
-					}};
-        		CouchPutBackground putter = new CouchPutBackground(dbUrl, authToken, newDoc.toString(), onCompletion);
-        		putter.execute();
-        		
-        		setAP(newSsid, newPswd);
+					public void error(final String msg) {
+						mActivity.runOnUiThread(new Runnable() {
+							@Override
+							public void run() {
+								Runnable cancelAction = new Runnable() {public void run() {mAlert.dismiss(); mAlert = null;}};
+								mAlert = DialogUtils.createAndShowErrorDialog(mActivity, msg, android.R.string.cancel, cancelAction);
+							}
+						});
+					}
+					@Override
+					public void serviceUnavailable(final String msg) {
+						mDbAlert.informDbInaccessible(mActivity, msg, mSsidTv.getId());
+					}
+				};
 
-        		SplashyText.highlightModifiedField(mActivity, mSsidTv);
+				new CouchCmdPush(mCtxt, "access-point", newSsid+"|"+newPswd, onCompletion).execute();
+
 				mAlert.dismiss(); 
 				mAlert = null;
         	}

@@ -19,6 +19,7 @@ import org.acra.annotation.*;
 	    		org.acra.ReportField.ANDROID_VERSION,
 	    		org.acra.ReportField.PACKAGE_NAME,
 	    		org.acra.ReportField.REPORT_ID,
+//	    		org.acra.ReportField.SHARED_PREFERENCES,
 	    		org.acra.ReportField.BUILD,
 	    		org.acra.ReportField.STACK_TRACE
 	    },

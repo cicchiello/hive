@@ -2,6 +2,7 @@ package com.jfc.misc.prop;
 
 import java.util.Iterator;
 
+import org.acra.ACRA;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -247,7 +248,10 @@ public class DbCredentialsProperty implements IPropertyMgr {
 			@Override
 			public void failed(final String msg) {
 				mActivity.runOnUiThread(new Runnable() {
-					public void run() {Toast.makeText(mActivity, msg, Toast.LENGTH_LONG).show();}
+					public void run() {
+						Toast.makeText(mActivity, msg+"; sending a report to my developer", Toast.LENGTH_LONG).show();
+						ACRA.getErrorReporter().handleException(new Exception(msg));
+					}
 				});
 			}
 

@@ -3,6 +3,7 @@ package com.jfc.apps.hive;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.acra.ACRA;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -19,6 +20,7 @@ import com.jfc.util.misc.DialogUtils;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
@@ -110,7 +112,8 @@ public class MainActivity extends Activity {
 		((TextView) findViewById(R.id.humidText)).setText("?");
 		((TextView) findViewById(R.id.humidTimestampText)).setText("?");
 
-		latch = new LatchProperty(this, (TextView) findViewById(R.id.latch_text), 
+		latch = new LatchProperty(this, HiveId, 
+								  (TextView) findViewById(R.id.latch_text), 
 								  (TextView) findViewById(R.id.latchTimestampText));
 		
 		m0 = new MotorProperty(this, HiveId, 0, 
@@ -134,20 +137,21 @@ public class MainActivity extends Activity {
 									(ImageButton) findViewById(R.id.selectHiveUptimeButton),
 									(TextView) findViewById(R.id.hiveUptimeTimestampText));
 		
-		audio = new AudioSampler(this, HiveId, (ImageButton) findViewById(R.id.audioSampleButton), 
+		audio = new AudioSampler(this, HiveId, 
+								 (ImageButton) findViewById(R.id.audioSampleButton), 
 								 (TextView) findViewById(R.id.audioSampleText), new DbAlertHandler());
 		
 		if (DEBUG) {
 			HiveEnv.setValue(this, R.id.cpuTempText, R.id.cpuTempTimestampText,
-					 MCUTempProperty.getMCUTempValue(this), 
-					 MCUTempProperty.isMCUTempPropertyDefined(this), 
-					 MCUTempProperty.getMCUTempDate(this));
+					 MCUTempProperty.getMCUTempValue(this, HiveId), 
+					 MCUTempProperty.isMCUTempPropertyDefined(this, HiveId), 
+					 MCUTempProperty.getMCUTempDate(this, HiveId));
 		}
 		
 		HiveEnv.setValue(this, R.id.tempText, R.id.tempTimestampText,
-				 TempProperty.getTempValue(this), 
-				 TempProperty.isTempPropertyDefined(this), 
-				 TempProperty.getTempDate(this));
+				 TempProperty.getTempValue(this, HiveId), 
+				 TempProperty.isTempPropertyDefined(this, HiveId), 
+				 TempProperty.getTempDate(this, HiveId));
 		
 		HiveEnv.setValue(this, R.id.humidText, R.id.humidTimestampText,
 				 HumidProperty.getHumidValue(this), 
@@ -201,52 +205,57 @@ public class MainActivity extends Activity {
 										onSaveValue = new PollSensorBackground.OnSaveValue() {
 											@Override
 											public void save(Activity activity, String objId, String value, long timestamp) {
-												MCUTempProperty.setMCUTempProperty(activity, value, timestamp);
+												MCUTempProperty.setMCUTempProperty(activity, HiveId, value, timestamp);
+												HiveEnv.setValueWithSplash(activity, R.id.cpuTempText, R.id.cpuTempTimestampText, value, true, timestamp);
 											}
 										};
 										onCompletion = PollSensorBackground.getSensorOnCompletion(MainActivity.this, 
-												"cputemp", R.id.cpuTempText, R.id.cpuTempTimestampText, mDbAlert, onSaveValue);
+												"cputemp", R.id.cpuTempText, mDbAlert, onSaveValue);
 							            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "cputemp"), onCompletion).execute();
 									}
 									
 									onSaveValue = new PollSensorBackground.OnSaveValue() {
 										@Override
 										public void save(Activity activity, String objId, String value, long timestamp) {
-									        TempProperty.setTempProperty(activity, value, timestamp);
+									        TempProperty.setTempProperty(activity, HiveId, value, timestamp);
+											HiveEnv.setValueWithSplash(activity, R.id.tempText, R.id.tempTimestampText, value, true, timestamp);
 										}
 									};
 									onCompletion = PollSensorBackground.getSensorOnCompletion(MainActivity.this, 
-											"temp", R.id.tempText, R.id.tempTimestampText, mDbAlert, onSaveValue);
+											"temp", R.id.tempText, mDbAlert, onSaveValue);
 						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "temp"), onCompletion).execute();
 
 									onSaveValue = new PollSensorBackground.OnSaveValue() {
 										@Override
 										public void save(Activity activity, String objId, String value, long timestamp) {
 									        HumidProperty.setHumidProperty(activity, value, timestamp);
+											HiveEnv.setValueWithSplash(activity, R.id.humidText, R.id.humidTimestampText, value, true, timestamp);
 										}
 									};
 									onCompletion = PollSensorBackground.getSensorOnCompletion(MainActivity.this, 
-											"humid", R.id.humidText, R.id.humidTimestampText, mDbAlert, onSaveValue);
+											"humid", R.id.humidText, mDbAlert, onSaveValue);
 						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "humid"), onCompletion).execute();
 
 									onSaveValue = new PollSensorBackground.OnSaveValue() {
 										@Override
 										public void save(Activity activity, String objId, String value, long timestamp) {
 											BeeCntProperty.setBeeCntProperty(activity, value, timestamp);
+											HiveEnv.setValueWithSplash(activity, R.id.beecntText, R.id.beecntTimestampText, value, true, timestamp);
 										}
 									};
 									onCompletion = PollSensorBackground.getSensorOnCompletion(MainActivity.this, 
-											"beecnt", R.id.beecntText, R.id.beecntTimestampText, mDbAlert, onSaveValue);
+											"beecnt", R.id.beecntText, mDbAlert, onSaveValue);
 						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "beecnt"), onCompletion).execute();
 						            
 									onSaveValue = new PollSensorBackground.OnSaveValue() {
 										@Override
 										public void save(Activity activity, String objId, String value, long timestamp) {
-											LatchProperty.setLatchProperty(activity, value, timestamp);
+											LatchProperty.setLatchProperty(activity, HiveId, value, timestamp);
+											HiveEnv.setValueWithSplash(activity, R.id.latch_text, R.id.latchTimestampText, value, true, timestamp);
 										}
 									};
 									onCompletion = PollSensorBackground.getSensorOnCompletion(MainActivity.this, 
-											"latch", R.id.latch_text, R.id.latchTimestampText, mDbAlert, onSaveValue);
+											"latch", R.id.latch_text, mDbAlert, onSaveValue);
 						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "latch"), onCompletion).execute();
 
 
@@ -262,7 +271,7 @@ public class MainActivity extends Activity {
 										}
 									};
 									onCompletion = PollSensorBackground.getSensorOnCompletion(MainActivity.this, 
-											"heartbeat", R.id.hiveUptimeText, R.id.hiveUptimeTimestampText, mDbAlert, onSaveValue);
+											"heartbeat", R.id.hiveUptimeText, mDbAlert, onSaveValue);
 						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "heartbeat"), onCompletion).execute();
 						            
 						            
@@ -285,10 +294,10 @@ public class MainActivity extends Activity {
 														e.printStackTrace();
 													}
 												}
-												public void objNotFound() {failed("Object Not Found");}
+												public void objNotFound() {failed("Object Not Found (listener)");}
 												public void failed(String msg) {
-													Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
-												}
+													Toast.makeText(MainActivity.this, msg+"; sending a report to my developer", Toast.LENGTH_LONG).show();
+													ACRA.getErrorReporter().handleException(new Exception(msg));												}
 											};
 											final String dbUrl = DbCredentialsProperty.getCouchLogDbUrl(activity);
 											String authToken = null;
@@ -296,7 +305,7 @@ public class MainActivity extends Activity {
 										}
 									};
 									onCompletion = PollSensorBackground.getSensorOnCompletion(MainActivity.this, 
-											"listener", 0 /*R.id.audioSampleText*/, R.id.audioSampleTimestampText, mDbAlert, onSaveValue);
+											"listener", 0 /*R.id.audioSampleText*/, mDbAlert, onSaveValue);
 						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "listener"), onCompletion).execute();
 								}
 							}
@@ -387,6 +396,10 @@ public class MainActivity extends Activity {
 			onMotorSettings();
 			return true;
 		}
+		if (id == R.id.action_about) {
+			onAbout();
+			return true;
+		}
 		return super.onOptionsItemSelected(item);
 	}
 	
@@ -395,13 +408,21 @@ public class MainActivity extends Activity {
 		startActivityForResult(intent, 0);
 	}
 	
-	public void onWifiSettings() {
-		Intent intent = new Intent(this, WifiSettingsActivity.class);
-		startActivityForResult(intent, 0);
-	}
-	
 	public void onMotorSettings() {
 		Intent intent = new Intent(this, MotorSettingsActivity.class);
 		startActivityForResult(intent, 0);
+	}
+	
+	public void onAbout() {
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		
+		builder.setIcon(R.drawable.ic_hive);
+		builder.setView(R.layout.about_dialog);
+		builder.setTitle(R.string.about_dialog_title);
+        builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {mAlert.dismiss(); mAlert = null;}
+        });
+        mAlert = builder.show();
 	}
 }

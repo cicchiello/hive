@@ -26,13 +26,13 @@ public class LatchProperty implements IPropertyMgr {
 	private AlertDialog mAlert;
 	private Activity mActivity;
 
-	public LatchProperty(final Activity activity, final TextView enableText, TextView _timestamp) {
+	public LatchProperty(final Activity activity, String HiveId, final TextView enableText, TextView _timestamp) {
 		mActivity = activity;
 		mEnableText = enableText;
 		mTimestampText = _timestamp;
 		mEnableText.setBackgroundColor(0xffff0000); // RED
 		
-		displayLatch(getLatchProperty(activity), getLatchDate(activity));
+		displayLatch(getLatchProperty(activity, HiveId), getLatchDate(activity, HiveId));
 	}
 	
 	private static final String LATCH_PROPERTY = "LATCH_PROPERTY";
@@ -40,15 +40,19 @@ public class LatchProperty implements IPropertyMgr {
 	private static final String DEFAULT_LATCH_PROPERTY= "0";
 	private static final String DEFAULT_LATCH_DATE = "<TBD>";
 
-	public static boolean getLatchProperty(Context ctxt) {
+	static private String uniqueIdentifier(String base, String hiveId) {
+		return base+"|"+hiveId;
+	}
+	
+	public static boolean getLatchProperty(Context ctxt, String hiveId) {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt);
-		String v = SP.getString(LATCH_PROPERTY, DEFAULT_LATCH_PROPERTY);
+		String v = SP.getString(uniqueIdentifier(LATCH_PROPERTY, hiveId), DEFAULT_LATCH_PROPERTY);
 		return Integer.parseInt(v) == 0 ? false : true;
 	}
 	
-	public static long getLatchDate(Activity activity) {
+	public static long getLatchDate(Activity activity, String hiveId) {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
-		String v = SP.getString(LATCH_DATE, DEFAULT_LATCH_DATE);
+		String v = SP.getString(uniqueIdentifier(LATCH_DATE, hiveId), DEFAULT_LATCH_DATE);
 		try {
 			return Long.parseLong(v);
 		} catch (NumberFormatException nfe) {
@@ -56,12 +60,12 @@ public class LatchProperty implements IPropertyMgr {
 		}
 	}
 	
-	public static void setLatchProperty(Context ctxt, String valueStr, long date) {
+	public static void setLatchProperty(Context ctxt, String HiveId, String valueStr, long date) {
 		valueStr = valueStr.equalsIgnoreCase("Open") ? "1" : "0";
 		String dateStr = Long.toString(date);
 		{
 			SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt.getApplicationContext());
-			if (!SP.getString(LATCH_PROPERTY, DEFAULT_LATCH_PROPERTY).equals(valueStr)) {
+			if (!SP.getString(uniqueIdentifier(LATCH_PROPERTY,HiveId), DEFAULT_LATCH_PROPERTY).equals(valueStr)) {
 				SharedPreferences.Editor editor = SP.edit();
 				editor.putString(DEFAULT_LATCH_PROPERTY, valueStr);
 				editor.commit();
@@ -70,7 +74,7 @@ public class LatchProperty implements IPropertyMgr {
 		
 		{
 			SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt.getApplicationContext());
-			if (!SP.getString(LATCH_DATE, DEFAULT_LATCH_DATE).equals(dateStr)) {
+			if (!SP.getString(uniqueIdentifier(LATCH_DATE, HiveId), DEFAULT_LATCH_DATE).equals(dateStr)) {
 				SharedPreferences.Editor editor = SP.edit();
 				editor.putString(DEFAULT_LATCH_DATE, dateStr);
 				editor.commit();
