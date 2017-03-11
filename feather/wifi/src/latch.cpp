@@ -81,7 +81,7 @@ Latch::~Latch()
 
 
 #define TEMP_SAMPLE_TIME_MS   (10*1000)                             // sample temp every xx MS
-#define CYCLE_TIME_TICKS      400                                   // 20ms @ 50us per tick
+#define CYCLE_TIME_TICKS      444                                   // 20ms per tick (1/22050Hz)
 #define CLKWISE_PULSE_TICKS   mCurrentConfig->getUpperLimitTicks()  // 2ms
 #define CCLCKWISE_PULSE_TICKS mCurrentConfig->getLowerLimitTicks()  // 2.15ms
 #define MOVE_CLOCKWISE        mCurrentConfig->isClockwise()         // move clockwise when temp >= trip temp
@@ -116,11 +116,13 @@ void Latch::counterclockwise(unsigned long now)
 
 void Latch::pulse(unsigned long now)
 {
+    TF("Latch::pulse");
+    
     // expecting to be called once every 50us
   
     //to see the pulse on the scope, enable "5" as an output and uncomment:
-    const PinDescription &p = g_APinDescription[5];
-    PORT->Group[p.ulPort].OUTTGL.reg = (1ul << p.ulPin) ;
+    //const PinDescription &p = g_APinDescription[5];
+    //PORT->Group[p.ulPort].OUTTGL.reg = (1ul << p.ulPin) ;
 
     if (mFirstPulse) {
         mFirstPulse = false;
@@ -130,7 +132,7 @@ void Latch::pulse(unsigned long now)
     } else if (now - mLastTempTime > TEMP_SAMPLE_TIME_MS) {
 	mLastTempTime = now;
 	if (mTempSensor.hasTemp()) {
-	    DL(TAG("pulse", "Getting temperature sample").c_str());
+	    TRACE("Getting temperature sample");
 	    double t = mTempSensor.getTemp();
 
 //#define TESTING
@@ -147,39 +149,39 @@ void Latch::pulse(unsigned long now)
 	    if (!isnan(t)) {
 	        mTemp = t;
 
-		D(TAG("pulse", "Considering temp: ").c_str()); DL(mTemp);
+		TRACE2("Considering temp: ", mTemp);
 		bool configChanged = !mCurrentConfig->equals(mServoConfigProvider);
 		if (configChanged)
 		    mCurrentConfig->set(mServoConfigProvider);
 		if (mTemp > TRIP_TEMP_C) {
-		    DL(TAG("pulse", "trip point exceeded").c_str());
+		    TRACE2("above trip point of ", TRIP_TEMP_C);
 		    if (MOVE_CLOCKWISE) {
 		        if (configChanged || !mIsAtClockwiseLimit) {
-			    DL(TAG("pulse", "moving to clockwise limit").c_str());
+			    TRACE("moving to clockwise limit");
 			    clockwise(now);
 			}
 		    } else {
 		        if (configChanged || mIsAtClockwiseLimit) {
-			    DL(TAG("pulse", "moving to counter clockwise limit").c_str());
+			    TRACE("moving to counter clockwise limit");
 			    counterclockwise(now);
 			}
 		    }
 		} else {
-		    DL(TAG("pulse", "below trip point").c_str());
+		    TRACE2("below trip point of ", TRIP_TEMP_C);
 		    if (MOVE_CLOCKWISE) {
 		        if (configChanged || mIsAtClockwiseLimit) {
-			    DL(TAG("pulse", "moving to counter clockwise limit").c_str());
+			    TRACE("moving to counter clockwise limit");
 			    counterclockwise(now);
 			}
 		    } else {
 		        if (configChanged || !mIsAtClockwiseLimit) {
-			    DL(TAG("pulse", "moving to clockwise limit").c_str());
+			    TRACE("moving to clockwise limit");
 			    clockwise(now);
 			}
 		    }
 		}
 	    } else {
-	        DL(TAG("pulse", "sample is NAN").c_str());
+	        TRACE("sample is NAN");
 	    }
 	}
     }

@@ -21,7 +21,7 @@ class AppChannel : public TimeProvider {
     const char *getName() const {return "appchannel";}
     // since there can be only one
 
-    bool isOnline() const {return mIsOnline;}
+    bool isOnline() const {return mWasOnline;}
     
     bool haveMessage() const {return mHavePayload;}
 
@@ -45,7 +45,7 @@ class AppChannel : public TimeProvider {
     int mState, mRetryCnt;
 
     const HiveConfig &mConfig;
-    bool mInitialMsg, mHavePayload, mIsOnline, mHaveTimestamp;
+    bool mInitialMsg, mHavePayload, mWasOnline, mHaveTimestamp;
     Str mPrevMsgId, mNewMsgId, mPayload, mChannelUrl;
     
     class AppChannelGetter *mGetter;

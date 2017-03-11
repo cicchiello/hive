@@ -13,10 +13,10 @@ LOCALOBJS= \
 	SensorRateActuator.o TempSensor.o HumidSensor.o \
 	hiveconfig.o ConfigUploader.o \
 	ListenSensor.o ListenActuator.o \
-	SensorBase.o StepperMonitor.o ActuatorBase.o StepperActuator.o \
-	beecnt.o latch.o AudioActuator.o Provision.o Indicator.o \
+	SensorBase.o StepperMonitor.o ActuatorBase.o StepperActuator.o StepperActuator2.o \
+	beecnt.o AudioActuator.o Provision.o Indicator.o \
+	ServoConfigActuator.o latch.o ConfigPersister.o AccessPointActuator.o \
 	AppChannel.o AudioUpload.o AttachmentUpload.o CrashUpload.o
-#	ServoConfigActuator.o \
 
 MYPACKAGES=strutils couchutils platformutils DHT tests wifiutils \
 	httputils adcutils sdutils rtc dacutils listener
@@ -78,7 +78,7 @@ CPP_DEFS= -DF_CPU=48000000L \
 CC_DEFS= $(CPP_DEFS)
 
 PKG_INCS=$(addprefix -I$(ROOT)/,$(PACKAGES))
-CPKG_INCS=-I$(ROOT)/Adafruit_BluefruitLE_nRF51 -I$(ROOT)/Adafruit_Motorshield
+CPKG_INCS=-I$(ROOT)/Adafruit_Motorshield
 HPKG_INCS=$(addprefix -I$(ROOT)/,$(addsuffix /src,$(HPACKAGES)))
 
 CPP_INCS=-I$(ARDUINO_TOOLS)/CMSIS/4.0.0-atmel/CMSIS/Include/ \

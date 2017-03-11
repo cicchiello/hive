@@ -1,11 +1,12 @@
 #include <serial.t.h>
 
+#include <Arduino.h>
+
+#define HEADLESS
 #define NDEBUG
 #include <Trace.h>
 
 #include <strutils.h>
-
-#include <Arduino.h>
 
 #include <platformutils.h>
 

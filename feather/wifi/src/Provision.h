@@ -10,14 +10,17 @@ class Provision {
 	      unsigned long now, Mutex *wifiMutex);
     ~Provision();
 
-    void start();
-    void forcedStart(); // run AP, regardless of validity of config
+    void start(unsigned long now);
+    
+    void forcedStart(unsigned long now); // run AP, regardless of validity of config
     void stop();
     
     bool loop(unsigned long now);
 
     bool hasConfig() const;
     bool isStarted() const;
+
+    unsigned long getStartTime() const;
     
     const HiveConfig &getConfig() const;
     HiveConfig &getConfig();

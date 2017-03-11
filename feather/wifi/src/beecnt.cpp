@@ -10,6 +10,7 @@
 
 #include <Trace.h>
 
+#include <strbuf.h>
 
 BeeCounter::BeeCounter(const HiveConfig &config, const char *name,
 		       const class RateProvider &rateProvider,
@@ -18,9 +19,9 @@ BeeCounter::BeeCounter(const HiveConfig &config, const char *name,
 		       int _ploadPin, int _clockPin, int _dataPin,
 		       Mutex *wifiMutex)
   : SensorBase(config, name, rateProvider, timeProvider, now, wifiMutex),
-    mFirstRead(true), mNumBees(0),
+    mFirstRead(true), mNumBeesIn(0), mNumBeesOut(0),
     ploadPin(_ploadPin), clockPin(_clockPin), dataPin(_dataPin),
-    mLastSampleTime(now)
+    mLastSampleTime(now), mNextMidnight(0)
 {
     //initialize digital pins
     pinMode(ploadPin, OUTPUT);
@@ -36,6 +37,12 @@ BeeCounter::BeeCounter(const HiveConfig &config, const char *name,
         mPrevIn[i] = mPrevOut[i] = 0;
 	mInTime[i] = mPrevInTime[i] = mOutTime[i] = mPrevOutTime[i] = 0;
 	mInDuration[i] = mOutDuration[i] = 0;
+    }
+
+    
+    mNextMidnight = 1489161600; // HKG midnight 3/11/2017
+    while (mNextMidnight < now) {
+        mNextMidnight += 60*60*24;
     }
 }
 
@@ -114,7 +121,14 @@ void BeeCounter::readReg()
 bool BeeCounter::sensorSample(Str *value)
 {
     char buf[10];
-    *value = itoa(mNumBees, buf, 10);
+    StrBuf inStr(itoa(mNumBeesIn, buf, 10));
+    StrBuf outStr(itoa(mNumBeesOut, buf, 10));
+
+    StrBuf result(inStr);
+    result.append("/");
+    result.append(outStr.c_str());
+
+    *value = result.c_str();
 
     return true;
 }
@@ -130,6 +144,11 @@ bool BeeCounter::sample(unsigned long now)
 {
     TF("BeeCounter::pulse");
 
+    if (now > mNextMidnight) {
+        mNextMidnight += 60*60*24;
+	mNumBeesIn = mNumBeesOut = 0;
+    }
+    
     if (now <= mLastSampleTime)
         return false;
 
@@ -201,7 +220,7 @@ bool BeeCounter::sample(unsigned long now)
 				        D("A bee left the hive on gate ");
 					DL(g);
 					DL();
-					mNumBees--;
+					mNumBeesOut++;
 				    }
 				}
 			    }
@@ -251,7 +270,7 @@ bool BeeCounter::sample(unsigned long now)
 				        D("A bee arrived in the hive on gate ");
 					DL(g);
 					DL();
-					mNumBees++;
+					mNumBeesIn++;
 				    }
 				}
 			    }

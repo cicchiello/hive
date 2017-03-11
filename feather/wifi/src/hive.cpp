@@ -12,14 +12,17 @@
 #include <Provision.h>
 #include <hiveconfig.h>
 #include <ConfigUploader.h>
+#include <ConfigPersister.h>
+#include <AccessPointActuator.h>
 #include <CrashUpload.h>
-#include <docwriter.h>
 #include <SensorRateActuator.h>
-//#include <ServoConfigActuator.h>
+#include <ServoConfigActuator.h>
+#include <latch.h>
 #include <TempSensor.h>
 #include <HumidSensor.h>
 #include <StepperMonitor.h>
 #include <StepperActuator.h>
+//#include <StepperActuator2.h>
 #include <beecnt.h>
 #include <Indicator.h>
 #include <Heartbeat.h>
@@ -43,6 +46,8 @@
 #define BEECNT_CLOCK_PIN         9
 #define BEECNT_DATA_PIN         11
 
+#define LATCH_SERVO_PIN         12
+
 static const char *ResetCause = "unknown";
 static int s_mainState = INIT_SENSORS;
 static bool s_isOnline = false;
@@ -52,6 +57,7 @@ static bool s_hasBeenOnline = false;
 static Mutex sWifiMutex, sSdMutex;
 static Provision *s_provisioner = NULL;
 static ConfigUploader *s_configUploader = NULL;
+static ConfigPersister *s_configPersister = NULL;
 static Indicator *s_indicator = NULL;
 static AppChannel *s_appChannel = NULL;
 static int s_currSensor = 0;
@@ -84,29 +90,15 @@ public:
 };
 
 void HiveConfigPersister::onUpdate(const HiveConfig &c) {
-    if (s_provisioner && (&c == &CNF)) {
-        DocWriter writer(mFilename, c.getDoc(), &sSdMutex);
-	while (writer.loop()) {}
-	assert(writer.isDone(), "Couldn't write updated config to file");
-	assert(!writer.hasError(), "Couldn't write updated config to file");
-    }
-
-    HiveConfigFunctor::onUpdate(c);
-}
-  
-class HiveConfigUploader : public HiveConfigFunctor {
-public:
-    void onUpdate(const HiveConfig &c);
-};
-
-void HiveConfigUploader::onUpdate(const HiveConfig &c) {
+    TF("HiveConfigPersister::onUpdate");
     if (s_configUploader && s_provisioner && (&c == &CNF)) {
+        s_configPersister->persist();
         s_configUploader->upload();
     }
 
     HiveConfigFunctor::onUpdate(c);
 }
-  
+
 
 static HttpOp::YieldHandler sPrevYieldHandler = NULL;
 void MyYieldHandler()
@@ -126,6 +118,8 @@ void MyYieldHandler()
 /**************************************************************************/
 void setup(void)
 {
+    TF("::setup");
+    
     // capture the reason for previous reset so I can inform the app
     ResetCause = HivePlatform::singleton()->getResetCause(); 
     
@@ -150,9 +144,10 @@ void setup(void)
 
     s_provisioner = new Provision(ResetCause, VERSION, CONFIG_FILENAME, millis(), &sWifiMutex);
     
-    // setup callback to upload hive config changes (including whatever one gets chosen by provisioner)
-    HiveConfigUploader *uploader = new HiveConfigUploader();
-    uploader->setPrevUpdater(CNF.onUpdate(uploader));
+    // setup callback to persist and upload all hive config changes (including whatever
+    // one gets chosen by provisioner)
+    HiveConfigPersister *persister = new HiveConfigPersister(CONFIG_FILENAME);
+    persister->setPrevUpdater(CNF.onUpdate(persister));
 
     sPrevYieldHandler = HttpOp::registerYieldHandler(MyYieldHandler);
     
@@ -211,32 +206,28 @@ void loop(void)
 
 	int actuatorIndex = 0, sensorIndex = 0;
 
-	// setup callback to persist any future hive config changes (don't set this up earlier, or you'll
-	// save the config to file immediately after reading it from the same file!)
-	HiveConfigPersister *persister = new HiveConfigPersister(CONFIG_FILENAME);
-	persister->setPrevUpdater(CNF.onUpdate(persister));
-
 	// register sensors and actuators
 	SensorRateActuator *rate = new SensorRateActuator(&CNF, "sample-rate", now);
 	s_actuators[actuatorIndex++] = rate;
 
 	s_configUploader = new ConfigUploader(CNF, *rate, *s_appChannel, now, &sWifiMutex);
-	s_sensors[sensorIndex++] = s_configUploader;
 	s_configUploader->upload(); // to force an initial upload on every run
+	s_sensors[sensorIndex++] = s_configUploader;
 	
 	s_sensors[sensorIndex++] = new HeartBeat(CNF, "heartbeat", *rate, *s_appChannel, now, &sWifiMutex);
-	s_sensors[sensorIndex++] = new TempSensor(CNF, "temp", *rate, *s_appChannel, now, &sWifiMutex);
+	TempSensor *tempSensor = new TempSensor(CNF, "temp", *rate, *s_appChannel, now, &sWifiMutex);
+	s_sensors[sensorIndex++] = tempSensor;
 	s_sensors[sensorIndex++] = new HumidSensor(CNF, "humid", *rate, *s_appChannel, now, &sWifiMutex);
 	StepperActuator *motor0 = new StepperActuator(CNF, *rate, "motor0-target", now, 0x60, 1);
-	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor0", *rate, *s_appChannel, now, *motor0,
+	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor0", *rate, *s_appChannel, now, motor0,
 						      &sWifiMutex);
 	s_actuators[actuatorIndex++] = motor0;
 	StepperActuator *motor1 = new StepperActuator(CNF, *rate, "motor1-target", now, 0x60, 2);
-	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor1", *rate, *s_appChannel, now, *motor1,
+	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor1", *rate, *s_appChannel, now, motor1,
 						      &sWifiMutex);
 	s_actuators[actuatorIndex++] = motor1;
 	StepperActuator *motor2 = new StepperActuator(CNF, *rate, "motor2-target", now, 0x61, 2);
-	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor2", *rate, *s_appChannel, now, *motor2,
+	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor2", *rate, *s_appChannel, now, motor2,
 						      &sWifiMutex);
 	s_actuators[actuatorIndex++] = motor2;
 	BeeCounter *beecnt = s_beecnt = new BeeCounter(CNF, "beecnt", *rate, *s_appChannel, now, 
@@ -254,17 +245,22 @@ void loop(void)
 						   *rate, *s_appChannel, now, &sWifiMutex, &sSdMutex);
 	s_currSensor = 0;
 
-#ifdef foo
-	ServoConfigActuator *servoConfig = new ServoConfigActuator("latch-config", now);
-	s_actuators[4] = servoConfig;
-	Latch *latch = new Latch("latch", *rate, now, LATCH_SERVO_PIN, *tempSensor, *servoConfig);
-	s_sensors[6] = latch;
-#endif
-	
-	PL("Sensors initialized;");
-	TRACE("Sensors initialized;");
+	ServoConfigActuator *servoConfig = new ServoConfigActuator(&CNF, "latch-config", now);
+	s_actuators[actuatorIndex++] = servoConfig;
+	Latch *latch = new Latch(CNF, "latch", *rate, *s_appChannel, now,
+				 LATCH_SERVO_PIN, *tempSensor, *servoConfig, &sWifiMutex);
+	s_sensors[sensorIndex++] = latch;
 
-//	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_22K(latch->getPulseGenConsumer());
+	s_configPersister = new ConfigPersister(CNF, *rate, *s_appChannel,
+						CONFIG_FILENAME, now, &sSdMutex);
+	s_sensors[sensorIndex++] = s_configPersister;
+
+	s_actuators[actuatorIndex++] = new AccessPointActuator(&CNF, "access-point", now);
+	
+	PH2(sensorIndex, " Sensors initialized;");
+	PH2(actuatorIndex, " Actuators initialized;");
+
+	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_22K(latch->getPulseGenConsumer());
 	HivePlatform::nonConstSingleton()->pulseGen_22K_init();
 	PL("PulseGenerators initialized;");
 	
@@ -273,25 +269,6 @@ void loop(void)
     }
       break;
 
-#ifdef foo		    
-		    if (payload.equals("motors")) {
-		    } else if (payload.equals("listen")) {
-		    } else if (payload.equals("upload")) {
-		        AudioUpload uploader(CNF, "audio-capture", "listen.wav", "audio/wav",
-					     "/LISTEN.WAV", *s_rate, *s_timestamp, now);
-			bool done = false;
-			while (!done) {
-			    HivePlatform::nonConstSingleton()->clearWDT();
-			    if (uploader.isItTimeYet(millis())) {
-			        //TRACE("calling uploader's loop");
-			        bool callItBack = uploader.loop(millis());
-				done = !callItBack;
-				//TRACE2("uploader returned: ", (done ? "true":"false"));
-			    }
-			}
-		    }
-#endif
-      
     case SENSOR_SAMPLE: {
         TF("::loop; SENSOR_SAMPLE");
 	assert(s_appChannel->haveTimestamp(), "s_appChannel->haveTimestamp()");
@@ -387,13 +364,25 @@ void rxLoop(unsigned long now)
 	} else if (s_provisioner->hasConfig() && !s_provisioner->isStarted()) {
 	    TRACE("Has a valid config and provisioner is stopped; starting AppChannel");
 	    TRACE("If AppChannel cannot connect within 120s, will revert to Provisioning");
-	    TRACE2("now: ", now);
 	    s_indicator->setFlashMode(Indicator::TryingToConnect);
 	    s_appChannel = new AppChannel(CNF, now, &sWifiMutex, &sSdMutex);
+	    PH2("s_isOnline: ", (s_isOnline ? "true" : "false"));
+	    PH2("AppChannel says it went offline at: ", s_appChannel->getOfflineTime());
 	} else if (!s_provisioner->isStarted()) {
 	    TRACE("No valid config; starting the Provisioner");
 	    s_indicator->setFlashMode(Indicator::Provisioning);
-	    s_provisioner->start();
+	    s_provisioner->start(now);
+	} else if (now > s_provisioner->getStartTime() + 120*1000l) {
+	    TRACE("Stopping the provisioner to try to connect with existing config");
+	    TRACE("If AppChannel cannot connect within 120s, will revert to Provisioning");
+	    s_provisioner->stop();
+	    delay(500l);
+	    if (s_provisioner->hasConfig()) {
+	        s_indicator->setFlashMode(Indicator::TryingToConnect);
+		s_appChannel = new AppChannel(CNF, now, &sWifiMutex, &sSdMutex);
+		PH2("s_isOnline: ", (s_isOnline ? "true" : "false"));
+		PH2("AppChannel says it went offline at: ", s_appChannel->getOfflineTime());
+	    }
 	}
     } else {
         if (s_appChannel->loop(now)) {
@@ -415,17 +404,23 @@ void rxLoop(unsigned long now)
 	    s_hasBeenOnline = true;
 	} else if (s_isOnline && !s_appChannel->isOnline()) {
 	    s_isOnline = false;
-	} else if (!s_isOnline &&
-		   (now > s_appChannel->getOfflineTime() + 120*1000l) &&
-		   sWifiMutex.isAvailable()) {
-	    PH2("Detected AppChannel offline for more than 120s; initiating forced Provision mode at: ", now);
-	    TRACE("Detected AppChannel offline; initiating forced Provision mode");
-	    assert(sWifiMutex.isAvailable(), "sWifiMutex.isAvailable()");
-	    s_isOnline = false;
-	    s_indicator->setFlashMode(Indicator::Provisioning);
-	    s_provisioner->forcedStart();
-	    delete s_appChannel;
-	    s_appChannel = NULL;
+	    s_indicator->setFlashMode(Indicator::TryingToConnect);
+	    PH2("Detected AppChannel offline at: ", now);
+	    PH2("AppChannel says it went offline at: ", s_appChannel->getOfflineTime());
+	} else {
+	    if (!s_isOnline &&
+		(now > s_appChannel->getOfflineTime() + 120*1000l) &&
+		sWifiMutex.isAvailable()) {
+	        assert(sWifiMutex.isAvailable(), "sWifiMutex.isAvailable()");
+		PH2("Detected AppChannel offline for more than 120s; initiating forced Provision mode at: ", now);
+		TRACE("Detected AppChannel offline; initiating forced Provision mode");
+		s_isOnline = false;
+		s_indicator->setFlashMode(Indicator::Provisioning);
+		s_provisioner->forcedStart(now);
+		delete s_appChannel;
+		s_appChannel = NULL;
+		s_indicator->setFlashMode(Indicator::Provisioning);
+	    }
 	}
     }
 

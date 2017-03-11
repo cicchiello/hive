@@ -101,10 +101,11 @@ inline static char hex2asc(unsigned char n)
 
 
 /* STATIC */
-void StringUtils::itoahex(char buf[2], char i)
+const char *StringUtils::itoahex(char buf[2], char i)
 {
   buf[0] = hex2asc(nibHigh(i));
   buf[1] = hex2asc(nibLow(i));
+  return buf;
 }
 
 
@@ -161,7 +162,7 @@ bool StringUtils::isAtEOL(const Str &line)
 
 
 /* STATIC */
-void StringUtils::consumeNumber(Str *rsp)
+void StringUtils::consumeNumber(StrBuf *rsp)
 {
     const char *c = rsp->c_str();
     while (*c && (((*c >= '0') && (*c <= '9')) || (*c == '-')))
@@ -223,9 +224,12 @@ const char *StringUtils::replace(StrBuf *result, const char *orig, const char *m
 
 bool StringUtils::isNumber(const char *s) {
   bool foundAtLeastOne = false;
-  while (s && *s && (*s >= '0') && (*s <= '9')) {
-      foundAtLeastOne = true;
+  if (s && *s && ((*s == '+') || (*s == '-') || ((*s >= '0') && (*s <= '9')))) {
       s++;
+      while (s && *s && (*s >= '0') && (*s <= '9')) {
+	  foundAtLeastOne = true;
+	  s++;
+      }
   }
   return foundAtLeastOne;
 }

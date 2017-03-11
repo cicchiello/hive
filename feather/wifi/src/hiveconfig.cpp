@@ -69,11 +69,13 @@ bool HiveConfig::setDoc(const CouchUtils::Doc &doc)
     TRACE2("cleaned config doc: ", CouchUtils::toString(mDoc, &dump));
  
     if (mUpdateFunctor != NULL) {
+        TRACE("Calling HiveConfig updater");
         mUpdateFunctor->onUpdate(*this);
     }
     
     return isValid();
 }
+
 
 
 const Str HiveConfig::HiveIdProperty("hive-id");
@@ -216,7 +218,7 @@ const Str &HiveConfig::getHiveId() const
 }
 
 
-bool HiveConfig::addProperty(const char *name, const char *value)
+bool HiveConfig::addProperty(const Str &name, const char *value)
 {
     TF("HiveConfig::addProperty");
     int index = mDoc.lookup(name);
@@ -227,20 +229,27 @@ bool HiveConfig::addProperty(const char *name, const char *value)
 	CouchUtils::Doc newDoc;
 	for (int i = 0; i < mDoc.getSz(); i++) {
 	    newDoc.addNameValue(i==index ?
-				new CouchUtils::NameValuePair(name,value) :
+				new CouchUtils::NameValuePair(name,Str(value)) :
 				new CouchUtils::NameValuePair(mDoc[i]));
 	}
 	setDoc(newDoc);
     } else {
         CouchUtils::Doc newDoc = mDoc;
-	newDoc.addNameValue(new CouchUtils::NameValuePair(name, value));
+	newDoc.addNameValue(new CouchUtils::NameValuePair(name, Str(value)));
 	setDoc(newDoc);
     }
 
-    Str dump;
+    StrBuf dump;
     TRACE2("Just updated config: ", CouchUtils::toString(mDoc, &dump));
     
     return true;
+}
+
+
+bool HiveConfig::hasProperty(const Str &name) const
+{
+    int index = mDoc.lookup(name);
+    return (index >= 0 && mDoc[index].getValue().isStr());
 }
 
 

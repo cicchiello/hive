@@ -1,5 +1,6 @@
 #include <sdcard_read2.t.h>
 
+#define HEADLESS
 #define NDEBUG
 #include <Trace.h>
 
@@ -30,6 +31,8 @@ static unsigned long timeToAct = 1000l;
 static bool success = true;
 
 bool SDCardRead2::loop() {
+    TF("SDCardRead2::loop");
+    
     unsigned long now = millis();
     if (now > timeToAct && !m_didIt) {
 	m_didIt = true;

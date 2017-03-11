@@ -40,7 +40,7 @@ static const char *DateTag = "Date: ";
 
 AppChannel::AppChannel(const HiveConfig &config, unsigned long now, Mutex *wifiMutex, Mutex *sdMutex)
   : mNextAttempt(0), mState(LOAD_PREV_MSG_ID), mConfig(config),
-    mInitialMsg(false), mHavePayload(false), mIsOnline(false), mHaveTimestamp(false),
+    mInitialMsg(false), mHavePayload(false), mWasOnline(false), mHaveTimestamp(false),
     mPrevMsgId("undefined"), mNewMsgId(), mPayload(),
     mGetter(NULL), mOfflineTime(now), mWifiMutex(wifiMutex), mSdMutex(sdMutex)
 {
@@ -55,6 +55,7 @@ AppChannel::AppChannel(const HiveConfig &config, unsigned long now, Mutex *wifiM
 
 AppChannel::~AppChannel()
 {
+    TF("AppChannel::~AppChannel");
     if (mGetter != NULL) {
         PH("Deleting mGetter");
 	delete mGetter;
@@ -285,7 +286,7 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 		url = &msgUrl;
 	    }
 	    
-	    TRACE2("creating getter with url: ", url);
+	    TRACE2("creating getter with url: ", url->c_str());
 	    TRACE2("thru wifi: ", mConfig.getSSID().c_str());
 	    TRACE2("with pswd: ", mConfig.getPSWD().c_str());
 	    TRACE2("to host: ", mConfig.getDbHost().c_str());
@@ -317,25 +318,22 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 		    }
 		}
 		callMeBackIn_ms = FREQ - ((now=millis())-mStartTime); // most cases should schedule a callback in FREQ
+		bool isOnlineNow = true;
 		if (mGetter->hasNotFound()) {
 		    PH2("object not found, so nothing to do @ ", now);
 		    // nothing to do
-		    mIsOnline = mHaveTimestamp;
 		} else if (mGetter->haveDoc()) {
-		    mIsOnline = mHaveTimestamp;
 		    bool isValid = processDoc(mGetter->getDoc(), gettingHeader, &callMeBackIn_ms);
 		    if (!isValid) {
 		        PH("Improper HeaderMsg found; ignoring");
 			PH2("doc: ", mGetter->getHeaderConsumer().getResponse().c_str());
 		    }
 		} else if (mGetter->isTimeout()) {
-		    PH("AppChannel::getterLoop timed out; retrying again in 5s");
+		    PH2("timed out; retrying again in 5s; now: ", now);
 		    retry = true;
-		    mIsOnline = false;
-		    mOfflineTime = now;
+		    isOnlineNow = false;
 		} else if (mGetter->isError()) {
-		    mIsOnline = false;
-		    mOfflineTime = now;
+		    isOnlineNow = false;
 		    if (er == HttpOp::IssueOpFailed) {
 		        PH("AppChannel::getterLoop timed out while trying to open HTTP connection");
 		    } else {	    
@@ -345,10 +343,15 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 		    }
 		    retry = true;
 		} else {
-		    mIsOnline = false;
-		    mOfflineTime = now;
+		    isOnlineNow = false;
 		    PH("AppChannel::getterLoop failed for unknown reason; retrying again in 5s");
 		    retry = true;
+		}
+		if (!isOnlineNow && mWasOnline) {
+		    mWasOnline = false;
+		    mOfflineTime = now;
+		} else {
+		    mWasOnline = true;
 		}
 		if (retry) {
 		    TRACE("setting up for a retry");

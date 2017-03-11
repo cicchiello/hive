@@ -43,7 +43,7 @@
 
 class ProvisionImp {
   public:
-    unsigned long mNextActionTime;
+    unsigned long mNextActionTime, mStartTime;
     int mMajorState, mMinorState, mDelayCnt, mPostDelayMinorState;
     int mWebStatus;
     bool mInvalidInput, mHasConfig, mIsStarted, mSaved;
@@ -74,14 +74,16 @@ class ProvisionImp {
       delete mCtxt;
   }
 
-  void start(bool ignoreConfigValidity = false)
+  unsigned long getStartTime() const {return mStartTime;}
+  
+  void start(unsigned long now, bool ignoreConfigValidity = false)
   {
       TF("ProvisionImp::start");
+      mStartTime = now;
       mNextActionTime = 0;
       mInvalidInput = mHasConfig = mIsStarted = mSaved = false;
       if (ignoreConfigValidity) {
-	  TRACE("Ignoring the filed config's validity; setting to default");
-	  mConfig.setDefault();
+	  TRACE("Ignoring the filed config's validity");
 	  PH("Starting Access Point for provisioning...");
 	  mMajorState = START_AP;
 	  mMinorState = INIT;
@@ -98,6 +100,7 @@ class ProvisionImp {
       if (mMajorState != STOP_AP) {
 	  mMajorState = STOP_AP;
 	  mMinorState = INIT;
+	  mHasConfig = mConfig.isValid();
       }
   }
 
@@ -133,7 +136,6 @@ static Provision *s_singleton = NULL;
 bool ProvisionImp::loadLoop(unsigned long now)
 {
     TF("ProvisionImp::loadLoop");
-    TRACE("entry");
     
     bool shouldReturn = true; // very few cases shouldn't return, so make true the default
     switch (mMinorState) {
@@ -242,15 +244,21 @@ bool Provision::isStarted() const
 const HiveConfig &Provision::getConfig() const {return mImp->mConfig;}
 HiveConfig &Provision::getConfig() {return mImp->mConfig;}
 
-void Provision::start()
+void Provision::start(unsigned long now)
 {
-    mImp->start();
+    mImp->start(now);
 }
 
 
-void Provision::forcedStart()
+unsigned long Provision::getStartTime() const
 {
-    mImp->start(true);
+    return mImp->getStartTime();
+}
+
+
+void Provision::forcedStart(unsigned long now)
+{
+    mImp->start(now, true);
 }
 
 

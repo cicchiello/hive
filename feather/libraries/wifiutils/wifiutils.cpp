@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+#define HEADLESS
 #define NDEBUG
 #include <Trace.h>
 
@@ -293,6 +294,8 @@ WifiUtils::DisconnectorStatus WifiUtils::disconnector(const WifiUtils::Context &
 
 /* STATIC */
 void WifiUtils::printWifiStatus() {
+    TF("WifiUtils::printWifiStatus");
+    
     // print the SSID of the network you're attached to:
     P("SSID: \'");
     P(WiFi.SSID());

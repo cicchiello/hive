@@ -1,5 +1,6 @@
 #include <http_put.t.h>
 
+#define HEADLESS
 #define NDEBUG
 #include <Trace.h>
 
@@ -43,7 +44,7 @@ const char *HttpPutTest::getDocid() const
 
 bool HttpPutTest::createPutter(const CouchUtils::Doc &originalDoc)
 {
-    DL("HttpPutTest::createPutter");
+    TF("HttpPutTest::createPutter");
     
 #ifndef NDEBUG    
     PH("Here's the doc that I'll be updating:");

@@ -1,5 +1,6 @@
 #include <wdt.t.h>
 
+#define HEADLESS
 #define NDEBUG
 #include <Trace.h>
 
