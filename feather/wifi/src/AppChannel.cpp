@@ -35,14 +35,15 @@
 
 static const char *DateTag = "Date: ";
 
-#define FREQ 7000l
+#define RETRY_WAIT 3000l
+#define FREQ       7000l
 
 
 AppChannel::AppChannel(const HiveConfig &config, unsigned long now, Mutex *wifiMutex, Mutex *sdMutex)
   : mNextAttempt(0), mState(LOAD_PREV_MSG_ID), mConfig(config),
     mInitialMsg(false), mHavePayload(false), mWasOnline(false), mHaveTimestamp(false),
     mPrevMsgId("undefined"), mNewMsgId(), mPayload(),
-    mGetter(NULL), mOfflineTime(now), mWifiMutex(wifiMutex), mSdMutex(sdMutex)
+    mGetter(NULL), mWifiMutex(wifiMutex), mSdMutex(sdMutex)
 {
     TF("AppChannel::AppChannel");
     StrBuf channelId(config.getHiveId().c_str()), encodedId, channelUrl;
@@ -318,12 +319,14 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 		    }
 		}
 		callMeBackIn_ms = FREQ - ((now=millis())-mStartTime); // most cases should schedule a callback in FREQ
-		bool isOnlineNow = true;
+		bool isOnlineNow = false;
 		if (mGetter->hasNotFound()) {
 		    PH2("object not found, so nothing to do @ ", now);
 		    // nothing to do
+		    isOnlineNow = true;
 		} else if (mGetter->haveDoc()) {
 		    bool isValid = processDoc(mGetter->getDoc(), gettingHeader, &callMeBackIn_ms);
+		    isOnlineNow = true;
 		    if (!isValid) {
 		        PH("Improper HeaderMsg found; ignoring");
 			PH2("doc: ", mGetter->getHeaderConsumer().getResponse().c_str());
@@ -349,13 +352,12 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 		}
 		if (!isOnlineNow && mWasOnline) {
 		    mWasOnline = false;
-		    mOfflineTime = now;
-		} else {
+		} else if (isOnlineNow && !mWasOnline) {
 		    mWasOnline = true;
 		}
 		if (retry) {
 		    TRACE("setting up for a retry");
-		    callMeBackIn_ms = 5000l;
+		    callMeBackIn_ms = RETRY_WAIT;
 		    mRetryCnt++;
 		} else {
 		    mRetryCnt = 0;

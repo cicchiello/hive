@@ -25,8 +25,6 @@ class AppChannel : public TimeProvider {
     
     bool haveMessage() const {return mHavePayload;}
 
-    unsigned long getOfflineTime() const {return mOfflineTime;}
-    
     void consumePayload(Str *payload, Mutex *alreadyOwnedSdMutex);
 
     unsigned long secondsAtMark() const;
@@ -41,7 +39,7 @@ class AppChannel : public TimeProvider {
     bool getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHeader);
     bool processDoc(const CouchUtils::Doc &doc, bool gettingHeader, unsigned long *callMeBackIn_ms);
 
-    unsigned long mNextAttempt, mOfflineTime, mStartTime, mTimestamp, mSecondsAtMark;
+    unsigned long mNextAttempt, mStartTime, mTimestamp, mSecondsAtMark;
     int mState, mRetryCnt;
 
     const HiveConfig &mConfig;

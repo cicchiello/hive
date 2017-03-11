@@ -51,6 +51,7 @@
 static const char *ResetCause = "unknown";
 static int s_mainState = INIT_SENSORS;
 static bool s_isOnline = false;
+static unsigned long s_offlineTime = 0;
 static bool s_hasBeenOnline = false;
 
 #define MAX_SENSORS 20
@@ -367,7 +368,11 @@ void rxLoop(unsigned long now)
 	    s_indicator->setFlashMode(Indicator::TryingToConnect);
 	    s_appChannel = new AppChannel(CNF, now, &sWifiMutex, &sSdMutex);
 	    PH2("s_isOnline: ", (s_isOnline ? "true" : "false"));
-	    PH2("AppChannel says it went offline at: ", s_appChannel->getOfflineTime());
+	    if (!s_isOnline) {
+	        s_hasBeenOnline = false;
+	        s_offlineTime = now;
+		PH2("AppChannel went offline at: ", s_offlineTime);
+	    }
 	} else if (!s_provisioner->isStarted()) {
 	    TRACE("No valid config; starting the Provisioner");
 	    s_indicator->setFlashMode(Indicator::Provisioning);
@@ -381,7 +386,11 @@ void rxLoop(unsigned long now)
 	        s_indicator->setFlashMode(Indicator::TryingToConnect);
 		s_appChannel = new AppChannel(CNF, now, &sWifiMutex, &sSdMutex);
 		PH2("s_isOnline: ", (s_isOnline ? "true" : "false"));
-		PH2("AppChannel says it went offline at: ", s_appChannel->getOfflineTime());
+		if (!s_isOnline) {
+		    s_hasBeenOnline = false;
+		    s_offlineTime = now;
+		    PH2("AppChannel went offline at: ", s_offlineTime);
+		}
 	    }
 	}
     } else {
@@ -404,22 +413,27 @@ void rxLoop(unsigned long now)
 	    s_hasBeenOnline = true;
 	} else if (s_isOnline && !s_appChannel->isOnline()) {
 	    s_isOnline = false;
+	    s_hasBeenOnline = false;
+	    s_offlineTime = now;
 	    s_indicator->setFlashMode(Indicator::TryingToConnect);
 	    PH2("Detected AppChannel offline at: ", now);
-	    PH2("AppChannel says it went offline at: ", s_appChannel->getOfflineTime());
 	} else {
-	    if (!s_isOnline &&
-		(now > s_appChannel->getOfflineTime() + 120*1000l) &&
-		sWifiMutex.isAvailable()) {
-	        assert(sWifiMutex.isAvailable(), "sWifiMutex.isAvailable()");
-		PH2("Detected AppChannel offline for more than 120s; initiating forced Provision mode at: ", now);
-		TRACE("Detected AppChannel offline; initiating forced Provision mode");
-		s_isOnline = false;
-		s_indicator->setFlashMode(Indicator::Provisioning);
-		s_provisioner->forcedStart(now);
-		delete s_appChannel;
-		s_appChannel = NULL;
-		s_indicator->setFlashMode(Indicator::Provisioning);
+	    if (!s_isOnline && (now > s_offlineTime + 120*1000l)) {
+	        PH2("Was offline for more than 2 minutes; time to try going back online: ", now);
+	        if (sWifiMutex.isAvailable()) {
+		    assert(sWifiMutex.isAvailable(), "sWifiMutex.isAvailable()");
+		    PH2("Detected AppChannel offline for more than 120s; initiating forced Provision mode at: ", now);
+		    TRACE("Detected AppChannel offline; initiating forced Provision mode");
+		    s_isOnline = false;
+		    s_hasBeenOnline = false;
+		    s_indicator->setFlashMode(Indicator::Provisioning);
+		    s_provisioner->forcedStart(now);
+		    delete s_appChannel;
+		    s_appChannel = NULL;
+		    s_indicator->setFlashMode(Indicator::Provisioning);
+		} else {
+		    PH("Could not acquire Mutex");
+		}
 	    }
 	}
     }
