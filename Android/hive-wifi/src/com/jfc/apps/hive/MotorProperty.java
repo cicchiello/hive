@@ -91,7 +91,7 @@ public class MotorProperty extends PropertyBase {
 				if (steps != 0) {
 					String sensor = "motor"+Integer.toString(mMotorIndex)+"-target";
 					postToDb(sensor, Long.toString(steps));
-					String action = "moving"+(steps > 0 ? "+":"-")+Long.toString(steps);
+					String action = "moving"+(steps > 0 ? "+":"")+Long.toString(steps);
 					long timestamp_s = System.currentTimeMillis()/1000;
 					String timestamp = Long.toString(timestamp_s);
 					MotorProperty.setMotorProperty(mActivity, mHiveId, mMotorIndex, action, timestamp);

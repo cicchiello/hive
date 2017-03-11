@@ -90,6 +90,7 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
 			@Override
 			public void dbAccessibleError(final String msg) {
 				dbAlert.informDbInaccessible(activity, activity.getString(R.string.db_inaccessible), valueResid);
+				ACRA.getErrorReporter().handleSilentException(new Exception("dbInaccessible: "+msg));
 			}
 		};
 		return onCompletion;
