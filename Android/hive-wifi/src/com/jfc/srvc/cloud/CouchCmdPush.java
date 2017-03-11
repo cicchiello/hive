@@ -55,6 +55,10 @@ public class CouchCmdPush {
 						newChannelDoc.put("msg-id", msgId);
 						newChannelDoc.put("timestamp", timestamp);
 		
+						// log the command
+						String rpt = dbUrl+"/"+channelDocId+" "+newChannelDoc.toString();
+						ACRA.getErrorReporter().handleSilentException(new Exception("About to issue query: "+rpt));
+						
 						CouchPutBackground.OnCompletion putOnCompletion = new CouchPutBackground.OnCompletion() {
 					    	public void complete(JSONObject results) {
 					    		Log.i(TAG, "Channel Doc PUT success:  "+results.toString());
