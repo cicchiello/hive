@@ -11,6 +11,7 @@
 #include <strbuf.h>
 
 #include <StepperActuator.h>
+#include <StepperActuator2.h>
 
 
 StepperMonitor::StepperMonitor(const HiveConfig &config,
@@ -18,10 +19,25 @@ StepperMonitor::StepperMonitor(const HiveConfig &config,
 			       const class RateProvider &rateProvider,
 			       const class TimeProvider &timeProvider,
 			       unsigned long now,
-			       const class StepperActuator &actuator,
+			       const class StepperActuator *actuator,
 			       Mutex *wifiMutex)
   : SensorBase(config, name, rateProvider, timeProvider, now, wifiMutex),
-    mActuator(actuator), mPrevTarget(0), mNextAction(now+1500l), mDoPost(false)
+    mActuator2(0), mActuator(actuator), mPrevTarget(0), mNextAction(now+1500l), mDoPost(false)
+{
+    TF("StepperMonitor::StepperMonitor");
+    setNextSampleTime(now + 1000000000); // don't let the base class ever perform it's sample function
+}
+
+
+StepperMonitor::StepperMonitor(const HiveConfig &config,
+			       const char *name,
+			       const class RateProvider &rateProvider,
+			       const class TimeProvider &timeProvider,
+			       unsigned long now,
+			       const class StepperActuator2 *actuator,
+			       Mutex *wifiMutex)
+  : SensorBase(config, name, rateProvider, timeProvider, now, wifiMutex),
+    mActuator2(actuator), mActuator(0), mPrevTarget(0), mNextAction(now+1500l), mDoPost(false)
 {
     TF("StepperMonitor::StepperMonitor");
     setNextSampleTime(now + 1000000000); // don't let the base class ever perform it's sample function
@@ -65,7 +81,7 @@ bool StepperMonitor::loop(unsigned long now)
 	setNextSampleTime(now + 1000000000); // don't let the base class ever perform it's sample function
     }
     
-    int target = mActuator.getTarget();
+    int target = mActuator ? mActuator->getTarget() : mActuator2->getTarget();
     if (target != 0) {
         StrBuf buf("moving");
 	buf.add(target > 0 ? '+' : '-');

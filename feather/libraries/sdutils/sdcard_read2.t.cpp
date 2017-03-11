@@ -1,5 +1,6 @@
 #include <sdcard_read2.t.h>
 
+#define HEADLESS
 #define NDEBUG
 #include <Trace.h>
 

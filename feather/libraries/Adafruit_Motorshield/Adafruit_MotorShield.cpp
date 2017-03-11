@@ -369,27 +369,28 @@ uint8_t Adafruit_StepperMotor::onestep(uint8_t dir, uint8_t style) {
   Serial.print("Latch: 0x"); Serial.println(latch_state, HEX);
 #endif
 
+unsigned long us = micros();  
   if (latch_state & 0x1) {
-   // Serial.println(AIN2pin);
+//Serial.print(us); Serial.print(","); Serial.println(AIN2pin);
     MC->setPin(AIN2pin, HIGH);
   } else {
     MC->setPin(AIN2pin, LOW);
   }
   if (latch_state & 0x2) {
     MC->setPin(BIN1pin, HIGH);
-   // Serial.println(BIN1pin);
+//Serial.print(us); Serial.print(","); Serial.println(BIN1pin);
   } else {
     MC->setPin(BIN1pin, LOW);
   }
   if (latch_state & 0x4) {
     MC->setPin(AIN1pin, HIGH);
-   // Serial.println(AIN1pin);
+//Serial.print(us); Serial.print(","); Serial.println(AIN1pin);
   } else {
     MC->setPin(AIN1pin, LOW);
   }
   if (latch_state & 0x8) {
     MC->setPin(BIN2pin, HIGH);
-   // Serial.println(BIN2pin);
+//Serial.print(us); Serial.print(","); Serial.println(BIN2pin);
   } else {
     MC->setPin(BIN2pin, LOW);
   }

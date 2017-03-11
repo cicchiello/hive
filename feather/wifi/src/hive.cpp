@@ -22,6 +22,7 @@
 #include <HumidSensor.h>
 #include <StepperMonitor.h>
 #include <StepperActuator.h>
+//#include <StepperActuator2.h>
 #include <beecnt.h>
 #include <Indicator.h>
 #include <Heartbeat.h>
@@ -217,18 +218,18 @@ void loop(void)
 	TempSensor *tempSensor = new TempSensor(CNF, "temp", *rate, *s_appChannel, now, &sWifiMutex);
 	s_sensors[sensorIndex++] = tempSensor;
 	s_sensors[sensorIndex++] = new HumidSensor(CNF, "humid", *rate, *s_appChannel, now, &sWifiMutex);
-	StepperActuator *motor0 = new StepperActuator(CNF, *rate, "motor0-target", now, 0x60, 1);
-	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor0", *rate, *s_appChannel, now, *motor0,
-						      &sWifiMutex);
-	s_actuators[actuatorIndex++] = motor0;
+//	StepperActuator *motor0 = new StepperActuator(CNF, *rate, "motor0-target", now, 0x60, 1);
+//	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor0", *rate, *s_appChannel, now, *motor0,
+//						      &sWifiMutex);
+//	s_actuators[actuatorIndex++] = motor0;
 	StepperActuator *motor1 = new StepperActuator(CNF, *rate, "motor1-target", now, 0x60, 2);
-	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor1", *rate, *s_appChannel, now, *motor1,
+	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor1", *rate, *s_appChannel, now, motor1,
 						      &sWifiMutex);
 	s_actuators[actuatorIndex++] = motor1;
-	StepperActuator *motor2 = new StepperActuator(CNF, *rate, "motor2-target", now, 0x61, 2);
-	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor2", *rate, *s_appChannel, now, *motor2,
-						      &sWifiMutex);
-	s_actuators[actuatorIndex++] = motor2;
+//	StepperActuator *motor2 = new StepperActuator(CNF, *rate, "motor2-target", now, 0x61, 2);
+//	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor2", *rate, *s_appChannel, now, *motor2,
+//						      &sWifiMutex);
+//	s_actuators[actuatorIndex++] = motor2;
 	BeeCounter *beecnt = s_beecnt = new BeeCounter(CNF, "beecnt", *rate, *s_appChannel, now, 
 					      BEECNT_PLOAD_PIN, BEECNT_CLOCK_PIN, BEECNT_DATA_PIN,
 					      &sWifiMutex);

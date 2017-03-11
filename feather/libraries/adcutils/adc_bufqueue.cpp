@@ -1,5 +1,6 @@
 #include <adc_bufqueue.h>
 
+#define HEADLESS
 #define NDEBUG
 #include <Trace.h>
 

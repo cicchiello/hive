@@ -22,7 +22,7 @@ public:
   static void consumeToEOL(Str *line);
   static void consumeNumber(StrBuf *line);
   
-  static void itoahex(char buf[2], char i);
+  static const char *itoahex(char buf[2], char i);
   static int ahextoi(const char *hexascii, int len);
 
   static bool isNumber(const char *);

@@ -1,5 +1,6 @@
 #include <http_put.t.h>
 
+#define HEADLESS
 #define NDEBUG
 #include <Trace.h>
 

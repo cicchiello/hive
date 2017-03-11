@@ -101,10 +101,11 @@ inline static char hex2asc(unsigned char n)
 
 
 /* STATIC */
-void StringUtils::itoahex(char buf[2], char i)
+const char *StringUtils::itoahex(char buf[2], char i)
 {
   buf[0] = hex2asc(nibHigh(i));
   buf[1] = hex2asc(nibLow(i));
+  return buf;
 }
 
 
