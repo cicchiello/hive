@@ -1,0 +1,14 @@
+#!/bin/bash
+
+gpio -g mode 18 out
+gpio -g write 18 1
+sleep 1
+gpio -g write 18 0
+sleep 0.1
+gpio -g write 18 1
+sleep 0.2
+gpio -g write 18 0
+sleep 0.1
+gpio -g write 18 1
+sleep 1
+gpio -g mode 18 in

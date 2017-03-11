@@ -28,7 +28,9 @@ public class MotorProperty extends PropertyBase {
 
 	private static final String MOTOR_ACTION_PROPERTY = "MOTOR_ACTION_PROPERTY";
 	private static final String MOTOR_TIMESTAMP_PROPERTY = "MOTOR_TIMESTAMP_PROPERTY";
-	private static final String DEFAULT_MOTOR_ACTION = "stopped";
+	private static final String MOTOR_ACTION_STOPPED = "stopped";
+	private static final String MOTOR_ACTION_MOVING = "moving";
+	private static final String DEFAULT_MOTOR_ACTION = MOTOR_ACTION_STOPPED;
 	private static final String DEFAULT_MOTOR_TIMESTAMP = "0";
 	
 	private AlertDialog mAlert;
@@ -53,6 +55,10 @@ public class MotorProperty extends PropertyBase {
 		super(_activity, _hiveId, _valueTV, button, _timestampTV);
 		this.mMotorIndex = _motorIndex;
 
+		// make sure the motor is known to be stopped
+		MotorProperty.setMotorProperty(mActivity, mHiveId, mMotorIndex, MOTOR_ACTION_STOPPED, 
+				System.currentTimeMillis()/1000);
+
 		if (!isPropertyDefined())
 			displayUndefined();
 		else 
@@ -60,9 +66,6 @@ public class MotorProperty extends PropertyBase {
 
 		// must be called from the *thread* that creates any of the valueResid views that will eventually be modified
 		mDbAlertHandler = new DbAlertHandler();
-
-		// make sure the motor is known to be stopped
-		MotorProperty.setMotorProperty(mActivity, mHiveId, mMotorIndex, "stopped", System.currentTimeMillis()/1000);
 
     	button.setOnClickListener(new View.OnClickListener() {
 			@Override
@@ -120,8 +123,19 @@ public class MotorProperty extends PropertyBase {
 		PollSensorBackground.ResultCallback onCompletion = 
 			getMotorOnCompletion(mValueTV.getId(), mTimestampTV.getId(), new OnSaveValue() {
 				@Override
-				public void save(Activity activity, String objId, String value, long timestamp) {
-					MotorProperty.setMotorProperty(mActivity, mHiveId, mMotorIndex, value, timestamp);
+				public void save(Activity activity, String objId, String value, long timestamp_s) {
+					if (value.startsWith(MOTOR_ACTION_MOVING)) {
+						// determine if the value should be ignored
+						long steps = Long.parseLong(value.substring(MOTOR_ACTION_MOVING.length()));
+						long shouldHaveTaken_s = Math.abs(steps)/StepsPerRevolutionProperty.getStepsPerSecond(mActivity);
+						long shouldHaveFinishedBy_s = timestamp_s + shouldHaveTaken_s;
+						long now_s = System.currentTimeMillis()/1000;
+						if (now_s > shouldHaveFinishedBy_s+shouldHaveTaken_s) { // give it twice as long as it should have
+							// ignore it!
+							value = MOTOR_ACTION_STOPPED;
+						}
+					}
+					MotorProperty.setMotorProperty(mActivity, mHiveId, mMotorIndex, value, timestamp_s);
 				}
 			});
 		new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(mHiveId, "motor"+Integer.toString(mMotorIndex)), 
@@ -203,7 +217,7 @@ public class MotorProperty extends PropertyBase {
 							mPollCounter.set(0);
 
 							pollCloud();
-							done = getMotorAction(mActivity, mHiveId, mMotorIndex).equals("stopped") ||
+							done = getMotorAction(mActivity, mHiveId, mMotorIndex).equals(MOTOR_ACTION_STOPPED) ||
 									   (System.currentTimeMillis()-started > 60000);
 						}
 					}
@@ -240,21 +254,35 @@ public class MotorProperty extends PropertyBase {
 	protected void displayUndefined() {
 		Log.i(TAG, "Set display undefined");
 		long timestampMillis = 0;
-		String action = "stopped";
+		String action = MOTOR_ACTION_STOPPED;
 		HiveEnv.setValueWithSplash(mActivity, mValueTV.getId(), mTimestampTV.getId(), action, false, timestampMillis);
 	};
 	
 	// do whatever is necessary to display the current state in the ParentView
 	protected void display() {
 		long timestampMillis = getMotorTimestamp(mActivity, mHiveId, mMotorIndex)*1000;
-		boolean isStopped = getMotorAction(mActivity, mHiveId, mMotorIndex).equals("stopped");
-		String action = null;
+
+		String action = getMotorAction(mActivity, mHiveId, mMotorIndex);
+		boolean isStopped = !action.startsWith(MOTOR_ACTION_MOVING);
+		if (!isStopped) {
+			// determine if the property value should be ignored
+			long steps = Long.parseLong(action.substring(MOTOR_ACTION_MOVING.length()));
+			long shouldHaveTaken_s = Math.abs(steps)/StepsPerRevolutionProperty.getStepsPerSecond(mActivity);
+			long timestamp_s = timestampMillis/1000;
+			long shouldHaveFinishedBy_s = timestamp_s + shouldHaveTaken_s;
+			long now_s = System.currentTimeMillis()/1000;
+			if (now_s > shouldHaveFinishedBy_s+shouldHaveTaken_s) { // give it twice as long as it should have
+				// ignore it!
+				isStopped = true;
+			}
+		}
+		
 		if (isStopped) {
-			action = "stopped";
+			action = MOTOR_ACTION_STOPPED;
 			mButton.setImageResource(R.drawable.ic_rarrow);
 	    	mButton.setEnabled(true);
 		} else {
-			action = "moving";
+			action = MOTOR_ACTION_MOVING;
 			mButton.setImageResource(R.drawable.ic_rarrow_disabled);
 	    	mButton.setEnabled(false);
 		}

@@ -65,12 +65,14 @@ public class AudioSampler {
 	private File storageDir = null;
 	private DbAlertHandler mDbAlert = null;
 	private ImageButton mSampleButton = null;
+	private TextView mAudioTV = null;
 	private String mHiveId;
 	
-	public AudioSampler(Activity _activity, final String hiveId, ImageButton _sampleButton, DbAlertHandler _dbAlert) {
+	public AudioSampler(Activity _activity, final String hiveId, ImageButton _sampleButton, TextView _audioTV, DbAlertHandler _dbAlert) {
 		mActivity = _activity;
 		mDbAlert = _dbAlert;
 		mSampleButton = _sampleButton;
+		mAudioTV = _audioTV;
 		mHiveId = hiveId;
 		
 	    if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())) {
@@ -182,16 +184,12 @@ public class AudioSampler {
 		if (AudioSampler.isAudioPropertyDefined(activity, hiveId)) {
 			final String attName = AudioSampler.getAttName(activity, hiveId);
 			String timestampStr = attName.substring(attName.indexOf('_')+1,attName.indexOf('.'));
+    		final ImageButton sampleButton = (ImageButton) activity.findViewById(buttonResid);
 			final CharSequence since = DateUtils.getRelativeTimeSpanString(Long.parseLong(timestampStr)*1000,
-					System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE);
+									System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE);
 			activity.runOnUiThread(new Runnable() {
 				@Override
 				public void run() {
-		    		TextView audioTv = (TextView) activity.findViewById(audioResid);
-		    		if (!since.equals(audioTv.getText().toString())) {
-		    			audioTv.setText(since);
-						SplashyText.highlightModifiedField(activity, audioTv);
-		    		}
 		    		TextView audioTimestampTv = (TextView) activity.findViewById(audioTimestampResid);
 					Calendar cal = Calendar.getInstance(Locale.ENGLISH);
 					cal.setTimeInMillis(System.currentTimeMillis());
@@ -204,15 +202,22 @@ public class AudioSampler {
 				    // if there's no audio clip in flight, then enable the button and attach a click listener
 					long lastRequestTimestamp = getReqTimestamp(activity, hiveId);
 					long lastAttachmentTimestamp = getTimestamp(activity, hiveId);
-		    		ImageButton sampleButton = (ImageButton) activity.findViewById(buttonResid);
+		    		TextView audioTv = (TextView) activity.findViewById(audioResid);
+		    		String description = null;
 					if (lastAttachmentTimestamp > lastRequestTimestamp ||
 						System.currentTimeMillis() > (lastRequestTimestamp + 4*60)*1000) {
 						sampleButton.setImageResource(R.drawable.ic_rarrow);
 						sampleButton.setEnabled(true);
+						description = since.toString();
 					} else {
 						sampleButton.setImageResource(R.drawable.ic_rarrow_disabled);
 						sampleButton.setEnabled(false);
+						description = "working";
 					}
+		    		if (!description.equals(audioTv.getText().toString())) {
+		    			audioTv.setText(description);
+						SplashyText.highlightModifiedField(activity, audioTv);
+		    		}
 				}
 			});
 		}
@@ -312,6 +317,7 @@ public class AudioSampler {
 										setRequestTimestamp(mActivity, mHiveId, requestTimestamp);
 										mSampleButton.setImageResource(R.drawable.ic_rarrow_disabled);
 										mSampleButton.setEnabled(false);
+										mAudioTV.setText("working");
 										waitForPlayback(20, attName);
 									}
 								});

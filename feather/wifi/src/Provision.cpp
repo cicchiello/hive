@@ -43,7 +43,7 @@
 
 class ProvisionImp {
   public:
-    unsigned long mNextActionTime;
+    unsigned long mNextActionTime, mStartTime;
     int mMajorState, mMinorState, mDelayCnt, mPostDelayMinorState;
     int mWebStatus;
     bool mInvalidInput, mHasConfig, mIsStarted, mSaved;
@@ -74,14 +74,17 @@ class ProvisionImp {
       delete mCtxt;
   }
 
-  void start(bool ignoreConfigValidity = false)
+  unsigned long getStartTime() const {return mStartTime;}
+  
+  void start(unsigned long now, bool ignoreConfigValidity = false)
   {
       TF("ProvisionImp::start");
+      mStartTime = now;
       mNextActionTime = 0;
       mInvalidInput = mHasConfig = mIsStarted = mSaved = false;
       if (ignoreConfigValidity) {
-	  TRACE("Ignoring the filed config's validity; setting to default");
-	  mConfig.setDefault();
+	  TRACE("Ignoring the filed config's validity");
+	  PH("Starting Access Point for provisioning...");
 	  mMajorState = START_AP;
 	  mMinorState = INIT;
 	  mIsStarted = true;
@@ -97,6 +100,7 @@ class ProvisionImp {
       if (mMajorState != STOP_AP) {
 	  mMajorState = STOP_AP;
 	  mMinorState = INIT;
+	  mHasConfig = mConfig.isValid();
       }
   }
 
@@ -132,7 +136,6 @@ static Provision *s_singleton = NULL;
 bool ProvisionImp::loadLoop(unsigned long now)
 {
     TF("ProvisionImp::loadLoop");
-    TRACE("entry");
     
     bool shouldReturn = true; // very few cases shouldn't return, so make true the default
     switch (mMinorState) {
@@ -153,10 +156,11 @@ bool ProvisionImp::loadLoop(unsigned long now)
 		    mConfig.setDoc(mConfigReader->getDoc());
 		    
 		    StrBuf dump;
-		    PH2("Have a local configuration: ", CouchUtils::toString(mConfig.getDoc(), &dump));
+		    TRACE2("Have a local configuration: ", CouchUtils::toString(mConfig.getDoc(), &dump));
 		    mHasConfig = mConfig.isValid();
 		    if (!mHasConfig) {
-		        TRACE("Invalid local config loaded");
+			StrBuf dump;
+			PH2("Invalid local config loaded: ", CouchUtils::toString(mConfig.getDoc(), &dump));
 		    }
 		} else {
 		    TRACE("Loaded config is invalid; setting to default");  
@@ -240,15 +244,21 @@ bool Provision::isStarted() const
 const HiveConfig &Provision::getConfig() const {return mImp->mConfig;}
 HiveConfig &Provision::getConfig() {return mImp->mConfig;}
 
-void Provision::start()
+void Provision::start(unsigned long now)
 {
-    mImp->start();
+    mImp->start(now);
 }
 
 
-void Provision::forcedStart()
+unsigned long Provision::getStartTime() const
 {
-    mImp->start(true);
+    return mImp->getStartTime();
+}
+
+
+void Provision::forcedStart(unsigned long now)
+{
+    mImp->start(now, true);
 }
 
 
@@ -342,7 +352,7 @@ bool ProvisionImp::apLoop(unsigned long now, Mutex *wifiMutex)
 		    reportConnectedDevice(mCtxt->getWifi());
 		} else {
 		    // a device has disconnected from the AP, and we are back in listening mode
-		    Serial.println("Device disconnected from AP");
+		    PH("Device disconnected from AP");
 		}
 	    }
 
@@ -469,7 +479,7 @@ void ProvisionImp::sendPage(WiFiClient &client,
     const char *pageEnd = "</form><hr>\r\n</body></html>\r\n";
 
     // html pages (NOTE: make sure you don't have the '{' without the closing '}' !
-    const char *pageSet = "<h2>Hivewiz Settings</h2><input type=\"hidden\" name=\"page\" value=\"wifi\"><table border=\"0\"><tr><td><b>SSID:</b></td><td><input type=\"text\" name=\"ssid\" value=\"{ssid}\" size=\"40\"></td></tr><tr><td><b>Password:</b></td><td><input type=\"text\" name=\"pass\" value=\"******\" size=\"40\"></td></tr><tr><td><b>CouchDB url:</b></td><td><input type=\"text\" name=\"couchDbHost\" value=\"{couchDbHost}\" size=\"40\"></td></tr><tr><td><b>CouchDB port:</b></td><td><input type=\"text\" name=\"couchDbPort\" value=\"{couchDbPort}\" size=\"40\"></td></tr><tr><td><b>CouchDB uses ssl (y/n):</b></td><td><input type=\"text\" name=\"isSsl\" value=\"{isSsl}\" size=\"40\"></td></tr><tr><td><b>CouchDB Username:</b></td><td><input type=\"text\" name=\"couchDbUser\" value=\"{couchDbUser}\" size=\"40\"></td></tr><tr><td><b>CouchDB Password:</b></td><td><input type=\"text\" name=\"couchDbPswd\" value=\"{couchDbPswd}\" size=\"40\"></td></tr><tr><td><b>Status:</b></td></tr><td>{status} <a href=\"?page=wifi\">[refresh]</a></td></tr><tr><td></td><td><input type=\"submit\" value=\"Save hi\"></td></tr><tr></tr></table>\r\n";
+    const char *pageSet = "<h2>Hivewiz Settings</h2><input type=\"hidden\" name=\"page\" value=\"wifi\"><table border=\"0\"><tr><td><b>SSID:</b></td><td><input type=\"text\" name=\"ssid\" value=\"{ssid}\" size=\"40\"></td></tr><tr><td><b>Password:</b></td><td><input type=\"text\" name=\"pass\" value=\"******\" size=\"40\"></td></tr><tr><td><b>CouchDB url:</b></td><td><input type=\"text\" name=\"couchDbHost\" value=\"{couchDbHost}\" size=\"40\"></td></tr><tr><td><b>CouchDB port:</b></td><td><input type=\"text\" name=\"couchDbPort\" value=\"{couchDbPort}\" size=\"40\"></td></tr><tr><td><b>CouchDB uses ssl (y/n):</b></td><td><input type=\"text\" name=\"isSsl\" value=\"{isSsl}\" size=\"40\"></td></tr><tr><td><b>CouchDB Username:</b></td><td><input type=\"text\" name=\"couchDbUser\" value=\"{couchDbUser}\" size=\"40\"></td></tr><tr><td><b>CouchDB Password:</b></td><td><input type=\"text\" name=\"couchDbPswd\" value=\"{couchDbPswd}\" size=\"40\"></td></tr><tr><td><b>Status:</b></td></tr><td>{status} <a href=\"?page=wifi\">[refresh]</a></td></tr><tr><td></td><td><input type=\"submit\" value=\"Save\"></td></tr><tr></tr></table>\r\n";
     const char *pageSavedInfo = "<br><b style=\"color: green\">Settings Saved!</b>\r\n";
 
     client.print(pageStart);

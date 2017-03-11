@@ -1,0 +1,47 @@
+#!/bin/bash
+
+WHO=""
+while getopts "s:w:" option
+do
+	case "${option}"
+	in
+	    s) SINCE=${OPTARG};;
+	    w) WHO=${OPTARG};;
+	esac
+done
+
+if [ -n "$SINCE" ]; then
+    echo "Attempting to get all records with timestamp greater than $SINCE"
+else
+    echo "Error: a unix timestamp must be supplied"
+    echo "usage: -s <unix-timestamp>"
+    exit
+fi
+
+all="true"
+if [ "$WHO" == "angus" ]; then
+    echo "Angus' records requested"
+    id="95efbfae334d4d512020204a311402ff"
+    all="false"
+fi
+
+if [ -n "$WHO" ]; then
+    echo "Using user id ${id}"
+else
+    echo "No particular user requested"
+fi
+
+couchHost="http://jfcenterprises.cloudant.com"
+db="hive-sensor-log"
+designDoc="_design/SensorLog"
+view="by-hive-sensor"
+listfunc="dumpraw"
+
+if [ "$all" == "true" ]; then
+    curl ${couchHost}/${db}/${designDoc}/_list/${listfunc}/${view} 2> /dev/null | awk -F, '{if ($4 > '$SINCE') {dcmd="date --date=@"$4; dcmd | getline mydate; printf("%s,%s,%s,%s,%s,%s\n",$4,$1,$2,$3,mydate,$5,$6);}}'
+else
+    curl ${couchHost}/${db}/${designDoc}/_list/${listfunc}/${view} 2> /dev/null | awk -F, '{if ($4 > '$SINCE') {dcmd="date --date=@"$4; dcmd | getline mydate; printf("%s,%s,%s,%s,%s,%s,%s\n",$4,$1,$2,$3,mydate,$5,$6);}}' | grep $id
+fi    
+
+
+

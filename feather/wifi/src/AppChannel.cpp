@@ -55,6 +55,7 @@ AppChannel::AppChannel(const HiveConfig &config, unsigned long now, Mutex *wifiM
 
 AppChannel::~AppChannel()
 {
+    TF("AppChannel::~AppChannel");
     if (mGetter != NULL) {
         PH("Deleting mGetter");
 	delete mGetter;
@@ -285,7 +286,7 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 		url = &msgUrl;
 	    }
 	    
-	    TRACE2("creating getter with url: ", url);
+	    TRACE2("creating getter with url: ", url->c_str());
 	    TRACE2("thru wifi: ", mConfig.getSSID().c_str());
 	    TRACE2("with pswd: ", mConfig.getPSWD().c_str());
 	    TRACE2("to host: ", mConfig.getDbHost().c_str());
@@ -329,10 +330,12 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 			PH2("doc: ", mGetter->getHeaderConsumer().getResponse().c_str());
 		    }
 		} else if (mGetter->isTimeout()) {
-		    PH("AppChannel::getterLoop timed out; retrying again in 5s");
+		    PH2("timed out; retrying again in 5s; now: ", now);
 		    retry = true;
-		    mIsOnline = false;
-		    mOfflineTime = now;
+		    if (mIsOnline) {
+		        mIsOnline = false;
+			mOfflineTime = now;
+		    }
 		} else if (mGetter->isError()) {
 		    mIsOnline = false;
 		    mOfflineTime = now;

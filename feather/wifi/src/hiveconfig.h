@@ -51,7 +51,8 @@ class HiveConfig {
     const Str &getResetCause() const {return mRCause;}
     const Str &getVersionId() const {return mVersionId;}
 
-    bool addProperty(const char *name, const char *value);
+    bool addProperty(const Str &name, const char *value);
+    bool hasProperty(const Str &name) const;
     const Str &getProperty(const Str &name) const;
 
     class UpdateFunctor {

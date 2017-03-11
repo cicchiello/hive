@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+#define HEADLESS
 #define NDEBUG
 #include <Trace.h>
 
@@ -213,8 +214,7 @@ bool ListenerWavCreatorImp::writeChunk()
 	        PH("Just detected failure");
 	    }
 	} else {
-	    PH(m_samplesRead);
-	    PL(" samples read from raw file");
+	    PH2(m_samplesRead, " samples read from raw file");
 	    m_success &= m_samplesRead == m_samplesToWrite;
 	}
     }
@@ -227,9 +227,7 @@ ListenerWavCreatorImp::~ListenerWavCreatorImp()
 {
     TF("ListenerWavCreatorImp::~ListenerWavCreatorImp; ");
     
-    PH("Wrote ");
-    P(m_samplesWritten);
-    PL(" samples.");
+    PH3("Wrote ", m_samplesWritten, " samples.");
 
     // close both files
     m_wf.close();
