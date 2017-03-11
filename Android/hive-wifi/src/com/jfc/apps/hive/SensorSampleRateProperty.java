@@ -1,5 +1,7 @@
 package com.jfc.apps.hive;
 
+import org.acra.ACRA;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
@@ -94,7 +96,7 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 								});
 							}
 							@Override
-							public void error(final String msg) {
+							public void error(String query, final String msg) {
 								mActivity.runOnUiThread(new Runnable() {
 									@Override
 									public void run() {
@@ -102,6 +104,7 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 										mAlert = DialogUtils.createAndShowErrorDialog(mActivity, msg, android.R.string.cancel, cancelAction);
 									}
 								});
+								ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
 							}
 							@Override
 							public void serviceUnavailable(final String msg) {

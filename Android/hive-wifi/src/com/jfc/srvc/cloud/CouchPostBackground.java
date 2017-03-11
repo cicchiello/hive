@@ -32,7 +32,7 @@ public class CouchPostBackground extends AsyncTask<Void,Void,Boolean> {
 
     public interface OnCompletion {
     	public void onSuccess(String docId, String rev);
-    	public void onFailure(String msg);
+    	public void onFailure(String query, String msg);
     };
     
     public CouchPostBackground(String _dbUrl, String _authToken, String _doc, OnCompletion _onCompletion) {
@@ -67,7 +67,7 @@ public class CouchPostBackground extends AsyncTask<Void,Void,Boolean> {
             //System.err.println("Response: "+response.getStatusLine());
             if (response.getStatusLine().getStatusCode() != 201) {
                 System.err.println("CouchDb POST of attachment mapper failed; HTTP error code : " + response.getStatusLine().getStatusCode());
-                onCompletion.onFailure(response.toString());
+                onCompletion.onFailure(urlStub, response.toString());
                 return false;
             }
 
@@ -87,24 +87,24 @@ public class CouchPostBackground extends AsyncTask<Void,Void,Boolean> {
                 return true;
             }
             
-            onCompletion.onFailure(response.toString());
+            onCompletion.onFailure(urlStub, response.toString());
         } catch (URISyntaxException e) {
-        	onCompletion.onFailure(e.getMessage());
+        	onCompletion.onFailure(urlStub, e.getMessage());
             System.err.println("URISyntaxException: "+e);
         } catch (ClientProtocolException e) {
-        	onCompletion.onFailure(e.getMessage());
+        	onCompletion.onFailure(urlStub, e.getMessage());
             System.err.println("ClientProtocolException: "+e);
         } catch (UnknownHostException e) {
-        	onCompletion.onFailure(e.getMessage());
+        	onCompletion.onFailure(urlStub, e.getMessage());
         	System.err.println("UnknownHostException: "+e);
         } catch (IOException e) {
-        	onCompletion.onFailure(e.getMessage());
+        	onCompletion.onFailure(urlStub, e.getMessage());
             System.err.println("IOException: "+e);
         } catch (JSONException e) {
-        	onCompletion.onFailure(e.getMessage());
+        	onCompletion.onFailure(urlStub, e.getMessage());
             System.err.println("JSONException: " + e);
         } catch (Exception e) {
-        	onCompletion.onFailure(e.getMessage());
+        	onCompletion.onFailure(urlStub, e.getMessage());
             System.err.println("Exception: " + e);
         } finally {
             try {

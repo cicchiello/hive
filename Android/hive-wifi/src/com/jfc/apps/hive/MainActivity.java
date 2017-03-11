@@ -294,8 +294,8 @@ public class MainActivity extends Activity {
 														e.printStackTrace();
 													}
 												}
-												public void objNotFound() {failed("Object Not Found (listener)");}
-												public void failed(String msg) {
+												public void objNotFound(String query) {failed(query, "Object Not Found (listener)");}
+												public void failed(String query, String msg) {
 													Toast.makeText(MainActivity.this, msg+"; sending a report to my developer", Toast.LENGTH_LONG).show();
 													ACRA.getErrorReporter().handleException(new Exception(msg));												}
 											};
@@ -340,6 +340,8 @@ public class MainActivity extends Activity {
 		
 		if (audio != null) 
 			audio.onPause();
+		
+		mInitialValuesSet = false;
 		
 		super.onPause();
 	}

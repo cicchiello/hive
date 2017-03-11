@@ -286,7 +286,8 @@ public class MotorProperty extends PropertyBase {
 			mButton.setImageResource(R.drawable.ic_rarrow_disabled);
 	    	mButton.setEnabled(false);
 		}
-		HiveEnv.setValueWithSplash(mActivity, mValueTV.getId(), mTimestampTV.getId(), action, true, timestampMillis);
+		long timestamp_s = timestampMillis / 1000;
+		HiveEnv.setValueWithSplash(mActivity, mValueTV.getId(), mTimestampTV.getId(), action, true, timestamp_s);
 	}
 
 	private PollSensorBackground.ResultCallback getMotorOnCompletion(final int valueResid, final int timestampResid, 

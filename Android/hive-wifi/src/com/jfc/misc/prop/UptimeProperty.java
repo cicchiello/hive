@@ -60,22 +60,19 @@ public class UptimeProperty implements IPropertyMgr {
 		        });
 		        mAlert = builder.show();
 
-		        String upsinceValueStr = "unknown";
-		        if (UptimeProperty.isUptimePropertyDefined(mActivity, hiveId)) {
-					Calendar cal = Calendar.getInstance(Locale.ENGLISH);
-					cal.setTimeInMillis(1000*UptimeProperty.getUptime(mActivity, hiveId));
-					upsinceValueStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
-		        }
-		        
 		        TextView upsinceTv = (TextView) mAlert.findViewById(R.id.upsince_text);
 		        TextView statusTv = (TextView) mAlert.findViewById(R.id.current_status_text);
 		        TextView embeddedVersionTv = (TextView) mAlert.findViewById(R.id.embedded_version_text);
-		        upsinceTv.setText(upsinceValueStr);
 		        
+		        String upsinceValueStr = "unknown";
 		        if (isUptimePropertyDefined(mActivity, hiveId)) {
+					Calendar cal = Calendar.getInstance(Locale.ENGLISH);
+					cal.setTimeInMillis(1000*UptimeProperty.getUptime(mActivity, hiveId));
+					upsinceValueStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
+					
 		        	long uptimeTimestamp_s = getUptimeTimestamp(mActivity, hiveId);
 		        	long uptimeTimestamp_ms = 1000*uptimeTimestamp_s;
-		        	Calendar cal = Calendar.getInstance(Locale.ENGLISH);
+		        	cal = Calendar.getInstance(Locale.ENGLISH);
 		        	cal.setTimeInMillis(uptimeTimestamp_ms);
 					String heartbeatTimeStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
 					int rate_minutes = SensorSampleRateProperty.getRate(mActivity);
@@ -91,6 +88,8 @@ public class UptimeProperty implements IPropertyMgr {
 					}
 		        } else statusTv.setText("Unknown");
 		        
+		        upsinceTv.setText(upsinceValueStr);
+		        
 		        JSONObject config = UptimeProperty.getEmbeddedConfig(mActivity, hiveId);
 		        try {
 					embeddedVersionTv.setText(config.has("hive-version") ? config.getString("hive-version") : "e.f.g");
@@ -103,16 +102,16 @@ public class UptimeProperty implements IPropertyMgr {
 		
 		CouchGetBackground.OnCompletion onCompletion =new CouchGetBackground.OnCompletion() {
 			@Override
-			public void objNotFound() {
-				failed("Object Not Found (config)");
+			public void objNotFound(String query) {
+				failed(query, "Object Not Found: ");
 			}
 			
 			@Override
-			public void failed(final String msg) {
+			public void failed(final String query, final String msg) {
 				mActivity.runOnUiThread(new Runnable() {
 					public void run() {
 						Toast.makeText(mActivity, msg+".  Sending a report to my developer", Toast.LENGTH_LONG).show();
-						ACRA.getErrorReporter().handleException(new Exception(msg));
+						ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
 					}
 				});
 			}
@@ -127,7 +126,7 @@ public class UptimeProperty implements IPropertyMgr {
 			}
 		};
 		
-		HiveEnv.couchGetConfig(mActivity, onCompletion);
+		HiveEnv.couchGetConfig(mActivity, hiveId, onCompletion);
 	}
 
 	static private String uniqueIdentifier(String base, String hiveId) {

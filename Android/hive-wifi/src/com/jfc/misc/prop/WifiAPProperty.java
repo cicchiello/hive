@@ -75,6 +75,7 @@ public class WifiAPProperty implements IPropertyMgr {
 		this.mCtxt = activity.getApplicationContext();
 		this.mSsidTv = ssidTv;
 		this.mDbAlert = _dbAlert;
+		final String hiveId = HiveEnv.getHiveAddress(activity, ActiveHiveProperty.getActiveHiveName(activity));
 		
 		if (isAPDefined(mCtxt)) {
 			displayAP(getSSID(mCtxt), getPSWD(mCtxt));
@@ -85,16 +86,16 @@ public class WifiAPProperty implements IPropertyMgr {
 		
 		CouchGetBackground.OnCompletion ssidOnCompletion =new CouchGetBackground.OnCompletion() {
 			@Override
-			public void objNotFound() {
-				failed("Object Not Found (config AP)");
+			public void objNotFound(String query) {
+				failed(query, "Object Not Found (config AP)");
 			}
 			
 			@Override
-			public void failed(final String msg) {
+			public void failed(final String query, final String msg) {
 				mActivity.runOnUiThread(new Runnable() {
 					public void run() {
 						Toast.makeText(mActivity, msg+"; sending a report to my developer", Toast.LENGTH_LONG).show();
-						ACRA.getErrorReporter().handleException(new Exception(msg));
+						ACRA.getErrorReporter().handleException(new Exception(query+"failed with msg: "+msg));
 					}
 				});
 			}
@@ -105,27 +106,27 @@ public class WifiAPProperty implements IPropertyMgr {
 					final String SSID = resultDoc.getString("ssid");
 					mActivity.runOnUiThread(new Runnable() {public void run() {mSsidTv.setText(SSID);}});
 				} catch (JSONException je) {
-					failed(je.getMessage());
+					failed("invalid JSON doc: "+resultDoc.toString(), je.getMessage());
 				}
 			}
 		};
-		HiveEnv.couchGetConfig(mActivity, ssidOnCompletion);
+		HiveEnv.couchGetConfig(mActivity, hiveId, ssidOnCompletion);
 		
     	button.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
 				CouchGetBackground.OnCompletion onCompletion =new CouchGetBackground.OnCompletion() {
 					@Override
-					public void objNotFound() {
-						failed("Object Not Found (config)");
+					public void objNotFound(String query) {
+						failed(query, "Object Not Found (config)");
 					}
 					
 					@Override
-					public void failed(final String msg) {
+					public void failed(final String query, final String msg) {
 						mActivity.runOnUiThread(new Runnable() {
 							public void run() {
 								Toast.makeText(mActivity, msg+"; sending a report to my developer", Toast.LENGTH_LONG).show();
-								ACRA.getErrorReporter().handleException(new Exception(msg));
+								ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
 							}
 						});
 					}
@@ -136,7 +137,7 @@ public class WifiAPProperty implements IPropertyMgr {
 					}
 				};
 				
-				HiveEnv.couchGetConfig(mActivity, onCompletion);
+				HiveEnv.couchGetConfig(mActivity, hiveId, onCompletion);
 			}
 		});
 	}
@@ -173,7 +174,7 @@ public class WifiAPProperty implements IPropertyMgr {
 						});
 					}
 					@Override
-					public void error(final String msg) {
+					public void error(String query, final String msg) {
 						mActivity.runOnUiThread(new Runnable() {
 							@Override
 							public void run() {
@@ -181,6 +182,7 @@ public class WifiAPProperty implements IPropertyMgr {
 								mAlert = DialogUtils.createAndShowErrorDialog(mActivity, msg, android.R.string.cancel, cancelAction);
 							}
 						});
+						ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
 					}
 					@Override
 					public void serviceUnavailable(final String msg) {

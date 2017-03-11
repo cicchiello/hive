@@ -267,19 +267,19 @@ public class BridgePairingsProperty implements IPropertyMgr {
 		
     	CouchGetBackground.OnCompletion onCompletion = new CouchGetBackground.OnCompletion() {
 			@Override
-			public void failed(final String msg) {
+			public void failed(final String query, final String msg) {
 				mActivity.runOnUiThread(new Runnable() {
 					@Override
 					public void run() {
 						Toast.makeText(mActivity, msg+"; sending a report to my developer", Toast.LENGTH_LONG).show();
-						ACRA.getErrorReporter().handleException(new Exception(msg));
+						ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
 					}
 				});
 			}
 			
 			@Override 
-			public void objNotFound() {
-				failed("Object Not Found");
+			public void objNotFound(String query) {
+				failed(query, "Object Not Found");
 			}
 			
 			@Override
@@ -315,7 +315,7 @@ public class BridgePairingsProperty implements IPropertyMgr {
 							}
 							
 							@Override
-							public void objNotFound() {
+							public void objNotFound(String query) {
 								mActivity.runOnUiThread(new Runnable() {
 									@Override 
 									public void run() {
@@ -327,14 +327,14 @@ public class BridgePairingsProperty implements IPropertyMgr {
 							}
 							
 							@Override
-							public void failed(String msg) {
-								ACRA.getErrorReporter().handleException(new Exception(msg));
+							public void failed(String query, String msg) {
+								ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
 							}
 						};
 						new CouchGetBackground(dbUrl+"/"+hiveId, authToken, hiveNameOnCompletion).execute();
 					}
 				} catch (JSONException je) {
-					failed(je.getMessage());
+					failed("invald JSONDoc: "+results.toString(), je.getMessage());
 				}
 			};
     	};
