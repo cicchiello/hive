@@ -2,6 +2,7 @@ package com.jfc.misc.prop;
 
 import java.util.Iterator;
 
+import org.acra.ACRA;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -237,17 +238,21 @@ public class DbCredentialsProperty implements IPropertyMgr {
 								  final String configDbName, final String logDbName, final String channelDbName,
 								  final String key, final String pswd) {
 		setDbCredentials(mCtxt, dbHost, usesSSL, configDbName, logDbName, channelDbName, key, pswd);
+		final String hiveId = PairedHiveProperty.getPairedHiveId(mActivity, ActiveHiveProperty.getActiveHiveIndex(mActivity));
 		
 		CouchGetBackground.OnCompletion onCompletion =new CouchGetBackground.OnCompletion() {
 			@Override
-			public void objNotFound() {
-				failed("Object Not Found");
+			public void objNotFound(String query) {
+				failed(query, "Object Not Found");
 			}
 			
 			@Override
-			public void failed(final String msg) {
+			public void failed(final String query, final String msg) {
 				mActivity.runOnUiThread(new Runnable() {
-					public void run() {Toast.makeText(mActivity, msg, Toast.LENGTH_LONG).show();}
+					public void run() {
+						Toast.makeText(mActivity, msg+"; sending a report to my developer", Toast.LENGTH_LONG).show();
+						ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
+					}
 				});
 			}
 
@@ -277,7 +282,6 @@ public class DbCredentialsProperty implements IPropertyMgr {
 					e.printStackTrace();
 				}
         		
-        		String hiveId = PairedHiveProperty.getPairedHiveId(mActivity, ActiveHiveProperty.getActiveHiveIndex(mActivity));
         		String dbUrl = DbCredentialsProperty.getCouchConfigDbUrl(mActivity)+"/"+hiveId;
     			String authToken = DbCredentialsProperty.getAuthToken(mCtxt);
         		
@@ -289,17 +293,18 @@ public class DbCredentialsProperty implements IPropertyMgr {
 						}});
 					}
 					@Override
-					public void failed(String msg) {
+					public void failed(String query, String msg) {
 						mActivity.runOnUiThread(new Runnable() {public void run() {
 							Toast.makeText(mActivity, "Save Failed", Toast.LENGTH_LONG).show();
 						}});
+						ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
 					}};
         		CouchPutBackground putter = new CouchPutBackground(dbUrl, authToken, newDoc.toString(), onCompletion);
         		putter.execute();
 			}
 		};
 		
-		HiveEnv.couchGetConfig(mActivity, onCompletion);
+		HiveEnv.couchGetConfig(mActivity, hiveId, onCompletion);
 		
 		displayDbCredentials(dbHost, usesSSL, configDbName, logDbName, channelDbName, key, pswd);
 	}

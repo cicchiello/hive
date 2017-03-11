@@ -15,6 +15,7 @@ public class DbAlertHandler {
 	private static AtomicBoolean sDbAlertSemaphore = new AtomicBoolean(false);
 	private static Handler sDbAlertTimer = null;
 	private static AlertDialog sAlert = null;
+	private static Activity sOwner = null;
 
 	// must be called from the *thread* that creates any of the valueResid views that will eventually be modified
 	public DbAlertHandler() {
@@ -54,6 +55,7 @@ public class DbAlertHandler {
 			    				}
 			    			};
 			    			sAlert = DialogUtils.createAndShowErrorDialog(activity, msg, android.R.string.cancel, cancelAction);
+			    			sOwner = activity;
 						}
 					});
 				}
@@ -76,8 +78,10 @@ public class DbAlertHandler {
 	}
 	
 	private void dismissAlert() {
-		if (sAlert != null) 
-			sAlert.dismiss();
+		if (sAlert != null) {
+			if (!sOwner.isFinishing())
+				sAlert.dismiss();
+		}
 		sAlert = null;
 	}
 	

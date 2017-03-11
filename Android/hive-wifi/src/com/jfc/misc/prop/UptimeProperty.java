@@ -3,6 +3,7 @@ package com.jfc.misc.prop;
 import java.util.Calendar;
 import java.util.Locale;
 
+import org.acra.ACRA;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
@@ -48,7 +49,6 @@ public class UptimeProperty implements IPropertyMgr {
 		View.OnClickListener ocl = new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				int hiveIndex = ActiveHiveProperty.getActiveHiveIndex(mActivity);
 				AlertDialog.Builder builder = new AlertDialog.Builder(mActivity);
 				
 				builder.setIcon(R.drawable.ic_hive);
@@ -60,33 +60,35 @@ public class UptimeProperty implements IPropertyMgr {
 		        });
 		        mAlert = builder.show();
 
-		        String upsinceValueStr = "unknown";
-		        if (UptimeProperty.isUptimePropertyDefined(mActivity, hiveId)) {
-					Calendar cal = Calendar.getInstance(Locale.ENGLISH);
-					cal.setTimeInMillis(1000*UptimeProperty.getUptime(mActivity, hiveId));
-					upsinceValueStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
-		        }
-		        
 		        TextView upsinceTv = (TextView) mAlert.findViewById(R.id.upsince_text);
 		        TextView statusTv = (TextView) mAlert.findViewById(R.id.current_status_text);
 		        TextView embeddedVersionTv = (TextView) mAlert.findViewById(R.id.embedded_version_text);
-		        upsinceTv.setText(upsinceValueStr);
 		        
+		        String upsinceValueStr = "unknown";
 		        if (isUptimePropertyDefined(mActivity, hiveId)) {
+					Calendar cal = Calendar.getInstance(Locale.ENGLISH);
+					cal.setTimeInMillis(1000*UptimeProperty.getUptime(mActivity, hiveId));
+					upsinceValueStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
+					
 		        	long uptimeTimestamp_s = getUptimeTimestamp(mActivity, hiveId);
 		        	long uptimeTimestamp_ms = 1000*uptimeTimestamp_s;
-		        	Calendar cal = Calendar.getInstance(Locale.ENGLISH);
+		        	cal = Calendar.getInstance(Locale.ENGLISH);
 		        	cal.setTimeInMillis(uptimeTimestamp_ms);
 					String heartbeatTimeStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
 					int rate_minutes = SensorSampleRateProperty.getRate(mActivity);
 					int second_ms = 1000;
 					int minute_s = 60;
 					long timeToBeSureOfDeath_ms = uptimeTimestamp_ms + (rate_minutes+1)*minute_s*second_ms;
-					if (System.currentTimeMillis() > timeToBeSureOfDeath_ms) 
+					if (System.currentTimeMillis() > timeToBeSureOfDeath_ms) {
 						statusTv.setText("Nothing since "+heartbeatTimeStr);
-					else 
+						statusTv.setBackgroundColor(HiveEnv.ModifiableFieldErrorColor);
+					} else {
 						statusTv.setText("Up as of "+heartbeatTimeStr);
+						statusTv.setBackgroundColor(HiveEnv.ModifiableFieldBackgroundColor);
+					}
 		        } else statusTv.setText("Unknown");
+		        
+		        upsinceTv.setText(upsinceValueStr);
 		        
 		        JSONObject config = UptimeProperty.getEmbeddedConfig(mActivity, hiveId);
 		        try {
@@ -100,24 +102,31 @@ public class UptimeProperty implements IPropertyMgr {
 		
 		CouchGetBackground.OnCompletion onCompletion =new CouchGetBackground.OnCompletion() {
 			@Override
-			public void objNotFound() {
-				failed("Object Not Found");
+			public void objNotFound(String query) {
+				failed(query, "Object Not Found: ");
 			}
 			
 			@Override
-			public void failed(final String msg) {
-				mActivity.runOnUiThread(new Runnable() {public void run() {Toast.makeText(mActivity, msg, Toast.LENGTH_LONG).show();}});
+			public void failed(final String query, final String msg) {
+				mActivity.runOnUiThread(new Runnable() {
+					public void run() {
+						Toast.makeText(mActivity, msg+".  Sending a report to my developer", Toast.LENGTH_LONG).show();
+						ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
+					}
+				});
 			}
 
 			@Override
 			public void complete(final JSONObject doc) {
 				mActivity.runOnUiThread(new Runnable() {
-					public void run() {setEmbeddedConfig(mActivity, hiveId, doc);}
+					public void run() {
+						setEmbeddedConfig(mActivity, hiveId, doc);
+					}
 				});
 			}
 		};
 		
-		HiveEnv.couchGetConfig(mActivity, onCompletion);
+		HiveEnv.couchGetConfig(mActivity, hiveId, onCompletion);
 	}
 
 	static private String uniqueIdentifier(String base, String hiveId) {
@@ -198,13 +207,25 @@ public class UptimeProperty implements IPropertyMgr {
 			final long uptimeMillis = UptimeProperty.getUptime(activity, hiveId)*1000;
 			final CharSequence since = DateUtils.getRelativeTimeSpanString(uptimeMillis,
 					System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE);
+			
+        	long uptimeTimestamp_s = getUptimeTimestamp(activity, hiveId);
+        	long uptimeTimestamp_ms = 1000*uptimeTimestamp_s;
+			int rate_minutes = SensorSampleRateProperty.getRate(activity);
+			int second_ms = 1000;
+			int minute_s = 60;
+			long timeToBeSureOfDeath_ms = uptimeTimestamp_ms + (rate_minutes+1)*minute_s*second_ms;
+			final boolean appearsDead = System.currentTimeMillis() > timeToBeSureOfDeath_ms;
+			
 			activity.runOnUiThread(new Runnable() {
 				@Override
 				public void run() {
 		    		TextView uptimeTv = (TextView) activity.findViewById(uptimeResid);
 		    		if (!since.equals(uptimeTv.getText().toString())) {
 		    			uptimeTv.setText(since);
-						SplashyText.highlightModifiedField(activity, uptimeTv);
+						if (appearsDead) 
+							uptimeTv.setBackgroundColor(HiveEnv.ModifiableFieldErrorColor);
+						else 
+							SplashyText.highlightModifiedField(activity, uptimeTv);
 		    		}
 		    		TextView uptimeTimestampTv = (TextView) activity.findViewById(uptimeTimestampResid);
 					Calendar cal = Calendar.getInstance(Locale.ENGLISH);

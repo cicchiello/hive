@@ -49,13 +49,12 @@ public class HiveEnv {
     	}
 	}
 	
-	public static void couchGetConfig(Context ctxt, final CouchGetBackground.OnCompletion onCompletion) {
+	public static void couchGetConfig(Context ctxt, String HiveId, final CouchGetBackground.OnCompletion onCompletion) {
 		if (ActiveHiveProperty.isActiveHivePropertyDefined(ctxt)) {
 	    	CouchGetBackground.OnCompletion couchOnCompletion = onCompletion;
 			String dbUrl = DbCredentialsProperty.getCouchConfigDbUrl(ctxt);
 			String authToken = null;
-			String hiveId = PairedHiveProperty.getPairedHiveId(ctxt, ActiveHiveProperty.getActiveHiveIndex(ctxt));
-	    	final CouchGetBackground getter = new CouchGetBackground(dbUrl+"/"+hiveId, authToken, couchOnCompletion);
+	    	final CouchGetBackground getter = new CouchGetBackground(dbUrl+"/"+HiveId, authToken, couchOnCompletion);
 	    	getter.execute();
 		}
 	}
@@ -63,7 +62,7 @@ public class HiveEnv {
 	
 	public static void setValueImplementation(Activity activity, 
 											  int valueResid, int timestampResid, 
-											  String value, boolean isTimestampDefined, long timestamp, 
+											  String value, boolean isTimestampDefined, long timestamp_s, 
 											  boolean addSplash) 
 	{
 		TextView valueTv = valueResid != 0 ? (TextView) activity.findViewById(valueResid) : null;
@@ -73,7 +72,7 @@ public class HiveEnv {
 		boolean splashTimestamp = false;
 		if (isTimestampDefined) {
 			Calendar cal = Calendar.getInstance(Locale.ENGLISH);
-			cal.setTimeInMillis(timestamp);
+			cal.setTimeInMillis(timestamp_s*1000);
 			String timestampStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
 			splashTimestamp = !timestampTv.getText().equals(timestampStr);
 			timestampTv.setText(timestampStr);
@@ -84,8 +83,12 @@ public class HiveEnv {
 		if (addSplash) {
 			if (splashValue) 
 				SplashyText.highlightModifiedField(activity, valueTv);
+			else 
+				valueTv.setBackgroundColor(HiveEnv.ModifiableFieldBackgroundColor);
 			if (splashTimestamp) 
 				SplashyText.highlightModifiedField(activity, timestampTv);
+			else 
+				timestampTv.setBackgroundColor(HiveEnv.ModifiableFieldBackgroundColor);
 		}
 	}
 

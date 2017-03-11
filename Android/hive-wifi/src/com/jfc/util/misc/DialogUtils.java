@@ -2,74 +2,75 @@ package com.jfc.util.misc;
 
 import com.jfc.apps.hive.R;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.view.View;
 
 public class DialogUtils {
-	public static AlertDialog createAndShowAlertDialog(Context context, 
+	public static AlertDialog createAndShowAlertDialog(Activity activity, 
 													   String msg,
 													   int posResId, final Runnable posAction, 
 													   int cancelResId, final Runnable cancelAction) {
-		return createAndShowDialog(context, null, R.drawable.ic_alert, context.getString(R.string.warning), msg, posResId, posAction, 0, null, cancelResId, cancelAction);
+		return createAndShowDialog(activity, null, R.drawable.ic_alert, activity.getString(R.string.warning), msg, posResId, posAction, 0, null, cancelResId, cancelAction);
 	}
 
-	public static AlertDialog createAndShowErrorDialog(Context context, 
+	public static AlertDialog createAndShowErrorDialog(Activity activity, 
 													   String msg, 
 													   int cancelResId, final Runnable cancelAction) {
-		return createAndShowDialog(context, null, R.drawable.ic_alert, context.getString(R.string.error), msg, 0, null, 0, null, cancelResId, cancelAction);
+		return createAndShowDialog(activity, null, R.drawable.ic_alert, activity.getString(R.string.error), msg, 0, null, 0, null, cancelResId, cancelAction);
 	}
 
-	public static AlertDialog createAndShowAlertDialog(Context context, 
+	public static AlertDialog createAndShowAlertDialog(Activity activity, 
 													   int msgResId,
 													   int posResId, final Runnable posAction, 
 													   int cancelResId, final Runnable cancelAction) {
-		return createAndShowDialog(context, null, R.drawable.ic_alert, R.string.warning, msgResId, posResId, posAction, 0, null, cancelResId, cancelAction);
+		return createAndShowDialog(activity, null, R.drawable.ic_alert, R.string.warning, msgResId, posResId, posAction, 0, null, cancelResId, cancelAction);
 	}
 	
-	public static AlertDialog createAndShowAlertDialog(Context context, 
+	public static AlertDialog createAndShowAlertDialog(Activity activity, 
 													   String msg,
 													   int posResId, final Runnable posAction, 
 													   int neutralResId, final Runnable neutralAction,
 													   int cancelResId, final Runnable cancelAction) {
-		return createAndShowDialog(context, null, R.drawable.ic_alert, context.getString(R.string.warning), msg, posResId, posAction, neutralResId, neutralAction, cancelResId, cancelAction);
+		return createAndShowDialog(activity, null, R.drawable.ic_alert, activity.getString(R.string.warning), msg, posResId, posAction, neutralResId, neutralAction, cancelResId, cancelAction);
 	}
 
-	public static AlertDialog createAndShowInfoDialog(Context context, 
+	public static AlertDialog createAndShowInfoDialog(Activity activity, 
 													  int layoutResId,
 													  int neutralResId, final Runnable neutralAction,
 													  int cancelResId, final Runnable cancelAction) {
-		return createAndShowDialog(context, View.inflate(context, layoutResId, null), 0, 0, 0, cancelResId, cancelAction, neutralResId, neutralAction, 0, cancelAction);
+		return createAndShowDialog(activity, View.inflate(activity, layoutResId, null), 0, 0, 0, cancelResId, cancelAction, neutralResId, neutralAction, 0, cancelAction);
 	}
 	
-	public static AlertDialog createAndShowInfoDialog(Context context, 
+	public static AlertDialog createAndShowInfoDialog(Activity activity, 
 													  int layoutResId,
 													  int posResId, final Runnable posAction,
 													  int neutralResId, final Runnable neutralAction,
 													  int cancelResId, final Runnable cancelAction) {
-		return createAndShowDialog(context, View.inflate(context, layoutResId, null), 0, 0, 0, neutralResId, neutralAction, posResId, posAction, cancelResId, cancelAction);
+		return createAndShowDialog(activity, View.inflate(activity, layoutResId, null), 0, 0, 0, neutralResId, neutralAction, posResId, posAction, cancelResId, cancelAction);
 	}
 
-	public static AlertDialog createAndShowDialog(Context context, 
+	public static AlertDialog createAndShowDialog(Activity activity, 
 												  View view, int iconResId,
 												  int titleResId, int msgResId,
 												  int posResId, final Runnable posAction, 
 												  int neutralResId, final Runnable neutralAction,
 												  int cancelResId, final Runnable cancelAction) {
 		String title = null, msg = null;
-		if (titleResId > 0) title = context.getString(titleResId);
-		if (msgResId > 0) msg = context.getString(msgResId);
-		return createAndShowDialog(context, view, iconResId, title, msg, posResId, posAction, neutralResId, neutralAction, cancelResId, cancelAction);
+		if (titleResId > 0) title = activity.getString(titleResId);
+		if (msgResId > 0) msg = activity.getString(msgResId);
+		return createAndShowDialog(activity, view, iconResId, title, msg, posResId, posAction, neutralResId, neutralAction, cancelResId, cancelAction);
 	}
 	
-	public static AlertDialog createAndShowDialog(Context context, 
+	public static AlertDialog createAndShowDialog(Activity activity, 
 												   View view, int iconResId, 
 												   String title, String msg,
 												   int posResId, final Runnable posAction, 
 												   int neutralResId, final Runnable neutralAction,
 												   int cancelResId, final Runnable cancelAction) {
-		AlertDialog.Builder builder = new AlertDialog.Builder(context);
+		AlertDialog.Builder builder = new AlertDialog.Builder(activity);
 		if (iconResId > 0) builder.setIcon(iconResId);
 		if (view != null) builder.setView(view);
 		if (title != null) builder.setTitle(title);
@@ -110,7 +111,8 @@ public class DialogUtils {
 		);
 		
 		AlertDialog alert = builder.create();
-		alert.show();
+		if (!activity.isFinishing())
+			alert.show();
 		
 		return alert;
 	}

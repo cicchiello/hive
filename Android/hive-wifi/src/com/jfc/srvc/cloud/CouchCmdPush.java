@@ -1,5 +1,6 @@
 package com.jfc.srvc.cloud;
 
+import org.acra.ACRA;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -7,7 +8,6 @@ import android.content.Context;
 import android.util.Log;
 
 import com.jfc.apps.hive.HiveEnv;
-import com.jfc.apps.hive.MotorProperty;
 import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.DbCredentialsProperty;
 
@@ -20,7 +20,7 @@ public class CouchCmdPush {
 	
 	public interface OnCompletion {
 		public void success();
-		public void error(String msg);
+		public void error(String query, String msg);
 		public void serviceUnavailable(String msg);
 	}
 	
@@ -61,10 +61,10 @@ public class CouchCmdPush {
 					    		if (mOnCompletion != null)
 					    			mOnCompletion.success();
 					    	}
-					    	public void failed(String msg) {
+					    	public void failed(String query, String msg) {
 					    		Log.e(TAG, "Channel Doc PUT failed: "+msg);
 					    		if (mOnCompletion != null)
-					    			mOnCompletion.error(msg);
+					    			mOnCompletion.error(query, msg);
 					    	}
 						};
 						
@@ -73,8 +73,9 @@ public class CouchCmdPush {
 						Log.e(TAG, je.getMessage());
 					}
 		    	}
-		    	public void onFailure(String msg) {
+		    	public void onFailure(String query, String msg) {
 		    		Log.e(TAG, "Msg Doc POST failed: "+msg);
+					ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
 		    	}
 		    };
 		    new CouchPostBackground(dbUrl, authToken, msgDoc.toString(), postOnCompletion).execute();
@@ -105,14 +106,15 @@ public class CouchCmdPush {
 			}
 			
 			@Override
-			public void objNotFound() {failed("Object Not Found");}
+			public void objNotFound(String query) {
+				createNewMsgDoc(channelDocId, null, "0");
+			}
 			
 			@Override
-	    	public void failed(String msg) {
+	    	public void failed(String query, String msg) {
 				// probably first time -- so create it
 				Log.i(TAG, "Channel Doc GET failed: "+msg);
-				
-				createNewMsgDoc(channelDocId, null, "0");
+				ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
 			}
 	    };
 

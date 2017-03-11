@@ -1,5 +1,6 @@
 package com.jfc.misc.prop;
 
+import org.acra.ACRA;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -7,6 +8,7 @@ import android.app.Activity;
 import android.util.Log;
 import android.widget.ImageButton;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.jfc.misc.prop.DbCredentialsProperty;
 import com.jfc.srvc.cloud.CouchGetBackground;
@@ -59,8 +61,9 @@ public class PropertyBase {
 					    	public void complete(JSONObject results) {
 					    		Log.i(TAG, "Channel Doc PUT success:  "+results.toString());
 					    	}
-					    	public void failed(String msg) {
+					    	public void failed(String query, String msg) {
 					    		Log.e(TAG, "Channel Doc PUT failed: "+msg);
+								ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
 					    	}
 						};
 						
@@ -69,8 +72,9 @@ public class PropertyBase {
 						Log.e(TAG, je.getMessage());
 					}
 		    	}
-		    	public void onFailure(String msg) {
+		    	public void onFailure(String query, String msg) {
 		    		Log.e(TAG, "Msg Doc POST failed: "+msg);
+					ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
 		    	}
 		    };
 		    new CouchPostBackground(dbUrl, authToken, msgDoc.toString(), postOnCompletion).execute();
@@ -99,13 +103,16 @@ public class PropertyBase {
 			}
 			
 			@Override
-			public void objNotFound() {
+			public void objNotFound(String query) {
 				createNewMsgDoc(channelDocId, null, sensor, instruction, "0");
 			}
 			
 			@Override
-	    	public void failed(String msg) {
-				Log.i(TAG, "Channel Doc GET failed: "+msg);
+	    	public void failed(String query, final String msg) {
+				mActivity.runOnUiThread(new Runnable() {public void run() {
+					Toast.makeText(mActivity, "Channel Doc GET failed with msg: "+msg, Toast.LENGTH_LONG).show();
+				}});
+				ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
 			}
 	    };
 

@@ -11,6 +11,8 @@ import java.util.Calendar;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.acra.ACRA;
+
 import com.jfc.apps.hive.MainActivity;
 import com.jfc.apps.hive.R;
 import com.jfc.srvc.cloud.CouchCmdPush;
@@ -323,7 +325,7 @@ public class AudioSampler {
 								});
 							}
 							@Override
-							public void error(final String msg) {
+							public void error(String query, final String msg) {
 								mActivity.runOnUiThread(new Runnable() {
 									@Override
 									public void run() {
@@ -331,6 +333,7 @@ public class AudioSampler {
 										mAlert = DialogUtils.createAndShowErrorDialog(mActivity, msg, android.R.string.cancel, cancelAction);
 									}
 								});
+								ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
 							}
 							@Override
 							public void serviceUnavailable(final String msg) {mDbAlert.informDbInaccessible(mActivity, msg, 0);}
