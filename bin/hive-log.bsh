@@ -14,7 +14,7 @@ if [ -n "$SINCE" ]; then
     echo "Attempting to get all records with timestamp greater than $SINCE"
 else
     echo "Error: a unix timestamp must be supplied"
-    echo "usage: -s <unix-timestamp>"
+    echo "usage: -s <unix-timestamp> [-w {angus|me}]"
     exit
 fi
 
