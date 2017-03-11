@@ -3,8 +3,8 @@
 #include <Arduino.h>
 
 
-//#define HEADLESS
-//#define NDEBUG
+#define HEADLESS
+#define NDEBUG
 
 #include <Trace.h>
 
@@ -23,7 +23,7 @@
 #include <str.h>
 #include <strutils.h>
 
-#include <StepperPWM.h>
+//#include <StepperPWM.h>
 
 
 class PWM {

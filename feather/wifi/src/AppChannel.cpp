@@ -40,7 +40,7 @@ static const char *DateTag = "Date: ";
 
 AppChannel::AppChannel(const HiveConfig &config, unsigned long now, Mutex *wifiMutex, Mutex *sdMutex)
   : mNextAttempt(0), mState(LOAD_PREV_MSG_ID), mConfig(config),
-    mInitialMsg(false), mHavePayload(false), mIsOnline(false), mHaveTimestamp(false),
+    mInitialMsg(false), mHavePayload(false), mWasOnline(false), mHaveTimestamp(false),
     mPrevMsgId("undefined"), mNewMsgId(), mPayload(),
     mGetter(NULL), mOfflineTime(now), mWifiMutex(wifiMutex), mSdMutex(sdMutex)
 {
@@ -318,12 +318,11 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 		    }
 		}
 		callMeBackIn_ms = FREQ - ((now=millis())-mStartTime); // most cases should schedule a callback in FREQ
+		bool isOnlineNow = true;
 		if (mGetter->hasNotFound()) {
 		    PH2("object not found, so nothing to do @ ", now);
 		    // nothing to do
-		    mIsOnline = mHaveTimestamp;
 		} else if (mGetter->haveDoc()) {
-		    mIsOnline = mHaveTimestamp;
 		    bool isValid = processDoc(mGetter->getDoc(), gettingHeader, &callMeBackIn_ms);
 		    if (!isValid) {
 		        PH("Improper HeaderMsg found; ignoring");
@@ -332,13 +331,9 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 		} else if (mGetter->isTimeout()) {
 		    PH2("timed out; retrying again in 5s; now: ", now);
 		    retry = true;
-		    if (mIsOnline) {
-		        mIsOnline = false;
-			mOfflineTime = now;
-		    }
+		    isOnlineNow = false;
 		} else if (mGetter->isError()) {
-		    mIsOnline = false;
-		    mOfflineTime = now;
+		    isOnlineNow = false;
 		    if (er == HttpOp::IssueOpFailed) {
 		        PH("AppChannel::getterLoop timed out while trying to open HTTP connection");
 		    } else {	    
@@ -348,10 +343,15 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 		    }
 		    retry = true;
 		} else {
-		    mIsOnline = false;
-		    mOfflineTime = now;
+		    isOnlineNow = false;
 		    PH("AppChannel::getterLoop failed for unknown reason; retrying again in 5s");
 		    retry = true;
+		}
+		if (!isOnlineNow && mWasOnline) {
+		    mWasOnline = false;
+		    mOfflineTime = now;
+		} else {
+		    mWasOnline = true;
 		}
 		if (retry) {
 		    TRACE("setting up for a retry");

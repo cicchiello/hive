@@ -23,7 +23,7 @@ class BeeCounter : public SensorBase, private PulseGenConsumer {
     PulseGenConsumer *getPulseGenConsumer();
     
     bool sample(unsigned long now);
-    
+
  private:
     void pulse(unsigned long now);
     
@@ -41,8 +41,8 @@ class BeeCounter : public SensorBase, private PulseGenConsumer {
     unsigned char mPrevIn[NUM_GATES], mPrevOut[NUM_GATES];
     unsigned long mInTime[NUM_GATES], mPrevInTime[NUM_GATES], mOutTime[NUM_GATES], mPrevOutTime[NUM_GATES];
     unsigned long mInDuration[NUM_GATES], mOutDuration[NUM_GATES];
-    int mNumBees;
-    unsigned long mLastSampleTime;
+    int mNumBeesIn, mNumBeesOut;
+    unsigned long mLastSampleTime, mNextMidnight;
     
     int ploadPin, clockEnablePin, clockPin, dataPin;
 };

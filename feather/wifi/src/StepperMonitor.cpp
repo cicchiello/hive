@@ -84,7 +84,8 @@ bool StepperMonitor::loop(unsigned long now)
     int target = mActuator ? mActuator->getTarget() : mActuator2->getTarget();
     if (target != 0) {
         StrBuf buf("moving");
-	buf.add(target > 0 ? '+' : '-');
+	if (target>0) // '-' will be added automatically by virtue of the sign
+	    buf.add('+');
 	buf.append(target);
         mSensorValue = buf.c_str();
     } else {
