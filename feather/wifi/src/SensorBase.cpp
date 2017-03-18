@@ -111,12 +111,20 @@ bool SensorBase::postImplementation(unsigned long now, Mutex *wifi)
 	    HivePlatform::singleton()->markWDT("processing events");
 	    HttpCouchPost::EventResult er = mPoster->event(now, &callMeBackIn_ms);
 	    if (!mPoster->processEventResult(er)) {
+	        bool retry = true;
+		callMeBackIn_ms = 5000l;
 		if (mPoster->getHeaderConsumer().hasOk()) {
 		    callMeBack = processResult(mPoster->getCouchConsumer(), &callMeBackIn_ms);
+		    retry = false;
+		} else if (mPoster->isTimeout()) {
+		    PH("timeout; POST failed");
+		} else if (mPoster->isError()) {
+		    PH("error; POST failed");
 		} else {
-		    PH("POST failed; retrying again in 5s");
-		    callMeBackIn_ms = 5000l;
+		    PH("POST failed for unknown reasons; retrying again in 5s");
 		}
+
+		mPoster->shutdownWifiOnDestruction(retry);
 		delete mPoster;
 		mPoster = NULL;
 		wifi->release(this);

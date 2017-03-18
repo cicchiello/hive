@@ -30,7 +30,7 @@ class HttpOp {
    }; 
 
    virtual ~HttpOp();
-  
+
    enum EventResult {
        CallMeBack,
        ConnectTimeout,
@@ -65,14 +65,16 @@ class HttpOp {
    
    void yield() {sYieldHandler();}
    
+   void shutdownWifiOnDestruction(bool shutdown) {m_shutdown = shutdown;}
+
  protected:
    static YieldHandler sYieldHandler;
    
    HttpOp(const char *ssid, const char *ssidPswd, const char *hostname, int port,
 	  const char *dbUser, const char *dbPswd,
 	  bool isSSL = false)
-     : m_ssid(ssid), m_pswd(ssidPswd), mSpecifiedHostname(hostname), m_port(port), m_dbuser(dbUser), m_dbpswd(dbPswd),
-       mSpecifiedHostIP(), m_isSSL(isSSL)
+     : m_ssid(ssid), m_pswd(ssidPswd), mSpecifiedHostname(hostname), m_port(port),
+       m_dbuser(dbUser), m_dbpswd(dbPswd), mSpecifiedHostIP(), m_isSSL(isSSL), m_shutdown(true)
    {
      init();
    }
@@ -80,8 +82,8 @@ class HttpOp {
    HttpOp(const Str &ssid, const Str &ssidPswd, const Str &hostname, int port,
 	  const Str &dbUser, const Str &dbPswd,
 	  bool isSSL = false)
-     : m_ssid(ssid), m_pswd(ssidPswd), mSpecifiedHostname(hostname), m_port(port), m_dbuser(dbUser), m_dbpswd(dbPswd),
-       mSpecifiedHostIP(), m_isSSL(isSSL)
+     : m_ssid(ssid), m_pswd(ssidPswd), mSpecifiedHostname(hostname), m_port(port),
+       m_dbuser(dbUser), m_dbpswd(dbPswd), mSpecifiedHostIP(), m_isSSL(isSSL), m_shutdown(true)
    {
      init();
    }
@@ -89,8 +91,8 @@ class HttpOp {
    HttpOp(const char *ssid, const char *ssidPswd, const IPAddress &hostip, int port,
 	  const char *dbUser, const char *dbPswd,
 	  bool isSSL = false)
-     : m_ssid(ssid), m_pswd(ssidPswd), mSpecifiedHostname((char*)0), m_port(port), m_dbuser(dbUser), m_dbpswd(dbPswd),
-       mSpecifiedHostIP(hostip), m_isSSL(isSSL)
+     : m_ssid(ssid), m_pswd(ssidPswd), mSpecifiedHostname((char*)0), m_port(port),
+       m_dbuser(dbUser), m_dbpswd(dbPswd), mSpecifiedHostIP(hostip), m_isSSL(isSSL), m_shutdown(true)
    {
      init();
    }
@@ -119,6 +121,7 @@ class HttpOp {
    const Str m_ssid, m_pswd, mSpecifiedHostname, m_dbuser, m_dbpswd;
    const int m_port;
    const bool m_isSSL;
+   bool m_shutdown;
    
    IPAddress mResolvedHostIP;
    OpState m_opState;

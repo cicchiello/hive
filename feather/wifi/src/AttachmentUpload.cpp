@@ -142,6 +142,7 @@ AttachmentUpload::AttachmentUpload(const HiveConfig &config,
 
 AttachmentUpload::~AttachmentUpload()
 {
+    assert(mBinaryPutter == null, "mBinaryPutter == null");
     delete mBinaryPutter;
     delete mDataProvider;
 }
@@ -217,12 +218,14 @@ bool AttachmentUpload::loop(unsigned long now)
 		if (!mBinaryPutter->processEventResult(r)) {
 		    TF("AttachmentUpload::loop; processing HttpBinaryPut result");
 		    mIsDone = true;
+		    bool retry = true;
 		    if (mBinaryPutter->getFinalResult() == HttpOp::HTTPSuccessResponse) {
 		        if (mBinaryPutter->haveDoc()) {
 			    if (mBinaryPutter->getDoc().lookup("ok") >= 0) {
 			        TRACE("doc successfully uploaded!");
 				assert(mDataProvider->isDone(),
 				       "upload appeared to succeed, but not at EOF");
+				retry = false;
 				unsigned long transferTime = now - mTransferStart;
 				PH3("Upload completed; upload took ", transferTime, " ms");
 			    } else {
@@ -237,7 +240,9 @@ bool AttachmentUpload::loop(unsigned long now)
 		    }  else {
 		        PH("unknown failure");
 		    }
+		    mBinaryPutter->shutdownWifiOnDestruction(retry);
 		    delete mBinaryPutter;
+
 		    delete mDataProvider;
 		    mBinaryPutter = NULL;
 		    mDataProvider = NULL;

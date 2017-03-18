@@ -2,14 +2,14 @@
 
 #include <wifiutils.h>
 
-//#define NDEBUG
-#include <strutils.h>
-
+#define HEADLESS
+#define NDEBUG
 #include <Trace.h>
+
+#include <strutils.h>
 
 #include <http_headerconsumer.h>
 
-//#include <MyWiFi.h>
 
 
 /* STATIC */

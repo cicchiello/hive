@@ -46,7 +46,7 @@ class ProvisionImp {
     unsigned long mNextActionTime, mStartTime;
     int mMajorState, mMinorState, mDelayCnt, mPostDelayMinorState;
     int mWebStatus;
-    bool mInvalidInput, mHasConfig, mIsStarted, mSaved;
+    bool mInvalidInput, mHasConfig, mIsStarted, mSaved, mIgnoreConfigValidity;
     Str mInvalidFieldname;
     DocReader *mConfigReader;
     HiveConfig mConfig;
@@ -82,6 +82,7 @@ class ProvisionImp {
       mStartTime = now;
       mNextActionTime = 0;
       mInvalidInput = mHasConfig = mIsStarted = mSaved = false;
+      mIgnoreConfigValidity = ignoreConfigValidity;
       if (ignoreConfigValidity) {
 	  TRACE("Ignoring the filed config's validity");
 	  PH("Starting Access Point for provisioning...");
@@ -100,7 +101,8 @@ class ProvisionImp {
       if (mMajorState != STOP_AP) {
 	  mMajorState = STOP_AP;
 	  mMinorState = INIT;
-	  mHasConfig = mConfig.isValid();
+	  if (!mIgnoreConfigValidity)
+	      mHasConfig = mConfig.isValid();
       }
   }
 
@@ -158,6 +160,7 @@ bool ProvisionImp::loadLoop(unsigned long now)
 		    StrBuf dump;
 		    TRACE2("Have a local configuration: ", CouchUtils::toString(mConfig.getDoc(), &dump));
 		    mHasConfig = mConfig.isValid();
+		    mIgnoreConfigValidity = false;
 		    if (!mHasConfig) {
 			StrBuf dump;
 			PH2("Invalid local config loaded: ", CouchUtils::toString(mConfig.getDoc(), &dump));
@@ -452,6 +455,8 @@ bool ProvisionImp::stopLoop(unsigned long now, Mutex *wifiMutex)
 		mServer = NULL;
 	    }
 	    if (mCtxt != NULL) {
+	        mCtxt->getWifi().end();
+		mCtxt->reset();
 	        delete mCtxt;
 		mCtxt = NULL;
 	    }
@@ -626,6 +631,7 @@ void ProvisionImp::parseRequest(const char *line)
 	    mConfig.setDoc(newDoc);
 	    assert(mConfig.isValid(), "config is invalid even after pre-testing for validity");
 	    mHasConfig = true;
+	    mIgnoreConfigValidity = false;
 	}
 
 	StrBuf dump;

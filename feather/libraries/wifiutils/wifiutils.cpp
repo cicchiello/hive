@@ -12,6 +12,7 @@
 
 #include <platformutils.h>
 
+#include <strbuf.h>
 
 #define nibHigh(b) (((b)&0xf0)>>4)
 #define nibLow(b) ((b)&0x0f)
@@ -68,7 +69,7 @@ WifiUtils::Context::Context()
 {
     TF("WifiUtils::Context::Context");
     TRACE("entry");
-    
+
     assert(theSingleContext == NULL, "There can only be one WifiUtils::Context object at a time");
     
     static bool s_first = true;
@@ -93,23 +94,23 @@ WifiUtils::Context::Context()
 
 WifiUtils::Context::~Context()
 {
-    DL("WifiUtils::Context DTOR");
-    reset();
-
-//    getWifi().disconnect();
-
-//    digitalWrite(WINC_EN, LOW);
-//    delay(10);
-
-    theSingleContext = NULL;
+    TF("WifiUtils::Context::~Context");
+    
+    if (theSingleContext == this) {
+        theSingleContext = NULL;
+    } else {
+        PH("Found a case where theSingleContext isn't this!?!?");
+    }
 }
 
 
 void WifiUtils::Context::reset() const
 {
-    DL("WifiUtils::Context::reset; stopping the client");
+    TF("WifiUtils::Context::reset");
+    TRACE("stopping the client");
+    
     getClient().stop();
-    DL("WifiUtils::Context::reset; client stopped");
+    TRACE("cient stopped");
 }
 
 
@@ -214,8 +215,9 @@ WifiUtils::ConnectorStatus WifiUtils::connector(const WifiUtils::Context &ctxt,
 	ctxt.getWifi().connectionFailed();
         return ConnectTimeout;
     } else if (*connectorState == 0) {
+        StrBuf b;
         TRACE2("Attempting to connect to SSID/PWD: ",
-	       Str(ssid).append2("/").append2(pswd == NULL ? "<null>" : pswd).c_str());
+	       b.append(ssid).append("/").append(pswd == NULL ? "<null>" : pswd).c_str());
 
         // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
 	r = pswd == NULL ? ctxt.getWifi().begin(ssid) : ctxt.getWifi().beginNoWait(ssid, pswd);

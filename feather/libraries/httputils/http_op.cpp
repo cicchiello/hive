@@ -64,7 +64,13 @@ static MapType sDnsResolutions;
 
 HttpOp::~HttpOp()
 {
-    getContext().getWifi().end();
+    TF("HttpOp::~HttpOp");
+
+    if (m_shutdown) {
+        PH("calling WiFi.end()");
+	getContext().getWifi().end();
+	getContext().reset();
+    }
 }
 
 
@@ -94,8 +100,8 @@ void HttpOp::init()
 
 void HttpOp::resetForRetry()
 {
+    TF("HttpOp::resetForRetry");
     init();
-    m_ctxt.reset();
 }
 
 

@@ -2,11 +2,12 @@
 
 #include <wifiutils.h>
 
-//#define NDEBUG
+#define HEADLESS
+#define NDEBUG
+#include <Trace.h>
+
 #include <strutils.h>
 #include <sdutils.h>
-
-#include <Trace.h>
 
 #include <MyWiFi.h>
 

@@ -1,0 +1,53 @@
+Release notes for version 1.0.231:
+
+This release includes fixes to several significant fixes on the MCU and several minor fixes on the Android App.
+
+[JFC]  The MCU upgrade can be done without necessarily upgrading the Android app.
+
+
+Please plan on installing the following firmware as soon as you change to the wifi MCU:
+   https://jfcenterprises.cloudant.com/transfer/hive-1.0.231/hive.bin
+
+   It's the same process as before to place the firmware on the MCU module.  Download the file,
+   connect your PC to the USB, put the MCU in firmware upload mode (double-press the tiny button
+   next to the USB connector), then run the bossac program as before.
+
+   I think I've written about this process a couple times; here's one of them:
+     https://docs.google.com/document/d/1W1DZwI7sake5m6TDdBS6u3deZZ_eG_eNkR4GXV3UOy4/edit
+
+
+Also, please update the Android app to version 1.8.  The Google Play Store link for alpha access is:
+      https://play.google.com/apps/testing/com.jfc.apps.hive
+
+
+
+Fixes:
+  - A problem that left the MCU stuck in AP-mode has been found and fixed.
+  - The App's Uptime property was red in many situations where it shouldn't have been.  This has been
+  corrected, though there may still be very brief flashes of red until it settles (like when the app
+  is first opened).
+
+
+Enhancements:
+  - Added a feature to the Android app that allows the user to view the command queue.  It also allows
+  the user to clear the queue.  It shows all of the commands back to the last time the queue was cleared,
+  whether the MCU has acted on them or not.  See "Pending Cmds" on the app's setting screen.
+  - The standard communication transaction cycle has been reduced by keeping a constant active Wifi
+  connection:
+        1) establish Wifi connection  <<<< removed
+	2) connect to db server
+	3) initiate http operation
+	4) consume result
+	5) shutdown db connection
+	6) shutdown wifi connnection  <<<< removed
+	
+   (Except when a timeout or error is detected; at those points everything is shutdown and re-attempted
+   from scratch.)
+	
+   This leads to slightly more responsiveness from the point of view of the Android App user -- though
+   still not as good as I hoped (yet).
+
+
+
+
+
