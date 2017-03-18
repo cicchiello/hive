@@ -4,8 +4,8 @@
 
 #include <Arduino.h>
 
-
-//#define NDEBUG
+#define HEADLESS
+#define NDEBUG
 #include <Trace.h>
 
 

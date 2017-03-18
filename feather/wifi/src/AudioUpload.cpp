@@ -181,6 +181,7 @@ bool AudioUpload::loop(unsigned long now)
     if (!mHaveDocId) {
         return SensorBase::loop(now);
     } else {
+        const char *objName = getName();
 	bool muticesOwned = (getWifiMutex()->whoOwns() == this) && (mSdMutex->whoOwns() == this);
 	if (!muticesOwned) {
 	    bool muticesAvailable = getWifiMutex()->isAvailable() && mSdMutex->isAvailable();
@@ -228,18 +229,20 @@ bool AudioUpload::loop(unsigned long now)
 		if (!mBinaryPutter->processEventResult(r)) {
 		    TF("AudioUpload::loop; processing HttpBinaryPut result");
 		    mIsDone = true;
+		    bool retry = true;
 		    if (mBinaryPutter->getFinalResult() == HttpOp::HTTPSuccessResponse) {
 		        if (mBinaryPutter->haveDoc()) {
 			    if (mBinaryPutter->getDoc().lookup("ok") >= 0) {
 			        TRACE("doc successfully uploaded!");
 				assert(mDataProvider->isDone(),
 				       "upload appeared to succeed, but not at EOF");
+				retry = false;
 				unsigned long transferTime = now - mTransferStart;
 				PH3("Upload completed; upload took ", transferTime, " ms");
 			    } else {
-			        Str dump;
+			        StrBuf dump;
 				PH2("Received unexpected couch response:",
-				       CouchUtils::toString(mBinaryPutter->getDoc(), &dump));
+				    CouchUtils::toString(mBinaryPutter->getDoc(), &dump));
 			    }
 			} else {
 			    PH2("Found unexpected information in the header response:",
@@ -248,6 +251,7 @@ bool AudioUpload::loop(unsigned long now)
 		    }  else {
 		        PH("unknown failure");
 		    }
+		    mBinaryPutter->shutdownWifiOnDestruction(retry);
 		    delete mBinaryPutter;
 		    delete mDataProvider;
 		    mBinaryPutter = NULL;
@@ -284,7 +288,8 @@ bool AudioUpload::processResult(const HttpCouchConsumer &consumer, unsigned long
 	    *mRevision = rev;
 	    mHaveDocId = true;
 	    mIsDone = false;
-	    PH2("saved doc to id/rev: ", Str(id).append("/").append(rev).c_str());
+	    PH2("saved doc to id/rev: ",
+		StrBuf(id.c_str()).append("/").append(rev.c_str()).c_str());
 	} else {
 	    PH("Unexpected problem with the result");
 	}

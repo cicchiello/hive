@@ -49,17 +49,23 @@ bool ActuatorBase::loop(unsigned long now, Mutex *wifi)
 	    unsigned long callMeBackIn_ms = 0;
 	    if (!mGetter->processEventResult(mGetter->event(now, &callMeBackIn_ms))) {
 	        TRACE("done");
+		bool retry = true;
 		if (mGetter->hasResult()) {
 		    TRACE("have result");
+		    retry = false;
 		    processResult(mGetter);
 		    setNextTime(now, &mNextActionTime);
 		} else if (mGetter->isError()) {
 		    TRACE("invalid response; retrying again in 5s");
 		    mNextActionTime = now + 5000l;
+		} else if (mGetter->isTimeout()) {
+		    TRACE("timeout; GET failed");
+		    mNextActionTime = now + 5000l;
 		} else {
 		    TRACE("No record found; using defaults");
 		    setNextTime(now, &mNextActionTime);
 		}
+		mGetter->shutdownWifiOnDestruction(retry);
 		delete mGetter;
 		mGetter = NULL;
 		wifi->release(this);

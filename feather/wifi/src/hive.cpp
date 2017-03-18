@@ -275,15 +275,17 @@ void loop(void)
 	assert(s_appChannel->haveTimestamp(), "s_appChannel->haveTimestamp()");
 
 	int sensorIndex = 0;
-	while (s_sensors[sensorIndex]) {
+	while (s_isOnline && s_sensors[sensorIndex]) {
 	    HivePlatform::nonConstSingleton()->clearWDT();
 	    unsigned long mark = now;
+	    //TRACE2("testing isItTimeYet for sensor ", sensorIndex);
 	    if (s_sensors[sensorIndex]->isItTimeYet(now)) {
 	        //TRACE2("invoking loop for sensor ", sensorIndex);
 	        s_sensors[sensorIndex]->loop(now);
 		now = millis();
 		if (now - mark > 20) {
 		    TRACE4("Sensor ", sensorIndex, " took longer than expected; delta: ", (now-mark));
+		    PH4("Sensor ", sensorIndex, " took longer than expected; delta: ", (now-mark));
 		}
 		rxLoop(now); // consider rx after every operation to ensure responsiveness from app
 	    }
@@ -292,7 +294,7 @@ void loop(void)
 	}
 
 	bool setChanged = true;
-	while (setChanged) {
+	while (s_isOnline && setChanged) {
 	    setChanged = false;
 	    int l = Actuator::getNumActiveActuators();
 	    HivePlatform::nonConstSingleton()->clearWDT();
@@ -303,6 +305,8 @@ void loop(void)
 		    Actuator::deactivate(actuatorIndex);
 		    setChanged = true;
 		}
+		now = millis();
+		rxLoop(now); // consider rx after every operation to ensure responsiveness from app
 	    }
 	}
     }
@@ -397,7 +401,7 @@ void rxLoop(unsigned long now)
         if (s_appChannel->loop(now)) {
 	    if (s_appChannel->haveMessage() && sSdMutex.isAvailable() && sSdMutex.own(s_appChannel)) {
 	        assert(sSdMutex.whoOwns() == s_appChannel, "sSdMutex.whoOwns() == s_appChannel");
-		Str payload;
+		StrBuf payload;
 		s_appChannel->consumePayload(&payload, &sSdMutex);
 		assert(sSdMutex.whoOwns() == s_appChannel, "sSdMutex.whoOwns() == s_appChannel");
 		processMsg(payload.c_str(), now);
@@ -412,6 +416,7 @@ void rxLoop(unsigned long now)
 	    s_isOnline = true;
 	    s_hasBeenOnline = true;
 	} else if (s_isOnline && !s_appChannel->isOnline()) {
+	    assert(sWifiMutex.isAvailable(), "sWifiMutex.isAvailable()");
 	    s_isOnline = false;
 	    s_hasBeenOnline = false;
 	    s_offlineTime = now;
@@ -421,7 +426,6 @@ void rxLoop(unsigned long now)
 	    if (!s_isOnline && (now > s_offlineTime + 120*1000l)) {
 	        PH2("Was offline for more than 2 minutes; time to try going back online: ", now);
 	        if (sWifiMutex.isAvailable()) {
-		    assert(sWifiMutex.isAvailable(), "sWifiMutex.isAvailable()");
 		    PH2("Detected AppChannel offline for more than 120s; initiating forced Provision mode at: ", now);
 		    TRACE("Detected AppChannel offline; initiating forced Provision mode");
 		    s_isOnline = false;
@@ -432,7 +436,7 @@ void rxLoop(unsigned long now)
 		    s_appChannel = NULL;
 		    s_indicator->setFlashMode(Indicator::Provisioning);
 		} else {
-		    PH("Could not acquire Mutex");
+		    PH2("Could not acquire Mutex; currently owned by: ", sWifiMutex.whoOwns());
 		}
 	    }
 	}
@@ -441,7 +445,7 @@ void rxLoop(unsigned long now)
     if (s_provisioner->isStarted()) {
         if (!s_provisioner->loop(now)) {
 	    StrBuf dump;
-	    TRACE2("Using Config: ", CouchUtils::toString(CNF.getDoc(), &dump));
+	    PH2("Using Config: ", CouchUtils::toString(CNF.getDoc(), &dump));
 	}
     }
 }

@@ -38,6 +38,9 @@ class HttpCouchPut : private HttpCouchGet {
    using HttpCouchGet::getDoc;
    using HttpCouchGet::haveDoc;
    using HttpCouchGet::processEventResult;
+   using HttpCouchGet::isTimeout;
+   using HttpCouchGet::isError;
+   using HttpCouchGet::shutdownWifiOnDestruction;
 
    EventResult event(unsigned long now, unsigned long *callMeBackIn_ms);
    

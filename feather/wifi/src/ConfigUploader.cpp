@@ -22,7 +22,6 @@
 #include <strutils.h>
 
 
-
 ConfigUploader::ConfigUploader(const HiveConfig &config,
 			       const class RateProvider &rateProvider,
 			       const class TimeProvider &timeProvider,
@@ -88,6 +87,7 @@ public:
 	return false;
     }
 };
+
 
 
 bool ConfigUploader::isItTimeYet(unsigned long now)
@@ -174,11 +174,12 @@ void ConfigUploader::prepareDocToUpload(const CouchUtils::Doc &existingDoc,
 bool ConfigUploader::processGetter(const HiveConfig &config, unsigned long now, unsigned long *callMeBackIn_ms)
 {
     TF("ConfigUploader::processGetter");
-    
+
     HttpCouchGet::EventResult er = mGetter->event(now, callMeBackIn_ms);
     
     if (mGetter->processEventResult(er))
         return true; // not done yet
+
     
     TRACE("getter is done"); // somehow, we're done getting -- see if and what more we can do
     bool retry = true; // more true cases than false
@@ -196,7 +197,7 @@ bool ConfigUploader::processGetter(const HiveConfig &config, unsigned long now, 
 	}
     } else {
         if (mGetter->isTimeout()) {
-	    TRACE("Cannot access db");
+	    PH("Cannot access db");
 	} else if (mGetter->hasNotFound()) {
 	    TRACE("Doc doesn't exist in db");
 	    mDocToUpload = new CouchUtils::Doc();
@@ -207,11 +208,12 @@ bool ConfigUploader::processGetter(const HiveConfig &config, unsigned long now, 
 	}
     }
     if (retry) {
-        TRACE("retrying again in 5s");
+        PH("retrying again in 5s");
 	*callMeBackIn_ms = 5000l;
     } else {
 	*callMeBackIn_ms = 10l;
     }
+    mGetter->shutdownWifiOnDestruction(retry);
     delete mGetter;
     mGetter = NULL;
 
@@ -229,14 +231,22 @@ bool ConfigUploader::processPutter(unsigned long now, unsigned long *callMeBackI
 
     TRACE2("putter response: ", mPutter->getHeaderConsumer().getResponse().c_str());
 
+    bool retry = true;
+    *callMeBackIn_ms = 5000l;
     if (mPutter->getHeaderConsumer().hasOk()) {
         TRACE("hasOk; upload succeeded");
-	PH("ConfigUpload succeeded");
 	mDoUpload = false;
+	retry = false;
+	*callMeBackIn_ms = 10l;
+    } else if (mPutter->isTimeout()) {
+        PH("timeout; upload failed");
+    } else if (mPutter->isError()) {
+        PH("error; upload failed");
     } else {
-        TRACE("PUT failed; retrying again in 5s");
-	*callMeBackIn_ms = 5000l;
+        PH("PUT failed for unknown reasons; retrying again in 5s");
     }
+
+    mPutter->shutdownWifiOnDestruction(retry);
     delete mPutter;
     mPutter = NULL;
     return false;
@@ -253,7 +263,7 @@ bool ConfigUploader::loop(unsigned long now)
 	unsigned long callMeBackIn_ms = 10l;
 	if (mPutter == NULL) {
 	    //TRACE("no putter yet");
-	    if (mGetter == NULL) {
+	    if ((mGetter == NULL) && (mDocToUpload == NULL)) {
 	        //TRACE("creating getter");
 	        mGetter = createGetter(mConfig);
 	    } else {

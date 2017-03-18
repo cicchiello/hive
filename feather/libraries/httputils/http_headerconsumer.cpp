@@ -130,8 +130,14 @@ bool HttpHeaderConsumer::consume(unsigned long now)
         if (client.connected()) {
 	    // if there are incoming bytes available
 	    // from the host, read them and process them
+
+	    // but never process more than 20 chars to ensure the outter event loop
+	    // isn't starved of time
+
+	    int cnt = 20;
 	    int avail = client.available();
-	    while (avail--) {
+	    m_response.expand(m_response.len() + avail);
+	    while (avail-- && cnt--) {
 	        char c = client.read();
 		assert(c, "Unexpected NULL char found in http response stream");
 		m_response.add(c);
@@ -164,6 +170,12 @@ void HttpHeaderConsumer::setResponse(const char *newResponse)
 {
     TF("HttpHeaderConsumer::setResponse");
     m_response = newResponse;
+}
+
+void HttpHeaderConsumer::expandResponseBy(int numToBeAdded)
+{
+    TF("HttpHeaderConsumer::expandResponseBy");
+    m_response.expand(m_response.len()+numToBeAdded);
 }
 
 void HttpHeaderConsumer::appendToResponse(char c)

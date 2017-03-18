@@ -25,9 +25,9 @@ class Provision {
     const HiveConfig &getConfig() const;
     HiveConfig &getConfig();
     
- private:
     const char *className() const {return "Provision";}
 
+ private:
     class ProvisionImp *mImp;
     Mutex *mWifiMutex;
 };

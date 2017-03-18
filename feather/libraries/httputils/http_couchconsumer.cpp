@@ -137,6 +137,7 @@ void HttpCouchConsumer::cleanChunkedResult(const char *terminationMarker)
 bool HttpCouchConsumer::consume(unsigned long now)
 {
     TF("HttpCouchConsumer::consume");
+
     if (HttpHeaderConsumer::consume(now)) {
         return true;
     } else {
@@ -147,7 +148,12 @@ bool HttpCouchConsumer::consume(unsigned long now)
 	    int avail = client.available();
 	    TRACE("no error and hasOk");
 
-	    while (avail--) {
+	    // never process more than 20 chars to ensure the outter event loop
+	    // isn't starved of time
+
+	    int cnt = 20;
+	    expandResponseBy(avail);
+	    while (avail-- && cnt--) {
 	        char c = client.read();
 		appendToResponse(c);
 	    }

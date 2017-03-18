@@ -34,15 +34,16 @@
 #define DONE             5
 
 static const char *DateTag = "Date: ";
+static const char *ETag = "ETag: \"";
 
-#define RETRY_WAIT 3000l
-#define FREQ       7000l
+#define RETRY_WAIT 2000l
+#define FREQ       2500l
 
 
 AppChannel::AppChannel(const HiveConfig &config, unsigned long now, Mutex *wifiMutex, Mutex *sdMutex)
   : mNextAttempt(0), mState(LOAD_PREV_MSG_ID), mConfig(config),
     mInitialMsg(false), mHavePayload(false), mWasOnline(false), mHaveTimestamp(false),
-    mPrevMsgId("undefined"), mNewMsgId(), mPayload(),
+    mPrevMsgId("undefined"), mPrevETag("undefined"), mNewMsgId(), mPayload(),
     mGetter(NULL), mWifiMutex(wifiMutex), mSdMutex(sdMutex)
 {
     TF("AppChannel::AppChannel");
@@ -68,7 +69,7 @@ AppChannel::~AppChannel()
 #define NEW_FILENAME  "/NEWMSGID.DAT"
 #define FILENAME      "/MSGID.DAT"
 
-static bool readMsgIdFile(SdFat &sd, const char *filename, Str *msgId)
+static bool readMsgIdFile(SdFat &sd, const char *filename, StrBuf *msgId)
 {
     TF("::readMsgIdFile");
 
@@ -173,6 +174,7 @@ bool AppChannel::loadPrevMsgId()
 
 bool AppChannel::processDoc(const CouchUtils::Doc &doc,
 			    bool gettingHeader,
+			    unsigned long now,
 			    unsigned long *callMeBackIn_ms)
 {
     TF("AppChannel::processDoc");
@@ -185,15 +187,15 @@ bool AppChannel::processDoc(const CouchUtils::Doc &doc,
 	    TRACE2("mPrevMsgId: ", mPrevMsgId.c_str());
 	    TRACE2("mInitialMsg: ", (mInitialMsg ? "true" : "false"));
 	    const Str &msgId = doc[i].getValue().getStr();
-	    if (!mInitialMsg && msgId.equals(mPrevMsgId)) {
-	        PH3("Msg ", msgId.c_str(), " has already been processed");
+	    if (!mInitialMsg && msgId.equals(mPrevMsgId.c_str())) {
+	        PH4("Msg ", msgId.c_str(), " has already been processed; now: ", now);
 		// nothing to do
 	    } else {
 	        // then go get the msg -- don't release the mutex and continue very soon
-	        PH2("Attempting to get message id: ", msgId.c_str());
-		mNewMsgId = msgId;
+	        PH4("Attempting to get message id: ", msgId.c_str(), " now: ", now);
+		mNewMsgId = msgId.c_str();
 		mState = READ_MSG;
-		*callMeBackIn_ms = 10l;
+		*callMeBackIn_ms = 1l;
 	    }
 	} 
     } else {
@@ -205,17 +207,18 @@ bool AppChannel::processDoc(const CouchUtils::Doc &doc,
 	} else {
 	    const Str &prevMsgId = doc[i].getValue().getStr();
 	    bool isOriginalMsg = prevMsgId.equals("0");
-	    if (isOriginalMsg || prevMsgId.equals(mPrevMsgId)) {
-	        mPayload = doc[j].getValue().getStr();
+	    if (isOriginalMsg || prevMsgId.equals(mPrevMsgId.c_str())) {
+	        mPayload = doc[j].getValue().getStr().c_str();
 		// good!  this means I have the next message that the system should process
-		PH2("Have the next message to process: ", mPayload.c_str());
+//		PH4("Have the next message to process: ", mPayload.c_str(), " now: ", now);
 		mHavePayload = true;
 		mState = HAVE_PAYLOAD;
 		mInitialMsg = false;
 	    } else {
-	        mNewMsgId = prevMsgId;
+	        mNewMsgId = prevMsgId.c_str();
+	        mPrevETag = "undefined";
 		// then I should look further back in the history;
-		PH2("There's an older message; getting: ", mNewMsgId.c_str());
+//		PH2("There's an older message; getting: ", mNewMsgId.c_str());
 		mState = READ_MSG;
 		*callMeBackIn_ms = 10l;
 	    }
@@ -239,8 +242,23 @@ public:
         TF("AppChannelGetter::resetForRetry");
 	HttpCouchGet::resetForRetry();
     }
+
+    StrBuf getETag() const {
+        TF("AppChannelGetter::getETag");
+        const char *ETagStr = strstr(m_consumer.getResponse().c_str(), ETag);
+	if (ETagStr != NULL) {
+	    ETagStr += strlen(ETag);
+	    StrBuf etag;
+	    etag.expand(40);
+	    while (ETagStr && *ETagStr && (*ETagStr != '"')) etag.add(*ETagStr++);
+	    TRACE2("Received ETag: ", etag.c_str());
+	    return etag;
+	} else {
+	    return StrBuf("unknown");
+	}
+    }
   
-    Str getTimestamp() const {
+    StrBuf getTimestamp() const {
         TF("AppChannelGetter::getTimestamp");
         const char *dateStr = strstr(m_consumer.getResponse().c_str(), DateTag);
 	if (dateStr != NULL) {
@@ -248,9 +266,9 @@ public:
 	    StrBuf date;
 	    while (*dateStr != 13) date.add(*dateStr++);
 	    PH2("Received timestamp: ", date.c_str());
-	    return date.c_str();
+	    return date;
 	} else {
-	    return Str("unknown");
+	    return StrBuf("unknown");
 	}
     }
 
@@ -264,13 +282,12 @@ public:
 
 
 
-
 bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHeader)
 {
     TF("AppChannel::getterLoop");
     bool callMeBack = true;
     if (now > mNextAttempt && wifiMutex->own(this)) {
-        unsigned long callMeBackIn_ms = 10l;
+        unsigned long callMeBackIn_ms = 5l;
         if (mGetter == NULL) {
 	    mHavePayload = false;
 	    mStartTime = now;
@@ -280,9 +297,8 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 	    if (gettingHeader) {
 	        url = &mChannelUrl;
 	    } else {
-	        StrBuf msgUrlBuf, encodedUrl;
-		CouchUtils::urlEncode(mNewMsgId.c_str(), &encodedUrl);
-		CouchUtils::toURL(mConfig.getChannelDbName().c_str(), encodedUrl.c_str(), &msgUrlBuf);
+	        StrBuf msgUrlBuf;
+		CouchUtils::toURL(mConfig.getChannelDbName().c_str(), mNewMsgId.c_str(), &msgUrlBuf);
 		msgUrl = msgUrlBuf.c_str();
 		url = &msgUrl;
 	    }
@@ -299,7 +315,6 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 					   mConfig.getDbHost(), mConfig.getDbPort(), mConfig.isSSL(),
 					   *url, mConfig.getDbUser(), mConfig.getDbPswd());
 	} else {
-	    HivePlatform::nonConstSingleton()->clearWDT();
 	    HttpOp::EventResult er = mGetter->event(now, &callMeBackIn_ms);
 	    if (!mGetter->processEventResult(er)) {
 		bool retry = false;
@@ -307,7 +322,7 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 		    TRACE("Staring the WDT");
 		    HivePlatform::nonConstSingleton()->startWDT();
 		    TF("hasTimestamp");
-		    Str timestampStr = mGetter->getTimestamp();
+		    StrBuf timestampStr = mGetter->getTimestamp();
 		    TRACE2("timestampStr: ", timestampStr.c_str());
 		    bool stat = RTCConversions::cvtToTimestamp(timestampStr.c_str(), &mTimestamp);
 		    if (stat) {
@@ -324,13 +339,6 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 		    PH2("object not found, so nothing to do @ ", now);
 		    // nothing to do
 		    isOnlineNow = true;
-		} else if (mGetter->haveDoc()) {
-		    bool isValid = processDoc(mGetter->getDoc(), gettingHeader, &callMeBackIn_ms);
-		    isOnlineNow = true;
-		    if (!isValid) {
-		        PH("Improper HeaderMsg found; ignoring");
-			PH2("doc: ", mGetter->getHeaderConsumer().getResponse().c_str());
-		    }
 		} else if (mGetter->isTimeout()) {
 		    PH2("timed out; retrying again in 5s; now: ", now);
 		    retry = true;
@@ -338,17 +346,35 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 		} else if (mGetter->isError()) {
 		    isOnlineNow = false;
 		    if (er == HttpOp::IssueOpFailed) {
-		        PH("AppChannel::getterLoop timed out while trying to open HTTP connection");
+		        PH("timed out while trying to open HTTP connection");
 		    } else {	    
-		        PH("AppChannel::getterLoop failed for unknown reason; retrying again in 5s");
+		        PH("failed for unknown reason; retrying again in 5s");
 			PH2("errmsg: ", mGetter->getHeaderConsumer().getErrmsg().c_str());
 			PH2("er: ", er);
 		    }
 		    retry = true;
 		} else {
-		    isOnlineNow = false;
-		    PH("AppChannel::getterLoop failed for unknown reason; retrying again in 5s");
-		    retry = true;
+		    const StrBuf &etag = mGetter->getETag();
+		    if (strcmp(etag.c_str(), mPrevETag.c_str()) != 0) {
+		        if (mGetter->haveDoc()) {
+			    bool isValid = processDoc(mGetter->getDoc(), gettingHeader, now, 
+						      &callMeBackIn_ms);
+			    if (gettingHeader) 
+			        mPrevETag = etag;
+			    isOnlineNow = true;
+			    if (!isValid) {
+			        PH("Improper HeaderMsg found; ignoring");
+				PH2("doc: ", mGetter->getHeaderConsumer().getResponse().c_str());
+			    }
+			} else {
+			    isOnlineNow = false;
+			    PH("failed for unknown reason; retrying again in 5s");
+			    retry = true;
+			}
+		    } else {
+		        isOnlineNow = true;
+		        PH2("No new AppChannel msg available; now: ", now);
+		    }
 		}
 		if (!isOnlineNow && mWasOnline) {
 		    mWasOnline = false;
@@ -362,6 +388,7 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 		} else {
 		    mRetryCnt = 0;
 		}
+		mGetter->shutdownWifiOnDestruction(retry);
 		delete mGetter;
 		mGetter = NULL;
 		wifiMutex->release(this);
@@ -402,7 +429,7 @@ bool AppChannel::loop(unsigned long now)
 }
 
 
-void AppChannel::consumePayload(Str *result, Mutex *alreadyOwnedSdMutex)
+void AppChannel::consumePayload(StrBuf *result, Mutex *alreadyOwnedSdMutex)
 {
     TF("AppChannel::consumePayload");
 

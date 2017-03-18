@@ -2,6 +2,7 @@
 #define appchannel_h
 
 #include <str.h>
+#include <strbuf.h>
 #include <couchutils.h>
 
 #include <TimeProvider.h>
@@ -25,7 +26,7 @@ class AppChannel : public TimeProvider {
     
     bool haveMessage() const {return mHavePayload;}
 
-    void consumePayload(Str *payload, Mutex *alreadyOwnedSdMutex);
+    void consumePayload(StrBuf *payload, Mutex *alreadyOwnedSdMutex);
 
     unsigned long secondsAtMark() const;
     unsigned long markTimestamp() const {return mTimestamp;}
@@ -37,14 +38,15 @@ class AppChannel : public TimeProvider {
  private:
     bool loadPrevMsgId();
     bool getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHeader);
-    bool processDoc(const CouchUtils::Doc &doc, bool gettingHeader, unsigned long *callMeBackIn_ms);
+    bool processDoc(const CouchUtils::Doc &doc, bool gettingHeader, unsigned long now, unsigned long *callMeBackIn_ms);
 
     unsigned long mNextAttempt, mStartTime, mTimestamp, mSecondsAtMark;
     int mState, mRetryCnt;
 
     const HiveConfig &mConfig;
     bool mInitialMsg, mHavePayload, mWasOnline, mHaveTimestamp;
-    Str mPrevMsgId, mNewMsgId, mPayload, mChannelUrl;
+    StrBuf mPrevMsgId, mNewMsgId, mPayload, mPrevETag;
+    Str mChannelUrl;
     
     class AppChannelGetter *mGetter;
     Mutex *mWifiMutex, *mSdMutex;
