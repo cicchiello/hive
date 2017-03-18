@@ -75,7 +75,7 @@ public class UptimeProperty implements IPropertyMgr {
 		        	cal = Calendar.getInstance(Locale.ENGLISH);
 		        	cal.setTimeInMillis(uptimeTimestamp_ms);
 					String heartbeatTimeStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
-					int rate_minutes = SensorSampleRateProperty.getRate(mActivity);
+					int rate_minutes = SensorSampleRateProperty.getRate(mActivity, hiveId);
 					int second_ms = 1000;
 					int minute_s = 60;
 					long timeToBeSureOfDeath_ms = uptimeTimestamp_ms + (rate_minutes+1)*minute_s*second_ms;
@@ -210,11 +210,12 @@ public class UptimeProperty implements IPropertyMgr {
 			
         	long uptimeTimestamp_s = getUptimeTimestamp(activity, hiveId);
         	long uptimeTimestamp_ms = 1000*uptimeTimestamp_s;
-			int rate_minutes = SensorSampleRateProperty.getRate(activity);
+			int rate_minutes = SensorSampleRateProperty.getRate(activity, hiveId);
 			int second_ms = 1000;
 			int minute_s = 60;
-			long timeToBeSureOfDeath_ms = uptimeTimestamp_ms + (rate_minutes+1)*minute_s*second_ms;
-			final boolean appearsDead = System.currentTimeMillis() > timeToBeSureOfDeath_ms;
+			long timeToBeSureOfDeath_ms = uptimeTimestamp_ms + (rate_minutes+2)*minute_s*second_ms;
+			long now = System.currentTimeMillis();
+			final boolean appearsDead = now > timeToBeSureOfDeath_ms;
 			
 			activity.runOnUiThread(new Runnable() {
 				@Override
@@ -226,7 +227,13 @@ public class UptimeProperty implements IPropertyMgr {
 							uptimeTv.setBackgroundColor(HiveEnv.ModifiableFieldErrorColor);
 						else 
 							SplashyText.highlightModifiedField(activity, uptimeTv);
+		    		} else {
+			    		if (appearsDead) 
+			    			uptimeTv.setBackgroundColor(HiveEnv.ModifiableFieldErrorColor);
+			    		else
+			    			uptimeTv.setBackgroundColor(HiveEnv.ModifiableFieldBackgroundColor);
 		    		}
+		    		
 		    		TextView uptimeTimestampTv = (TextView) activity.findViewById(uptimeTimestampResid);
 					Calendar cal = Calendar.getInstance(Locale.ENGLISH);
 					cal.setTimeInMillis(System.currentTimeMillis());

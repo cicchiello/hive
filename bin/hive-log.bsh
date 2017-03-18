@@ -14,7 +14,7 @@ if [ -n "$SINCE" ]; then
     echo "Attempting to get all records with timestamp greater than $SINCE"
 else
     echo "Error: a unix timestamp must be supplied"
-    echo "usage: -s <unix-timestamp>"
+    echo "usage: -s <unix-timestamp> [-w {angus|me|joe}]"
     exit
 fi
 
@@ -23,6 +23,22 @@ if [ "$WHO" == "angus" ]; then
     echo "Angus' records requested"
     id="95efbfae334d4d512020204a311402ff"
     all="false"
+else
+    if [ "$WHO" == "me" ]; then
+	echo "Me records requested"
+	id="d359371b544d4d51202020470b0b01ff"
+	all="false"
+    else
+	if [ "$WHO" == "joe" ]; then
+	    echo "joe records requested"
+	    id="d359371b544d4d51202020470b0b01ff"
+	    all="false"
+	else
+	    echo "Error: an invalid hive was chosen"
+	    echo "usage: -s <unix-timestamp> [-w {angus|me}]"
+	    exit
+	fi
+    fi
 fi
 
 if [ -n "$WHO" ]; then
@@ -38,9 +54,10 @@ view="by-hive-sensor"
 listfunc="dumpraw"
 
 if [ "$all" == "true" ]; then
-    curl ${couchHost}/${db}/${designDoc}/_list/${listfunc}/${view} 2> /dev/null | awk -F, '{if ($4 > '$SINCE') {dcmd="date --date=@"$4; dcmd | getline mydate; printf("%s,%s,%s,%s,%s,%s\n",$4,$1,$2,$3,mydate,$5,$6);}}'
+    curl ${couchHost}/${db}/${designDoc}/_list/${listfunc}/${view} 2> /dev/null | awk -F, '{if ($4 > '$SINCE') {dcmd="date --date=@"$4; dcmd | getline mydate; printf("%s,%s,%s,%s,%s,%s,%s\n",$4,$1,$2,$3,mydate,$5,$6);}}'
 else
-    curl ${couchHost}/${db}/${designDoc}/_list/${listfunc}/${view} 2> /dev/null | awk -F, '{if ($4 > '$SINCE') {dcmd="date --date=@"$4; dcmd | getline mydate; printf("%s,%s,%s,%s,%s,%s,%s\n",$4,$1,$2,$3,mydate,$5,$6);}}' | grep $id
+    curl ${couchHost}/${db}/${designDoc}/_list/${listfunc}/${view} 2> /dev/null > dump.log
+    cat dump.log | awk -F, '{if ($4 > '$SINCE') {dcmd="date --date=@"$4; dcmd | getline mydate; printf("%s,%s,%s,%s,%s,%s,%s\n",$4,$1,$2,$3,mydate,$5,$6);}}' | sort
 fi    
 
 

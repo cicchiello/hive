@@ -9,7 +9,7 @@
     
 	<string name="about_dialog_title">About Hivewiz</string>
 	<string name="version_label">App Version:</string>
-    <string name="app_version">1.7</string>
+    <string name="app_version">1.8</string>
 
     <string name="settings">Settings&#8230;</string>
     
@@ -124,6 +124,12 @@
     <string name="sample_rate_desc_hint">Minutes between samples</string>
     <string name="sample_rate_dialog_title">Sensor Sample Rate&#8230;</string>
 	
+    <string name="cmd_queue_title">Hivewiz Pending Cmds</string>
+    <string name="flush_cmd_queue_msg">Clear Hive cmds</string>
+    <string name="flush_cmd_queue_label">Pending cmds</string>
+    <string name="flush_cmd_queue_desc_hint">View/Clear pending cmds</string>
+    <string name="clear">Clear</string>
+    
     <string name="servo_config_label">Latch Servo</string>
     <string name="servo_config_dialog_title">Servo Config</string>
     <string name="servo_config_desc_hint">configure the servo</string>

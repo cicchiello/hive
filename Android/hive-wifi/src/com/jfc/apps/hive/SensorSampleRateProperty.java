@@ -1,6 +1,8 @@
 package com.jfc.apps.hive;
 
 import org.acra.ACRA;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -17,6 +19,7 @@ import android.widget.TextView;
 
 import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.IPropertyMgr;
+import com.jfc.misc.prop.UptimeProperty;
 import com.jfc.srvc.cloud.CouchCmdPush;
 import com.jfc.util.misc.DbAlertHandler;
 import com.jfc.util.misc.DialogUtils;
@@ -27,7 +30,12 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 	private static final String TAG = SensorSampleRateProperty.class.getName();
 
 	private static final String SAMPLE_RATE = "SAMPLE_RATE";
+	private static final String SAMPLE_RATE_TIMESTAMP = "SAMPLE_RATE_TIMESTAMP";
 	private static final int DEFAULT_SAMPLE_RATE = 5;
+	private static final String DEFAULT_SAMPLE_RATE_TIMESTAMP = "0";
+	
+	private static final String EMBEDDED_SAMPLE_RATE_PROPERTY = "sensor-rate-seconds";
+	private static final String EMBEDDED_TIMESTAMP = "timestamp";
 	
     // created on constructions -- no need to save on pause
 	private TextView mSampleRateTv;
@@ -39,21 +47,30 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 	// transient variables -- no need to save on pause
 	private AlertDialog mAlert;
 
-	
-	public static boolean isRateDefined(Context ctxt) {
-		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt);
-		return SP.contains(SAMPLE_RATE) && 
-			!SP.getString(SAMPLE_RATE, Integer.toString(DEFAULT_SAMPLE_RATE)).equals(Integer.toString(DEFAULT_SAMPLE_RATE));
+	static private String uniqueIdentifier(String base, String hiveId) {
+		return base+"|"+hiveId;
 	}
 	
-	public static int getRate(Context ctxt) {
+	public static boolean isRateDefined(Context ctxt, String hiveId) {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt);
-		String valueStr = SP.getString(SAMPLE_RATE, Integer.toString(DEFAULT_SAMPLE_RATE));
+		return SP.contains(uniqueIdentifier(SAMPLE_RATE, hiveId)) && 
+			!SP.getString(uniqueIdentifier(SAMPLE_RATE, hiveId), Integer.toString(DEFAULT_SAMPLE_RATE)).equals(Integer.toString(DEFAULT_SAMPLE_RATE));
+	}
+	
+	public static int getRate(Context ctxt, String hiveId) {
+		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt);
+		String valueStr = SP.getString(uniqueIdentifier(SAMPLE_RATE, hiveId), Integer.toString(DEFAULT_SAMPLE_RATE));
 		return Integer.parseInt(valueStr);
 	}
 	
-	public static void resetRate(Context ctxt) {
-		setRate(ctxt, DEFAULT_SAMPLE_RATE);
+	public static long getRateTimestamp(Context ctxt, String hiveId) {
+		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt);
+		String valueStr = SP.getString(uniqueIdentifier(SAMPLE_RATE_TIMESTAMP, hiveId), DEFAULT_SAMPLE_RATE_TIMESTAMP);
+		return Long.parseLong(valueStr);
+	}
+	
+	public static void resetRate(Context ctxt, String hiveId) {
+		setRate(ctxt, hiveId, DEFAULT_SAMPLE_RATE, 0);
 	}
 	
 	public SensorSampleRateProperty(final Activity activity, final TextView tv, ImageButton button, DbAlertHandler _dbAlert) {
@@ -62,12 +79,34 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 		this.mSampleRateTv = tv;
 		this.mDbAlert = _dbAlert;
 		this.mHiveId = HiveEnv.getHiveAddress(activity, ActiveHiveProperty.getActiveHiveName(activity));
+
+		boolean usingConfigRate = false;
+		JSONObject config = UptimeProperty.getEmbeddedConfig(activity, mHiveId);
+		if (config.has(EMBEDDED_SAMPLE_RATE_PROPERTY)) {
+			try {
+				long configTimestamp = Long.parseLong(config.getString(EMBEDDED_TIMESTAMP));
+				long propertyTimestamp = getRateTimestamp(activity, mHiveId);
+				if (configTimestamp >= propertyTimestamp) {
+					int seconds = Integer.parseInt(config.getString(EMBEDDED_SAMPLE_RATE_PROPERTY));
+					int minute_s = 60;
+					int rate_min = seconds/minute_s;
+					setRate(mHiveId, rate_min, configTimestamp);
+					usingConfigRate = true;
+					displayRate(Integer.toString(rate_min));
+				}
+			} catch (NumberFormatException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 		
-		if (isRateDefined(activity)) {
-			setRate(getRate(activity));
-		} else {
-			resetRate();
-    	}
+		if (!usingConfigRate) {
+			displayRate(Integer.toString(getRate(activity, mHiveId)));
+		}
+		
 		mSampleRateTv.setBackgroundColor(HiveEnv.ModifiableFieldBackgroundColor);
 		
     	button.setOnClickListener(new OnClickListener() {
@@ -90,7 +129,7 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 								mActivity.runOnUiThread(new Runnable() {
 									@Override
 									public void run() {
-						        		setRate(rateValue);
+						        		setRate(mHiveId, rateValue, System.currentTimeMillis()/1000);
 						        		SplashyText.highlightModifiedField(mActivity, mSampleRateTv);
 									}
 								});
@@ -125,7 +164,7 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 		        mAlert = builder.show();
 		        
 		        EditText tv = (EditText) mAlert.findViewById(R.id.sampleRateTextValue);
-		        int t = getRate(mActivity);
+		        int t = getRate(mActivity, mHiveId);
 		        tv.setText(Integer.toString(t));
 			}
 		});
@@ -141,16 +180,21 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 		mSampleRateTv.setText(msg);
 	}
 	
-	private void setRate(int rate) {
-		setRate(mActivity, rate);
+	private void setRate(String hiveId, int rate, long timestamp) {
+		setRate(mActivity, hiveId, rate, timestamp);
 		displayRate(Integer.toString(rate));
 	}
 	
-	public static void setRate(Context ctxt, int steps) {
+	public static void setRate(Context ctxt, String hiveId, int minutes, long timestamp) {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt.getApplicationContext());
-		if (!SP.getString(SAMPLE_RATE, Integer.toString(DEFAULT_SAMPLE_RATE)).equals(Integer.toString(steps))) {
+		if (!SP.getString(uniqueIdentifier(SAMPLE_RATE, hiveId), Integer.toString(DEFAULT_SAMPLE_RATE)).equals(Integer.toString(minutes))) {
 			SharedPreferences.Editor editor = SP.edit();
-			editor.putString(SAMPLE_RATE, Integer.toString(steps));
+			editor.putString(uniqueIdentifier(SAMPLE_RATE, hiveId), Integer.toString(minutes));
+			editor.commit();
+		}
+		if (!SP.getString(uniqueIdentifier(SAMPLE_RATE_TIMESTAMP, hiveId), DEFAULT_SAMPLE_RATE_TIMESTAMP).equals(Long.toString(timestamp))) {
+			SharedPreferences.Editor editor = SP.edit();
+			editor.putString(uniqueIdentifier(SAMPLE_RATE_TIMESTAMP, hiveId), Long.toString(timestamp));
 			editor.commit();
 		}
 	}

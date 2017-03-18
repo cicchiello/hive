@@ -4,6 +4,7 @@ import com.jfc.misc.prop.AcraTestProperty;
 import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.BridgePairingsProperty;
 import com.jfc.misc.prop.DbCredentialsProperty;
+import com.jfc.misc.prop.FlushCmdQueueProperty;
 import com.jfc.misc.prop.HiveFactoryResetProperty;
 import com.jfc.misc.prop.IPropertyMgr;
 import com.jfc.misc.prop.ServoConfigProperty;
@@ -94,6 +95,8 @@ public class HiveSettingsActivity extends Activity {
         mMgrs.add(new WifiAPProperty(this, (TextView) findViewById(R.id.ap_text), apButton, mDbAlert));
         mMgrs.add(new SensorSampleRateProperty(this, (TextView) findViewById(R.id.sample_rate_text), (ImageButton) findViewById(R.id.sample_rate_button), mDbAlert));
         mMgrs.add(new ServoConfigProperty(this, (TextView) findViewById(R.id.servo_trip_temp_text), (ImageButton) findViewById(R.id.servo_config_button), mDbAlert));
+    	mMgrs.add(new FlushCmdQueueProperty(this, mDbAlert, (ImageButton) findViewById(R.id.flush_cmd_queue_button)));
+
         mMgrs.add(pairing);
 
         if (DEBUG) 

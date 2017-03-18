@@ -1,0 +1,71 @@
+#!/bin/bash
+
+WHO=""
+while getopts "s:w:" option
+do
+	case "${option}"
+	in
+	    s) SINCE=${OPTARG};;
+	    w) WHO=${OPTARG};;
+	esac
+done
+
+if [ -n "$SINCE" ]; then
+    echo "Attempting to get all records with timestamp greater than $SINCE"
+else
+    echo "Error: a unix timestamp must be supplied"
+    echo "usage: -s <unix-timestamp> -w {angus|me}"
+    exit
+fi
+
+if [ "$WHO" == "angus" ]; then
+    echo "Angus' records requested"
+    id="95efbfae334d4d512020204a311402ff"
+else
+    if [ "$WHO" == "me" ]; then
+	echo "Me records requested"
+	id="d359371b544d4d51202020470b0b01ff"
+    else
+	echo "Error: must indicate which user's channel is being analyzed"
+	echo "usage: -s <unix-timestamp> -w {angus|me}"
+	exit
+    fi
+fi
+
+echo "Using user id ${id}"
+
+couchHost="http://jfcenterprises.cloudant.com"
+db="hive-channel"
+headId="${id}-app"
+
+#echo "msg=\$(curl ${couchHost}/${db}/${headId} 2> /dev/null | jq" '."msg-id"'")"
+msg=$(curl ${couchHost}/${db}/${headId} 2> /dev/null | jq '."msg-id"')
+msg=${msg%$'\r'}
+msg=$(echo $msg | sed s/\"//g)
+prev=${msg}
+
+while [ "$prev" != "0" ]
+do
+    #echo $prev
+    #echo "msg=\$(curl ${couchHost}/${db}/${msg} 2> /dev/null | jq" '."prev-msg-id"'")"
+    doc=$(curl ${couchHost}/${db}/${msg} 2> /dev/null)
+    msg=$(echo $doc | jq '."prev-msg-id"')
+    msg=${msg%$'\r'}
+    msg=$(echo $msg | sed s/\"//g)
+    pyld=$(echo $doc | jq '."payload"')
+    pyld=${pyld%$'\r'}
+    pyld=$(echo $pyld | sed s/\"//g)
+    time=$(echo $doc | jq '."timestamp"')
+    time=${time%$'\r'}
+    time=$(echo $time | sed s/\"//g)
+    if [ "$time" -lt "$SINCE" ] ; then
+	prev="0"
+    else
+	readable=$(date --date=@${time})
+	echo ${prev} '"'$readable'"' ${pyld}
+	prev=${msg}
+    fi
+done
+
+
+
