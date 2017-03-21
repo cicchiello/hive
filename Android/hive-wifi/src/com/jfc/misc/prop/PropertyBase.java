@@ -1,19 +1,13 @@
 package com.jfc.misc.prop;
 
 import org.acra.ACRA;
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import android.app.Activity;
 import android.util.Log;
 import android.widget.ImageButton;
 import android.widget.TextView;
-import android.widget.Toast;
 
-import com.jfc.misc.prop.DbCredentialsProperty;
-import com.jfc.srvc.cloud.CouchGetBackground;
-import com.jfc.srvc.cloud.CouchPostBackground;
-import com.jfc.srvc.cloud.CouchPutBackground;
+import com.jfc.srvc.cloud.CouchCmdPush;
 
 
 public class PropertyBase {
@@ -33,99 +27,22 @@ public class PropertyBase {
 		this.mHiveId = _hiveId;
 	}
 
-	protected void createNewMsgDoc(final String channelDocId, final String channelDocRev, String sensor, String instruction, String prevId) {
-		try {
-			// create a new msg doc
-			final String dbUrl = DbCredentialsProperty.getCouchChannelDbUrl(mActivity);
-			final String authToken = DbCredentialsProperty.getAuthToken(mActivity);
-			String timestamp = Long.toString(System.currentTimeMillis()/1000);
-			String payload = sensor + "|" + instruction;
-	
-			JSONObject msgDoc = new JSONObject();
-			msgDoc.put("prev-msg-id", prevId);
-			msgDoc.put("payload", payload);
-			msgDoc.put("timestamp", timestamp);
-			
-			// log the command
-			String rpt = "POST " + dbUrl+" "+msgDoc.toString();
-			ACRA.getErrorReporter().handleSilentException(new Exception("About to issue query: "+rpt));
-			
-		    CouchPostBackground.OnCompletion postOnCompletion = new CouchPostBackground.OnCompletion() {
-		    	public void onSuccess(String msgId, String msgRev) {
-		    		try {
-		    			String timestamp = Long.toString(System.currentTimeMillis()/1000);
-					
-						JSONObject newChannelDoc = new JSONObject();
-						if (channelDocRev != null)
-							newChannelDoc.put("_rev", channelDocRev);
-						newChannelDoc.put("msg-id", msgId);
-						newChannelDoc.put("timestamp", timestamp);
-		
-						// log the command
-						String rpt = "PUT " + dbUrl+"/"+channelDocId+" "+newChannelDoc.toString();
-						ACRA.getErrorReporter().handleSilentException(new Exception("About to issue query: "+rpt));
-						
-						CouchPutBackground.OnCompletion putOnCompletion = new CouchPutBackground.OnCompletion() {
-					    	public void complete(JSONObject results) {
-					    		Log.i(TAG, "Channel Doc PUT success:  "+results.toString());
-					    	}
-					    	public void failed(String query, String msg) {
-					    		Log.e(TAG, "Channel Doc PUT failed: "+msg);
-								ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
-					    	}
-						};
-						
-			    	    new CouchPutBackground(dbUrl+"/"+channelDocId, authToken, newChannelDoc.toString(), putOnCompletion).execute();
-					} catch (JSONException je) {
-						Log.e(TAG, je.getMessage());
-					}
-		    	}
-		    	public void onFailure(String query, String msg) {
-		    		Log.e(TAG, "Msg Doc POST failed: "+msg);
-					ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
-		    	}
-		    };
-		    new CouchPostBackground(dbUrl, authToken, msgDoc.toString(), postOnCompletion).execute();
-		} catch (JSONException je) {
-			Log.e(TAG, je.getMessage());
-		}
-	}
-	
 	
 	protected void postToDb(final String sensor, final String instruction) {
-		final String dbUrl = DbCredentialsProperty.getCouchChannelDbUrl(mActivity);
-		String authToken = null;
-		final String channelDocId = mHiveId + "-app";
-		
-	    CouchGetBackground.OnCompletion channelDocOnCompletion = new CouchGetBackground.OnCompletion() {
-			@Override
-	    	public void complete(JSONObject currentChannelDoc) {
-				try {
-					String prevMsgId = currentChannelDoc.getString("msg-id");
-					final String currentChannelDocRev = currentChannelDoc.getString("_rev");
-					
-					createNewMsgDoc(channelDocId, currentChannelDocRev, sensor, instruction, prevMsgId);
-				} catch (JSONException je) {
-					Log.e(TAG, je.getMessage());
-				}
-			}
-			
-			@Override
-			public void objNotFound(String query) {
-				createNewMsgDoc(channelDocId, null, sensor, instruction, "0");
-			}
-			
-			@Override
-	    	public void failed(String query, final String msg) {
-				mActivity.runOnUiThread(new Runnable() {public void run() {
-					Toast.makeText(mActivity, "Channel Doc GET failed with msg: "+msg, Toast.LENGTH_LONG).show();
-				}});
+		CouchCmdPush.OnCompletion onCompletion = new CouchCmdPush.OnCompletion() {
+	    	public void success() {
+	    		Log.i(TAG, "Channel Doc PUT success");
+	    	}
+	    	public void error(String query, String msg) {
+	    		Log.e(TAG, "Channel Doc PUT failed: "+msg);
 				ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
+	    	}
+			public void serviceUnavailable(String msg) {
+				// TODO Auto-generated method stub
 			}
-	    };
-
-    	final CouchGetBackground getter = new CouchGetBackground(dbUrl+"/"+channelDocId, authToken, channelDocOnCompletion);
-    	getter.execute();
+		};
+		
+		new CouchCmdPush(mActivity, sensor, instruction, onCompletion).execute();
 	}
 
 	// derived class should do whatever is necessary to determine if the Property hasn't been defined or ever touched
