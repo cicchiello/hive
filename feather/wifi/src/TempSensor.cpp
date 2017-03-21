@@ -8,14 +8,6 @@
 
 #include <Trace.h>
 
-#include <Mutex.h>
-
-#include <hiveconfig.h>
-#include <http_couchpost.h>
-
-#include <RateProvider.h>
-#include <TimeProvider.h>
-
 #include <str.h>
 
 #include <DHT.h>
@@ -24,10 +16,6 @@
 #define DHTPIN A3       // what pin we're connected to for data
 
 static DHT dht(DHTPIN, DHTTYPE);
-static unsigned long lastSampleTime = 0;
-
-static void *MySemaphore = &MySemaphore; // used by mutex
-
 
 
 TempSensor::TempSensor(const HiveConfig &config,
@@ -83,7 +71,4 @@ bool TempSensor::sensorSample(Str *value)
 	DL(output);
     }
 }
-
-
-
 

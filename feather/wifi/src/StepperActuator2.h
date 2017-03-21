@@ -28,33 +28,20 @@ class StepperActuator2 : public Actuator {
 
     bool isMyMsg(const char *msg) const;
     
-    PulseGenConsumer *getPulseGenConsumer();
-
-    void scheduleNext4Steps(unsigned long now);
-    
  protected:
     virtual const char *className() const {return "StepperActuator2";}
 
  private:
     friend class StepperActuator2PulseGenConsumer;
 
-    bool isItTimeYetForSelfDrive(unsigned long now);
-    void step();
-    
-    static StepperActuator2 **s_steppers;
-    static bool s_pulseInitialized;
-    static void PulseCallback();
-
-
-    unsigned long mUsStartTime, mDurationOfRun_us;
-    int mLoc, mTarget, mPort, mAddress;
+    int mTarget, mPort, mI2Caddr, mStepperIndex;
     bool mRunning, mIsBackwards;
 };
 
 
 inline int StepperActuator2::getLocation() const
 {
-    return mLoc;
+    return 0;
 }
 
 inline int StepperActuator2::getTarget() const

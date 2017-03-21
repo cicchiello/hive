@@ -8,7 +8,6 @@
 
 #include <Trace.h>
 
-
 #include <hiveconfig.h>
 
 #include <Wire.h>
@@ -18,29 +17,36 @@
  #define WIRE Wire
 #endif
 
+#include <platformutils.h>
 #include <hive_platform.h>
 
 #include <str.h>
 #include <strutils.h>
 
-//#include <StepperPWM.h>
-
 
 class PWM {
+private:
+  uint8_t _i2caddr;
 public:
-  PWM();
+  static const int PWM_BASE_I2CADDR = 0x60;
+  static const int MAX_PWM = 32;
+  
+  PWM(uint8_t i2caddr);
   ~PWM() {}
 	
-  void start(int address, int port, bool isBackwards);
-  void stop(int address, int port);
+  void start(int port, bool isCCW);
+  void stop(int port);
+  void stopAll();
 
   unsigned long usPer4Steps() {return mUsPer4Steps;}
-  int msPer4Steps() {return usPer4Steps()/1000;}
 
   unsigned long mUsPer4Steps;
 };
 
-static PWM sPWM;
+
+static PWM *sPWM[PWM::MAX_PWM];
+static bool sPWMsInitialized = false;
+
 
 
 class StepperActuator2PulseGenConsumer : public PulseGenConsumer {
@@ -48,18 +54,23 @@ private:
   StepperActuator2PulseGenConsumer();
 
   StepperActuator2 **mSteppers;
+  unsigned long *mNumPulses;
 
 public:
   static StepperActuator2PulseGenConsumer *nonConstSingleton();
 
-  void addStepper(StepperActuator2 *stepper);
+  int addStepper(StepperActuator2 *stepper);
   void removeStepper(StepperActuator2 *stepper);
 
+  void startTimer(int index, unsigned long numPulses);
+  
+  void stopAll();
+  
   void pulse(unsigned long now);
 };
 
 
-void StepperActuator2PulseGenConsumer::addStepper(StepperActuator2 *stepper)
+int StepperActuator2PulseGenConsumer::addStepper(StepperActuator2 *stepper)
 {
     TF("StepperActuator2PulseGenConsumer::addStepper");
 
@@ -81,6 +92,8 @@ void StepperActuator2PulseGenConsumer::addStepper(StepperActuator2 *stepper)
 
     TRACE2("adding stepper to list at entry: ", i);
     mSteppers[i] = stepper;
+    mNumPulses[i] = 0;
+    return i;
 }
 
 
@@ -102,9 +115,12 @@ void StepperActuator2PulseGenConsumer::removeStepper(StepperActuator2 *stepper)
     j--; // went one too far
     if (i == j) {
         mSteppers[i] = NULL;
+	mNumPulses[i] = 0;
     } else {
         mSteppers[i] = mSteppers[j];
+	mNumPulses[i] = mNumPulses[j];
 	mSteppers[j] = NULL;
+	mNumPulses[j] = 0;
     }
 
     // if the ISR Handler list is empty, stop the pulse generator
@@ -115,12 +131,29 @@ void StepperActuator2PulseGenConsumer::removeStepper(StepperActuator2 *stepper)
 }
 
 
+void StepperActuator2PulseGenConsumer::startTimer(int index, unsigned long numPulses)
+{
+    bool found = false;
+    int i = 0;
+    while (!found && mSteppers[i]) {
+        found |= mNumPulses[i] > 0;
+        i++;
+    }
+
+    mNumPulses[index] = numPulses;
+};
+
+
 StepperActuator2PulseGenConsumer::StepperActuator2PulseGenConsumer()
 {
     mSteppers = new StepperActuator2*[10];
-    for (int i = 0; i < 10; i++)
+    mNumPulses = new unsigned long[10];
+    for (int i = 0; i < 10; i++) {
         mSteppers[i] = NULL;
+	mNumPulses[i] = 0;
+    }
 }
+
 
 /* STATIC */
 StepperActuator2PulseGenConsumer *StepperActuator2PulseGenConsumer::nonConstSingleton()
@@ -132,106 +165,81 @@ StepperActuator2PulseGenConsumer *StepperActuator2PulseGenConsumer::nonConstSing
 
 void StepperActuator2PulseGenConsumer::pulse(unsigned long now)
 {
-    TF("StepperActuator2PulseGenConsumer::pulse");
-    
     //to see the pulse on the scope, enable "5" as an output and uncomment:
-    //const PinDescription &p = g_APinDescription[5];
-    //PORT->Group[p.ulPort].OUTTGL.reg = (1ul << p.ulPin) ;
-    
-    bool didSomething = true;
-    while (didSomething) {
-        didSomething = false;
-	int i = 0;
-	while (!didSomething && mSteppers[i]) {
-	    if (mSteppers[i]->isItTimeYetForSelfDrive(now)) {
+    const PinDescription &p = g_APinDescription[5];
+    PORT->Group[p.ulPort].OUTTGL.reg = (1ul << p.ulPin) ;
 
-	        mSteppers[i]->scheduleNext4Steps(now); // must be done before step!
-		// (step may remove the stepper from this list we're iterating!)
+    for (int i = 0; mSteppers[i]; i++)
+        if(mNumPulses[i] && (--mNumPulses[i] == 0)) {
+	    StepperActuator2 *stepper = mSteppers[i];
+	    sPWM[stepper->mI2Caddr-PWM::PWM_BASE_I2CADDR]->stop(stepper->mPort);
+	    stepper->mRunning = false;
+	    stepper->mTarget = 0;
+	}
+}
 
-	        mSteppers[i]->step();
-		
-		now = millis();
-		didSomething = true;
-	    }
-	    i++;
+
+void StepperActuator2PulseGenConsumer::stopAll()
+{
+    for (int i = 0; mSteppers[i]; i++) {
+        if (mNumPulses[i]) {
+	    StepperActuator2 *stepper = mSteppers[i];
+	    mNumPulses[i] = 0;
+	    sPWM[stepper->mI2Caddr-PWM::PWM_BASE_I2CADDR]->stop(stepper->mPort);
+	    stepper->mRunning = false;
+	    stepper->mTarget = 0;
 	}
     }
 }
 
 
 
-
-
-PulseGenConsumer *StepperActuator2::getPulseGenConsumer()
+static PlatformUtils::WDT_EarlyWarning_Func sDaisyChainedFunc = 0;
+static void FatalShutdown()
 {
-    return StepperActuator2PulseGenConsumer::nonConstSingleton();
+    StepperActuator2PulseGenConsumer::nonConstSingleton()->stopAll();
+    sDaisyChainedFunc();
 }
 
+
+
 StepperActuator2::StepperActuator2(const HiveConfig &config,
-				 const RateProvider &rateProvider,
-				 const char *name,
-				 unsigned long now,
-				 int address, int port,
-				 bool isBackwards)
-  : Actuator(name, now), mLoc(0), mTarget(0), 
-    mRunning(false), mIsBackwards(isBackwards), mPort(port), mAddress(address)
+				   const RateProvider &rateProvider,
+				   const char *name,
+				   unsigned long now,
+				   int i2caddr, int port,
+				   bool isBackwards)
+  : Actuator(name, now), mTarget(0), 
+    mRunning(false), mIsBackwards(isBackwards), mPort(port), mI2Caddr(i2caddr)
 {
     TF("StepperActuator2::StepperActuator2");
+
+    if (!sPWMsInitialized) {
+	sDaisyChainedFunc = PlatformUtils::nonConstSingleton().initWDT(FatalShutdown);
+
+	for (int i = 0; i < PWM::MAX_PWM; i++)
+	    sPWM[i] = NULL;
+	
+        sPWMsInitialized = true;
+    }
+
+    if (sPWM[i2caddr-PWM::PWM_BASE_I2CADDR] == NULL)
+        sPWM[i2caddr-PWM::PWM_BASE_I2CADDR] = new PWM(i2caddr);
+
+    mStepperIndex = StepperActuator2PulseGenConsumer::nonConstSingleton()->addStepper(this);
 }
 
 
 StepperActuator2::~StepperActuator2()
 {
     TF("StepperActuator2::~StepperActuator2");
-}
-
-void StepperActuator2::step()
-{
-    TF("StepperActuator2::step");
-
-    if (mLoc != mTarget) {
-        unsigned long now_us = micros();
-	unsigned long runtimeSoFar_us = now_us - mUsStartTime;
-	bool done = runtimeSoFar_us >= mDurationOfRun_us;
-
-	mLoc = (int) (mTarget*((double)runtimeSoFar_us/(double)mDurationOfRun_us));
-
-	//to see a pulse on the scope, enable "5" as an output and uncomment:
-	//const PinDescription &p = g_APinDescription[5];
-	//PORT->Group[p.ulPort].OUTTGL.reg = (1ul << p.ulPin) ;
-
-	if (done) {
-	    sPWM.stop(mAddress, mPort);
-	    PH("Stopped");
-	    
-	    mRunning = false;
-
-	    // remove this StepperActuator2 from the ISR handler list
-	    StepperActuator2PulseGenConsumer::nonConstSingleton()->removeStepper(this);
-
-	    mLoc = mTarget = 0;
-	    TRACE("Released the stepper motor");
-	}
-    }
-}
-
-
-bool StepperActuator2::isItTimeYetForSelfDrive(unsigned long now)
-{
-    TF("StepperActuator2::isItTimeYetForSelfDrive");
-    unsigned long when = getNextActionTime();
-    if ((now > when) && (mLoc != mTarget)) {
-        TRACE4("StepperActuator2::isItTimeYetForSelfDrive; missed an appointed visit by ",
-	       now - when, " ms; now == ", now);
-    }
-    
-    return now >= when;
+    StepperActuator2PulseGenConsumer::nonConstSingleton()->stopAll();
 }
 
 
 bool StepperActuator2::loop(unsigned long now)
 {
-    return mLoc != mTarget;
+    return mTarget != 0;
 }
 
 
@@ -258,21 +266,26 @@ void StepperActuator2::processMsg(unsigned long now, const char *msg)
 	TRACE2("new target is: ", newTarget);
 
         mTarget = newTarget;
-        if (mTarget != mLoc) {
-	    PH3("Running for ", (mTarget-mLoc), " steps");
+        if (mTarget != 0) {
+	    PH3("Running for ", mTarget, " steps");
 
-	    // put this StepperActuator2 on the ISR handler list
-	    // (consider that it might already be there)
-	    StepperActuator2PulseGenConsumer::nonConstSingleton()->addStepper(this);
+	    int newTargetAbs = newTarget > 0 ? newTarget : -newTarget;
+	    unsigned long durationOfRun_us = newTargetAbs/4*sPWM[mI2Caddr-PWM::PWM_BASE_I2CADDR]->usPer4Steps();
+	    double durationOfRun_s = durationOfRun_us / 1000000.0;
+	    double pulsesPerSecond = HivePlatform::SAMPLES_PER_SECOND_11K*0.9565;
+	    unsigned long pulsesForRun = (unsigned long) (durationOfRun_s*pulsesPerSecond);
 
-	    TRACE("Calling StepperPWMstart");
-	    sPWM.start(mAddress, mPort, mIsBackwards);
-	    mUsStartTime = micros();
-	    mDurationOfRun_us = newTarget/4*sPWM.usPer4Steps();
-	    TRACE2("mDurationofRun_us: ", mDurationOfRun_us);
-	
-	    scheduleNext4Steps(millis());
+	    TRACE2("usPer4Steps(): ", sPWM[mI2Caddr-PWM::PWM_BASE_I2CADDR]->usPer4Steps());
+	    TRACE2("pulsesPerSecond: ", pulsesPerSecond);
+	    TRACE2("durationOfRun_us: ", durationOfRun_us);
+	    TRACE2("mDurationOfRun_s: ", durationOfRun_s);
+	    TRACE2("pulsesForRun: ", pulsesForRun);
 	    
+	    StepperActuator2PulseGenConsumer::nonConstSingleton()->startTimer(mStepperIndex, pulsesForRun);
+
+	    TRACE("Calling PWM->start");
+	    sPWM[mI2Caddr-PWM::PWM_BASE_I2CADDR]->start(mPort, newTarget > 0 ? mIsBackwards : !mIsBackwards);
+	
 	    mRunning = true;
 	}
     }
@@ -299,29 +312,16 @@ bool StepperActuator2::isMyMsg(const char *msg) const
     }
 }
 
-void StepperActuator2::scheduleNext4Steps(unsigned long now)
-{
-  setNextActionTime(now + sPWM.msPer4Steps());
-}
 
 
 static const int StepsPerRevolution = 200;
 static const int StepsPerPWMCycle = 4;
 
-static const int PWMA = 2;
-static const int PWMB = 7;
-static const int AIN1 = 4;
-static const int AIN2 = 3;
-static const int BIN1 = 5;
-static const int BIN2 = 6;
-
-static const int i2caddr = 0x60;
-
 static const int PCA9685_MODE1 = 0x0;
 static const int PCA9685_PRESCALE = 0xFE;
 static const int LED0_ON_L = 0x6;
 
-static void write8(uint8_t addr, uint8_t d) {
+static void write8(uint8_t i2caddr, uint8_t addr, uint8_t d) {
   WIRE.beginTransmission(i2caddr);
 #if ARDUINO >= 100
   WIRE.write(addr);
@@ -334,7 +334,7 @@ static void write8(uint8_t addr, uint8_t d) {
 }
 
 
-static uint8_t read8(uint8_t addr) {
+static uint8_t read8(uint8_t i2caddr, uint8_t addr) {
   WIRE.beginTransmission(i2caddr);
 #if ARDUINO >= 100
   WIRE.write(addr);
@@ -343,7 +343,7 @@ static uint8_t read8(uint8_t addr) {
 #endif
   WIRE.endTransmission();
 
-  WIRE.requestFrom((uint8_t)i2caddr, (uint8_t)1);
+  WIRE.requestFrom(i2caddr, (uint8_t)1);
 #if ARDUINO >= 100
   return WIRE.read();
 #else
@@ -352,11 +352,7 @@ static uint8_t read8(uint8_t addr) {
 }
 
 
-static void setPWM(uint8_t num, uint16_t on, uint16_t off) {
-  TF("::setPWM");
-  TRACE2("Setting PWM ",num);
-  TRACE3(on, "->", off);
-
+static void setPWM(uint8_t i2caddr, uint8_t num, uint16_t on, uint16_t off) {
   WIRE.beginTransmission(i2caddr);
 #if ARDUINO >= 100
   WIRE.write(LED0_ON_L+4*num);
@@ -375,73 +371,99 @@ static void setPWM(uint8_t num, uint16_t on, uint16_t off) {
 }
 
 
-PWM::PWM()
+PWM::PWM(uint8_t i2caddr)
+  : _i2caddr(i2caddr)
 {
     TF("PWM::PWM");
   
     WIRE.begin();
   
-    write8(PCA9685_MODE1, 0x0); // reset
+    write8(i2caddr, PCA9685_MODE1, 0x0); // reset
   
-    uint8_t prescale = 123;
+    uint8_t prescale = 121;
     TRACE2("using prescale of ", prescale);
 
-    uint8_t oldmode = read8(PCA9685_MODE1);
+    uint8_t oldmode = read8(i2caddr, PCA9685_MODE1);
     uint8_t newmode = (oldmode&0x7F) | 0x10; // sleep
-    write8(PCA9685_MODE1, newmode); // go to sleep
-    write8(PCA9685_PRESCALE, prescale); // set the prescaler
+    write8(i2caddr, PCA9685_MODE1, newmode); // go to sleep
+    write8(i2caddr, PCA9685_PRESCALE, prescale); // set the prescaler
     delay(1);                           // allow 500us for the oscillator to settle
-    write8(PCA9685_MODE1, oldmode);
+    write8(i2caddr, PCA9685_MODE1, oldmode);
     delay(1);
-    write8(PCA9685_MODE1, oldmode | 0xa1);  // This resets and sets the MODE1 register to turn on auto increment.
+    write8(i2caddr, PCA9685_MODE1, oldmode | 0xa1);  // This resets and sets the MODE1 register to turn on auto increment.
                                             // This is why the beginTransmission below was not working.
   
     for (uint8_t i=0; i<16; i++) 
-        setPWM(i, 0, 0);
+        setPWM(i2caddr, i, 0, 0);
 
     // set speed
     TRACE2("Steps per revolution: ", StepsPerRevolution);
 
-    double secondsPer4Steps = 1.0/(25000000.0/4096/prescale);
-    double usPerS = 1000000;
-    sPWM.mUsPer4Steps = secondsPer4Steps*usPerS;
-  
+    mUsPer4Steps = (unsigned long) (4096.0*prescale/25.0 + 0.5);
+    
+    TRACE2("prescale: ", prescale);
     TRACE2("us Per 4 Steps: ", mUsPer4Steps);
 }
 
 
-void PWM::stop(int address, int port)
+void PWM::stop(int port)
 {
-    setPWM(AIN1, 0, 0);
-    setPWM(AIN2, 0, 0);
-    setPWM(BIN1, 0, 0);
-    setPWM(BIN2, 0, 0);
-    setPWM(PWMA, 0, 0);
-    setPWM(PWMB, 0, 0);
+    TF("PWM::stop");
+    PH("Stopping");
+    
+    int pwma, ain2, ain1, pwmb, bin2, bin1;
+    switch (port) {
+    case 1: 
+      pwma = 8; ain2 = 9; ain1 = 10;
+      pwmb = 13; bin2 = 12; bin1 = 11;
+      break;
+    case 2:
+      pwma = 2; ain2 = 3; ain1 = 4;
+      pwmb = 7; bin2 = 6; bin1 = 5;
+      break;
+    }
+    
+    setPWM(_i2caddr, ain1, 0, 0);
+    setPWM(_i2caddr, ain2, 0, 0);
+    setPWM(_i2caddr, bin1, 0, 0);
+    setPWM(_i2caddr, bin2, 0, 0);
+    setPWM(_i2caddr, pwma, 0, 0);
+    setPWM(_i2caddr, pwmb, 0, 0);
 }
 
 
-void PWM::start(int address, int port, bool isBackwards)
+void PWM::start(int port, bool isCCW)
 {
     TF("PWM::start");
-    assert(address == 0x60, "only address==0x60 supported for now"); 
-    assert(port == 1, "only port==1 supported for now");
+    PH4("Starting; i2caddr: ", _i2caddr, ", port: ", port);
   
-    setPWM(PWMA, 4096, 0);
-    setPWM(PWMB, 4096, 0);
+    int pwma, ain2, ain1, pwmb, bin2, bin1;
+    switch (port) {
+    case 1: 
+      pwma = 8; ain2 = 9; ain1 = 10;
+      pwmb = 13; bin2 = 12; bin1 = 11;
+      break;
+    case 2:
+      pwma = 2; ain2 = 3; ain1 = 4;
+      pwmb = 7; bin2 = 6; bin1 = 5;
+      break;
+    }
+    
+    setPWM(_i2caddr, pwma, 4096, 0);
+    setPWM(_i2caddr, pwmb, 4096, 0);
 
-    if (isBackwards) {
-        // runs CCW at a little slower than 1 rev per second
-        setPWM(AIN1, 0x355, 0xc00);
-	setPWM(AIN2, 0xc00, 0x3ff);
-	setPWM(BIN1, 0x7ff, 0xfff);
-	setPWM(BIN2, 0x0, 0x7ff);
+    if (isCCW) {
+        // runs CCW 
+        setPWM(_i2caddr, ain1, 0x355, 0xc00);
+	setPWM(_i2caddr, ain2, 0xc00, 0x3ff);
+	setPWM(_i2caddr, bin1, 0x7ff, 0xfff);
+	setPWM(_i2caddr, bin2, 0x0, 0x7ff);
     } else {
-        // runs CW at a little slower than 1 rev per second
-        setPWM(AIN1, 0x0, 0x7ff);
-	setPWM(AIN2, 0x7ff, 0xfff);
-	setPWM(BIN1, 0xc00, 0x3ff);
-	setPWM(BIN2, 0x355, 0xc00);
+        // runs CW 
+        setPWM(_i2caddr, ain1, 0x0, 0x7ff);
+	setPWM(_i2caddr, ain2, 0x7ff, 0xfff);
+	setPWM(_i2caddr, bin1, 0xc00, 0x3ff);
+	setPWM(_i2caddr, bin2, 0x355, 0xc00);
     }
 }
 

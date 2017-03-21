@@ -20,6 +20,7 @@ class HivePlatform {
     static void error(const char *msg);
 
     static const int SAMPLES_PER_SECOND_22K = 22050;
+    static const int SAMPLES_PER_SECOND_11K = 11025;
     void registerPulseGenConsumer_11K(class PulseGenConsumer *consumer);
     void registerPulseGenConsumer_22K(class PulseGenConsumer *consumer);
 

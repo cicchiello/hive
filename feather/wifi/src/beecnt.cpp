@@ -142,7 +142,7 @@ void BeeCounter::pulse(unsigned long now)
 
 bool BeeCounter::sample(unsigned long now)
 {
-    TF("BeeCounter::pulse");
+    TF("BeeCounter::sample");
 
     if (now > mNextMidnight) {
         mNextMidnight += 60*60*24;
@@ -153,10 +153,9 @@ bool BeeCounter::sample(unsigned long now)
         return false;
 
     bool tookTooLong = false;
-    if (!mFirstRead && (now > mLastSampleTime+10)) {
+    if (!mFirstRead && (now > mLastSampleTime+20)) {
         TRACE2("now: ", now);
-        PH3("BeeCounter::pulse called too infrequently; last call was : ", (now-mLastSampleTime),
-	    " ms ago");
+        PH3("called too infrequently; last call was : ", (now-mLastSampleTime), " ms ago");
 	tookTooLong = true;
     }
     mLastSampleTime = now;

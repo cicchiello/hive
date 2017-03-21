@@ -66,8 +66,8 @@ bool SensorBase::postImplementation(unsigned long now, Mutex *wifi)
 {
     TF("SensorBase::postImplementation");
     bool callMeBack = true;
+    unsigned long callMeBackIn_ms = 10l;
     if (wifi->own(this)) {
-        unsigned long callMeBackIn_ms = 10l;
 	if (mPoster == NULL) {
 	    TRACE("creating poster");
 
@@ -130,8 +130,8 @@ bool SensorBase::postImplementation(unsigned long now, Mutex *wifi)
 		wifi->release(this);
 	    }
 	}
-	mNextPostTime = now + callMeBackIn_ms;
     }
+    mNextPostTime = now + callMeBackIn_ms;
 
     return callMeBack;
 }
