@@ -134,6 +134,8 @@ void HttpCouchConsumer::cleanChunkedResult(const char *terminationMarker)
 }
 
 
+#define BITESZ 40
+
 bool HttpCouchConsumer::consume(unsigned long now)
 {
     TF("HttpCouchConsumer::consume");
@@ -144,19 +146,24 @@ bool HttpCouchConsumer::consume(unsigned long now)
         TRACE("consuming the couch part of the header response");
 	Adafruit_WINC1500Client &client = m_ctxt.getClient();
 	if (client.connected() && !isError() && hasOk()) {
-	    TRACE("consuming couch response document");
-	    int avail = client.available();
-	    TRACE("no error and hasOk");
+	    TRACE("consuming couch response document; no error and hasOk");
+	    
+	    static char buf[BITESZ+2];
+	    
+	    // if there are incoming bytes available
+	    // from the host, read them and process them
 
-	    // never process more than 20 chars to ensure the outter event loop
+	    // but never process more than BITESZ chars to ensure the outter event loop
 	    // isn't starved of time
 
-	    int cnt = 20;
-	    expandResponseBy(avail);
-	    while (avail-- && cnt--) {
-	        char c = client.read();
-		appendToResponse(c);
+	    int cnt = BITESZ, i = 0;
+	    int avail = client.available();
+	    if (cnt > avail) cnt = avail;
+
+	    while (cnt--) {
+	        buf[i++] = client.read();
 	    }
+	    appendToResponse(buf, i);
 		
 	    if (isChunked()) {
 	        // check for chunked termination

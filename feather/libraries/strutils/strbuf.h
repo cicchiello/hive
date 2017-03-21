@@ -17,6 +17,7 @@ class StrBuf {
   StrBuf &append(char c) {add(c); return *this;}
   
   void add(char c);
+  void add(const char *str, int n);
   void set(char c, int i);
   StrBuf tolower() const;
   

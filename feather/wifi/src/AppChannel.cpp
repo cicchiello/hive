@@ -88,9 +88,14 @@ static bool readMsgIdFile(SdFat &sd, const char *filename, StrBuf *msgId)
 
     f.close();
     
-    *msgId = buf;
-    TRACE2("msgId: ", msgId->c_str());
-    return true;
+    if (strlen(buf) == 0) {
+        TRACE("invalid prevMsgId found in " NEW_FILENAME);
+	return false;
+    } else {
+        *msgId = buf;
+        TRACE2("msgId: ", msgId->c_str());
+	return true;
+    }
 }
 
 
@@ -158,7 +163,12 @@ bool AppChannel::loadPrevMsgId()
 	    mInitialMsg = false;
 	} else {
 	    // fatal -- FILENAME exists but cannot be read, so no idea what msg id should be used
-	    ERR(P("Couldn't read file: "); PL(FILENAME););
+	    PH2("Couldn't read file: ",FILENAME);
+
+	    // act like it's the first time we're running
+	    mState = READ_HEADER;
+	    mInitialMsg = true;
+	
 	    return false;
 	}
     } else {
@@ -178,6 +188,7 @@ bool AppChannel::processDoc(const CouchUtils::Doc &doc,
 			    unsigned long *callMeBackIn_ms)
 {
     TF("AppChannel::processDoc");
+
     bool isValid = true;
     if (gettingHeader) {
         int i = doc.lookup("msg-id");
@@ -191,11 +202,39 @@ bool AppChannel::processDoc(const CouchUtils::Doc &doc,
 	        PH4("Msg ", msgId.c_str(), " has already been processed; now: ", now);
 		// nothing to do
 	    } else {
-	        // then go get the msg -- don't release the mutex and continue very soon
-	        PH4("Attempting to get message id: ", msgId.c_str(), " now: ", now);
-		mNewMsgId = msgId.c_str();
-		mState = READ_MSG;
-		*callMeBackIn_ms = 1l;
+	        int prevIndex = doc.lookup("prev-msg-id");
+		if (prevIndex >= 0) {
+		    // then I know the prev-msg-id; I should also have the payload for msgId
+		    const Str &prevMsgId = doc[prevIndex].getValue().getStr();
+		    bool isOriginalMsg = prevMsgId.equals("0");
+		    if (isOriginalMsg || prevMsgId.equals(mPrevMsgId.c_str())) {
+		        // good!  this means I have the next message that the system should process
+		        // *and* it's in the header -- I saved a call to get the top of the linked list of commands
+		        int payloadIndex = doc.lookup("payload");
+			assert(payloadIndex >= 0, "payloadIndex >= 0");
+			assert(doc[payloadIndex].getValue().isStr(), "doc[payloadIndex].getValue().isStr()");
+			mPayload = doc[payloadIndex].getValue().getStr().c_str();
+			PH4("Have the next message to process: ", mPayload.c_str(), " now: ", now);
+			mHavePayload = true;
+			mState = HAVE_PAYLOAD;
+			mInitialMsg = false;
+			mNewMsgId = msgId.c_str();
+			mPrevMsgId = prevMsgId.c_str();
+		    } else {
+		        // then I should look further back in the history;
+		        mNewMsgId = prevMsgId.c_str();
+			PH2("There's an older message; getting: ", mNewMsgId.c_str());
+			mState = READ_MSG;
+			*callMeBackIn_ms = 10l;
+		    }
+		} else {
+		    // then go get the msg -- don't release the mutex and continue very soon
+		    PH4("Attempting to get message id: ", msgId.c_str(), " now: ", now);
+		    mNewMsgId = msgId.c_str();
+		    mState = READ_MSG;
+		    *callMeBackIn_ms = 1l;
+		}
+		mPrevETag = "undefined";
 	    }
 	} 
     } else {
@@ -208,21 +247,21 @@ bool AppChannel::processDoc(const CouchUtils::Doc &doc,
 	    const Str &prevMsgId = doc[i].getValue().getStr();
 	    bool isOriginalMsg = prevMsgId.equals("0");
 	    if (isOriginalMsg || prevMsgId.equals(mPrevMsgId.c_str())) {
-	        mPayload = doc[j].getValue().getStr().c_str();
 		// good!  this means I have the next message that the system should process
-//		PH4("Have the next message to process: ", mPayload.c_str(), " now: ", now);
+	        mPayload = doc[j].getValue().getStr().c_str();
+		PH4("Have the next message to process: ", mPayload.c_str(), " now: ", now);
 		mHavePayload = true;
 		mState = HAVE_PAYLOAD;
 		mInitialMsg = false;
 	    } else {
-	        mNewMsgId = prevMsgId.c_str();
-	        mPrevETag = "undefined";
 		// then I should look further back in the history;
-//		PH2("There's an older message; getting: ", mNewMsgId.c_str());
+	        mNewMsgId = prevMsgId.c_str();
+		PH2("There's an older message; getting: ", mNewMsgId.c_str());
 		mState = READ_MSG;
 		*callMeBackIn_ms = 10l;
 	    }
 	}
+	mPrevETag = "undefined";
     }
     return isValid;
 }
@@ -243,19 +282,22 @@ public:
 	HttpCouchGet::resetForRetry();
     }
 
-    StrBuf getETag() const {
+    const StrBuf &getETag() const {
+        static StrBuf buf;
         TF("AppChannelGetter::getETag");
         const char *ETagStr = strstr(m_consumer.getResponse().c_str(), ETag);
 	if (ETagStr != NULL) {
+	    buf = "";
 	    ETagStr += strlen(ETag);
-	    StrBuf etag;
-	    etag.expand(40);
-	    while (ETagStr && *ETagStr && (*ETagStr != '"')) etag.add(*ETagStr++);
-	    TRACE2("Received ETag: ", etag.c_str());
-	    return etag;
+	    const char *start = ETagStr;
+	    while (ETagStr && *ETagStr && (*ETagStr != '"'))
+	        ETagStr++;
+	    buf.add(start, ETagStr-start);
+	    TRACE2("Received ETag: ", buf.c_str());
 	} else {
-	    return StrBuf("unknown");
+	    buf = "unknown";
 	}
+	return buf;
     }
   
     StrBuf getTimestamp() const {
@@ -315,11 +357,13 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 					   mConfig.getDbHost(), mConfig.getDbPort(), mConfig.isSSL(),
 					   *url, mConfig.getDbUser(), mConfig.getDbPswd());
 	} else {
-	    HttpOp::EventResult er = mGetter->event(now, &callMeBackIn_ms);
+            HttpOp::EventResult er = mGetter->event(now, &callMeBackIn_ms);
 	    if (!mGetter->processEventResult(er)) {
 		bool retry = false;
+		callMeBackIn_ms = FREQ - ((now=millis())-mStartTime); // most cases should schedule a callback in FREQ
+		bool isOnlineNow = false;
 		if (!mHaveTimestamp && mGetter->hasTimestamp()) {
-		    TRACE("Staring the WDT");
+		    TRACE("Starting the WDT");
 		    HivePlatform::nonConstSingleton()->startWDT();
 		    TF("hasTimestamp");
 		    StrBuf timestampStr = mGetter->getTimestamp();
@@ -332,48 +376,48 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 		    } else {
 		        PL("Conversion to unix timestamp failed; retrying on next AppChannel access");
 		    }
-		}
-		callMeBackIn_ms = FREQ - ((now=millis())-mStartTime); // most cases should schedule a callback in FREQ
-		bool isOnlineNow = false;
-		if (mGetter->hasNotFound()) {
-		    PH2("object not found, so nothing to do @ ", now);
-		    // nothing to do
 		    isOnlineNow = true;
-		} else if (mGetter->isTimeout()) {
-		    PH2("timed out; retrying again in 5s; now: ", now);
-		    retry = true;
-		    isOnlineNow = false;
-		} else if (mGetter->isError()) {
-		    isOnlineNow = false;
-		    if (er == HttpOp::IssueOpFailed) {
-		        PH("timed out while trying to open HTTP connection");
-		    } else {	    
-		        PH("failed for unknown reason; retrying again in 5s");
-			PH2("errmsg: ", mGetter->getHeaderConsumer().getErrmsg().c_str());
-			PH2("er: ", er);
-		    }
-		    retry = true;
 		} else {
-		    const StrBuf &etag = mGetter->getETag();
-		    if (strcmp(etag.c_str(), mPrevETag.c_str()) != 0) {
-		        if (mGetter->haveDoc()) {
-			    bool isValid = processDoc(mGetter->getDoc(), gettingHeader, now, 
-						      &callMeBackIn_ms);
-			    if (gettingHeader) 
-			        mPrevETag = etag;
-			    isOnlineNow = true;
-			    if (!isValid) {
-			        PH("Improper HeaderMsg found; ignoring");
-				PH2("doc: ", mGetter->getHeaderConsumer().getResponse().c_str());
+		    if (mGetter->hasNotFound()) {
+		        PH2("object not found, so nothing to do @ ", now);
+			// nothing to do
+			isOnlineNow = true;
+		    } else if (mGetter->isTimeout()) {
+		        PH2("timed out; retrying again in 5s; now: ", now);
+			retry = true;
+			isOnlineNow = false;
+		    } else if (mGetter->isError()) {
+		        isOnlineNow = false;
+			if (er == HttpOp::IssueOpFailed) {
+			    PH("timed out while trying to open HTTP connection");
+			} else {	    
+			    PH("failed for unknown reason; retrying again in 5s");
+			    PH2("errmsg: ", mGetter->getHeaderConsumer().getErrmsg().c_str());
+			    PH2("er: ", er);
+			}
+			retry = true;
+		    } else {
+		        const StrBuf &etag = mGetter->getETag();
+			if (strcmp(etag.c_str(), mPrevETag.c_str()) != 0) {
+			    if (mGetter->haveDoc()) {
+			        bool isValid = processDoc(mGetter->getDoc(), gettingHeader, now, 
+							  &callMeBackIn_ms);
+				if (gettingHeader) 
+				    mPrevETag = etag;
+				isOnlineNow = true;
+				if (!isValid) {
+				    PH("Improper HeaderMsg found; ignoring");
+				    PH2("doc: ", mGetter->getHeaderConsumer().getResponse().c_str());
+				}
+			    } else {
+			        isOnlineNow = false;
+				PH("failed for unknown reason; retrying again in 5s");
+				retry = true;
 			    }
 			} else {
-			    isOnlineNow = false;
-			    PH("failed for unknown reason; retrying again in 5s");
-			    retry = true;
+			    isOnlineNow = true;
+			    PH2("No new AppChannel msg available; now: ", now);
 			}
-		    } else {
-		        isOnlineNow = true;
-		        PH2("No new AppChannel msg available; now: ", now);
 		    }
 		}
 		if (!isOnlineNow && mWasOnline) {
@@ -391,7 +435,13 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 		mGetter->shutdownWifiOnDestruction(retry);
 		delete mGetter;
 		mGetter = NULL;
-		wifiMutex->release(this);
+
+		bool keepMutex = !retry && isOnlineNow && mWasOnline && (mState == READ_MSG);
+		if (!keepMutex) {
+		    wifiMutex->release(this);
+		} else {
+		    PH2("Keeping the mutex, and calling back in ", callMeBackIn_ms);
+		}		  
 	    } else {
 	        //TRACE2("getter asked to be called again in (ms) ", callMeBackIn_ms);
 	    }

@@ -61,6 +61,17 @@ void StrBuf::add(char c)
     buf[l] = 0;
 }
 
+void StrBuf::add(const char *str, int n)
+{
+    assert(!deleted, "!deleted");
+
+    // there is an incoming string; make sure there's space, then consume it
+    int l = len();
+    expand(l+n+2);
+    strncpy(&buf[l], str, n);
+    buf[l+n] = 0;
+}
+
 StrBuf &StrBuf::append(const char *str)
 {
     assert(!deleted, "!deleted");

@@ -129,6 +129,8 @@ class HttpOp {
    int mWifiConnectState, m_disconnectCnt, m_retries, mHttpConnectCnt, mDnsCnt;
    unsigned long mHttpWaitStart, mDnsWaitStart, mWifiWaitStart;
    EventResult m_finalResult;
+
+   static Str sCachedEncodedAuth, sCachedDbUser, sCachedDbPswd;
 };
 
 inline

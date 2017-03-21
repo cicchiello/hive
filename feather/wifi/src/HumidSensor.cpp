@@ -9,11 +9,7 @@
 
 #include <Mutex.h>
 
-#include <hiveconfig.h>
-#include <http_couchpost.h>
-
 #include <TempSensor.h>
-#include <RateProvider.h>
 
 #include <str.h>
 

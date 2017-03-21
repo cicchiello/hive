@@ -1,0 +1,25 @@
+﻿Release notes for version 1.0.254:
+
+
+This release includes enhancements for the MCU.  Going along with the firmware upgrade, there’s a required Android app upgrade to take advantage of one of the performance improvements.  
+
+
+Please plan on installing the following firmware:
+https://jfcenterprises.cloudant.com/transfer/hive-1.0.254/hive.bin
+
+
+It's the same process as before to place the firmware on the MCU module.  Download the file, connect your PC to the USB, put the MCU in firmware upload mode (double-press the tiny button next to the USB connector), then run the bossac program as before.   I think I've written about this process a couple times; here's one of them:
+     https://docs.google.com/document/d/1W1DZwI7sake5m6TDdBS6u3deZZ_eG_eNkR4GXV3UOy4/edit
+
+
+
+
+Also, the Android app should be updated to version 1.9.  The Google Play Store link for alpha access is:
+https://play.google.com/apps/testing/com.jfc.apps.hive
+
+
+
+
+Enhancements:
+- The command channel from Android app to MCU has be enhanced to allow most situations to only require one round-trip to the db on the part of the MCU.  This should provide a modest improvement to responsiveness.  Note there are still many cases where other activity or http timeouts might force the full shutdown/restart of the connection to the db (pushing lag times way up).
+- The stepper motors are now controlled nearly entirely from the motor control module, rather than requiring constant communications from the mcu.  In addition to drastically reducing the cpu load, this leads to smoother motion, and will allow for significantly faster motor drive if desired.

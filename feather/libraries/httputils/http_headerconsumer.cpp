@@ -111,6 +111,8 @@ bool HttpHeaderConsumer::hasOk() const
     return false;
 }
 
+#define BITESZ 40
+
 bool HttpHeaderConsumer::consume(unsigned long now)
 {
     TF("HttpHeaderConsumer::consume");
@@ -128,23 +130,26 @@ bool HttpHeaderConsumer::consume(unsigned long now)
 	return false;
     } else if (!m_haveHeader) {
         if (client.connected()) {
+	    static char buf[BITESZ+2];
+	    
 	    // if there are incoming bytes available
 	    // from the host, read them and process them
 
-	    // but never process more than 20 chars to ensure the outter event loop
+	    // but never process more than BITESZ chars to ensure the outter event loop
 	    // isn't starved of time
 
-	    int cnt = 20;
+	    int cnt = BITESZ, i = 0;
 	    int avail = client.available();
-	    m_response.expand(m_response.len() + avail);
-	    while (avail-- && cnt--) {
+	    if (cnt > avail) cnt = avail;
+	    while (cnt--) {
 	        char c = client.read();
 		assert(c, "Unexpected NULL char found in http response stream");
-		m_response.add(c);
+		buf[i++] = c;
 		if ((c == 0x0a) && m_gotCR && m_haveFirstCRLF) {
 		    //DHL("CRLFCRLF");
 		    // 2 CRLF marks end of HTTP response, with content (optionally) to follow
 		    m_haveHeader = true;
+		    m_response.add(buf, i);
 		    return false;
 		} else if ((c == 0x0a) && m_gotCR) {
 		    //DHL("CRLF");
@@ -158,6 +163,8 @@ bool HttpHeaderConsumer::consume(unsigned long now)
 		    m_haveFirstCRLF = false;
 		}
 	    }
+	    if (i)
+	        m_response.add(buf, i);
 	    return true;
 	}
     }
@@ -172,16 +179,10 @@ void HttpHeaderConsumer::setResponse(const char *newResponse)
     m_response = newResponse;
 }
 
-void HttpHeaderConsumer::expandResponseBy(int numToBeAdded)
-{
-    TF("HttpHeaderConsumer::expandResponseBy");
-    m_response.expand(m_response.len()+numToBeAdded);
-}
-
-void HttpHeaderConsumer::appendToResponse(char c)
+void HttpHeaderConsumer::appendToResponse(const char *str, int n)
 {
     TF("HttpHeaderConsumer::appendToResponse (char)");
-    m_response.add(c);
+    m_response.add(str, n);
 }
 
 

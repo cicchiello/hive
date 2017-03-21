@@ -28,7 +28,7 @@
 const char *HttpOp::TAGHTTP11 = "HTTP/1.1";
 const int HttpOp::MaxRetries = 5;
 const long HttpOp::RetryDelay_ms = 3000l;
-
+Str HttpOp::sCachedEncodedAuth(Str::sEmpty), HttpOp::sCachedDbUser(Str::sEmpty), HttpOp::sCachedDbPswd(Str::sEmpty);
 
 
 class MyMap {
@@ -186,16 +186,23 @@ void HttpOp::sendHost(class Stream &s) const
     PL(m_port);
     s.println(m_port);
     if (m_dbuser.len() > 0) {
-	StrBuf creds;
-	creds.append(m_dbuser.c_str()).append(":").append(m_dbpswd.c_str());
+        if (!m_dbuser.equals(sCachedDbUser) || !m_dbpswd.equals(sCachedDbPswd)) {
+	    StrBuf creds;
+	    creds.append(m_dbuser.c_str()).append(":").append(m_dbpswd.c_str());
 	
-	StrBuf encoded;
-	base64_encode(&encoded, creds.c_str(), creds.len());
+	    StrBuf encoded;
+	    base64_encode(&encoded, creds.c_str(), creds.len());
+
+	    sCachedEncodedAuth = encoded.c_str();
+	    sCachedDbUser = m_dbuser;
+	    sCachedDbPswd = m_dbpswd;
+	}
+        const char *authStr = sCachedEncodedAuth.c_str();
 
         P("Authorization: Basic ");
-	PL(encoded.c_str());
+	PL(authStr);
 	s.print("Authorization: Basic ");
-	s.println(encoded.c_str());
+	s.println(authStr);
     }
     assert(getContext().getClient().connected(), "Client isn't connected !?!? (3)");
 }
@@ -388,8 +395,9 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
       break;
     case CONSUME_RESPONSE: {
         TF("HttpOp::event; CONSUME_RESPONSE");
-	//TRACE2("CONSUME_RESPONSE ", now);
+	unsigned long mark = micros();
 	yield();
+	TRACE2("CONSUME_RESPONSE; yield took (us): ", (micros()-mark));
         if (!getResponseConsumer().consume(now)) {
 	    m_finalResult = HTTPSuccessResponse; // start optimistically
 	    if (!getResponseConsumer().isError()) {

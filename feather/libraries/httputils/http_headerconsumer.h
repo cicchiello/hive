@@ -15,8 +15,7 @@ private:
 
 protected:
   void setResponse(const char *newResponse);
-  void expandResponseBy(int numToBeAdded);
-  void appendToResponse(char c);
+  void appendToResponse(const char *str, int n);
   void appendToResponse(const char *s);
   
 private:
