@@ -46,6 +46,10 @@ public class PropertyBase {
 			msgDoc.put("payload", payload);
 			msgDoc.put("timestamp", timestamp);
 			
+			// log the command
+			String rpt = "POST " + dbUrl+" "+msgDoc.toString();
+			ACRA.getErrorReporter().handleSilentException(new Exception("About to issue query: "+rpt));
+			
 		    CouchPostBackground.OnCompletion postOnCompletion = new CouchPostBackground.OnCompletion() {
 		    	public void onSuccess(String msgId, String msgRev) {
 		    		try {
@@ -57,6 +61,10 @@ public class PropertyBase {
 						newChannelDoc.put("msg-id", msgId);
 						newChannelDoc.put("timestamp", timestamp);
 		
+						// log the command
+						String rpt = "PUT " + dbUrl+"/"+channelDocId+" "+newChannelDoc.toString();
+						ACRA.getErrorReporter().handleSilentException(new Exception("About to issue query: "+rpt));
+						
 						CouchPutBackground.OnCompletion putOnCompletion = new CouchPutBackground.OnCompletion() {
 					    	public void complete(JSONObject results) {
 					    		Log.i(TAG, "Channel Doc PUT success:  "+results.toString());

@@ -16,6 +16,7 @@ public class CouchCmdPush {
 
 	private Context mCtxt;
 	private String mSensorName, mInstruction;
+	private boolean mTruncate;
 	private OnCompletion mOnCompletion;
 	
 	public interface OnCompletion {
@@ -29,6 +30,15 @@ public class CouchCmdPush {
 		mSensorName = sensorName;
 		mInstruction = instruction;
 		mOnCompletion = onCompletion;
+		mTruncate = false;
+	}
+
+	public CouchCmdPush(Context ctxt, String sensorName, String instruction, boolean truncate, OnCompletion onCompletion) {
+		mCtxt = ctxt;
+		mSensorName = sensorName;
+		mInstruction = instruction;
+		mOnCompletion = onCompletion;
+		mTruncate = truncate;
 	}
 
 	private void createNewMsgDoc(final String channelDocId, final String channelDocRev, String prevId) {
@@ -40,7 +50,7 @@ public class CouchCmdPush {
 			String payload = mSensorName + "|" + mInstruction;
 	
 			JSONObject msgDoc = new JSONObject();
-			msgDoc.put("prev-msg-id", prevId);
+			msgDoc.put("prev-msg-id", mTruncate ? "0" : prevId);
 			msgDoc.put("payload", payload);
 			msgDoc.put("timestamp", timestamp);
 			
@@ -55,6 +65,10 @@ public class CouchCmdPush {
 						newChannelDoc.put("msg-id", msgId);
 						newChannelDoc.put("timestamp", timestamp);
 		
+						// log the command
+						String rpt = dbUrl+"/"+channelDocId+" "+newChannelDoc.toString();
+						ACRA.getErrorReporter().handleSilentException(new Exception("About to issue query: "+rpt));
+						
 						CouchPutBackground.OnCompletion putOnCompletion = new CouchPutBackground.OnCompletion() {
 					    	public void complete(JSONObject results) {
 					    		Log.i(TAG, "Channel Doc PUT success:  "+results.toString());

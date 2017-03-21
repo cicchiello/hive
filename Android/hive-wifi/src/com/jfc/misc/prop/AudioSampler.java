@@ -291,7 +291,7 @@ public class AudioSampler {
 			ImageView playIv = (ImageView) mAlert.findViewById(R.id.play_button);
 			ImageView shareIv = (ImageView) mAlert.findViewById(R.id.share_button);
 			TextView recordingTimestampTv = (TextView) mAlert.findViewById(R.id.recordingTimestamp);
-			if (isRecording) {
+			if (isRecording && recordIv != null) {
 				recordIv.setImageResource(R.drawable.recording);
 				
 				mProgress = new ProgressDialog(mAlert.getContext());
