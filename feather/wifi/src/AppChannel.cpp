@@ -27,6 +27,9 @@
 #include <SdFat.h>
 
 
+extern "C" {void GlobalYield();};
+
+
 #define LOAD_PREV_MSG_ID 1
 #define READ_HEADER      2
 #define READ_MSG         3
@@ -39,12 +42,28 @@ static const char *ETag = "ETag: \"";
 #define RETRY_WAIT 2000l
 #define FREQ       2500l
 
+class MyTimeProvider : public TimeProvider {
+private:
+    unsigned long mSecondsAtMark, mTimestampAtMark;
+  
+public:
+    MyTimeProvider(unsigned long secondsAtMark, unsigned long timestampAtMark)
+      : mSecondsAtMark(secondsAtMark), mTimestampAtMark(timestampAtMark) {}
 
-AppChannel::AppChannel(const HiveConfig &config, unsigned long now, Mutex *wifiMutex, Mutex *sdMutex)
+    unsigned long getSecondsAtMark() const {return mSecondsAtMark;}
+    unsigned long getTimestampAtMark() const {return mTimestampAtMark;}
+  
+    // TimeProvider API
+    void toString(unsigned long now, Str *str) const;
+    unsigned long getSecondsSinceEpoch(unsigned long now) const;
+};
+
+
+AppChannel::AppChannel(const HiveConfig &config, unsigned long now, TimeProvider **timeProvider, Mutex *wifiMutex, Mutex *sdMutex)
   : mNextAttempt(0), mState(LOAD_PREV_MSG_ID), mConfig(config),
-    mInitialMsg(false), mHavePayload(false), mWasOnline(false), mHaveTimestamp(false),
+    mInitialMsg(false), mHavePayload(false), mWasOnline(false), 
     mPrevMsgId("undefined"), mPrevETag("undefined"), mNewMsgId(), mPayload(),
-    mGetter(NULL), mWifiMutex(wifiMutex), mSdMutex(sdMutex)
+    mGetter(NULL), mWifiMutex(wifiMutex), mSdMutex(sdMutex), mTimeProvider(timeProvider)
 {
     TF("AppChannel::AppChannel");
     StrBuf channelId(config.getHiveId().c_str()), encodedId, channelUrl;
@@ -362,17 +381,18 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 		bool retry = false;
 		callMeBackIn_ms = FREQ - ((now=millis())-mStartTime); // most cases should schedule a callback in FREQ
 		bool isOnlineNow = false;
-		if (!mHaveTimestamp && mGetter->hasTimestamp()) {
+		if (!*mTimeProvider && mGetter->hasTimestamp()) {
 		    TRACE("Starting the WDT");
 		    HivePlatform::nonConstSingleton()->startWDT();
 		    TF("hasTimestamp");
 		    StrBuf timestampStr = mGetter->getTimestamp();
 		    TRACE2("timestampStr: ", timestampStr.c_str());
-		    bool stat = RTCConversions::cvtToTimestamp(timestampStr.c_str(), &mTimestamp);
+		    unsigned long timestampAtMark;
+		    bool stat = RTCConversions::cvtToTimestamp(timestampStr.c_str(), &timestampAtMark);
 		    if (stat) {
-		        PH2("Timestamp: ", mTimestamp);
-			mSecondsAtMark = (millis()+500)/1000;
-			mHaveTimestamp = true;
+		        PH2("Timestamp: ", timestampAtMark);
+			unsigned long secondsAtMark = (millis()+500)/1000;
+			*mTimeProvider = new MyTimeProvider(secondsAtMark, timestampAtMark);
 		    } else {
 		        PL("Conversion to unix timestamp failed; retrying on next AppChannel access");
 		    }
@@ -456,13 +476,15 @@ bool AppChannel::loop(unsigned long now)
 {
     TF("AppChannel::loop");
     switch (mState) {
-    case LOAD_PREV_MSG_ID:
+    case LOAD_PREV_MSG_ID: {
         mNextAttempt = now + 50l;
+	bool stat = true;
 	if (mSdMutex->own(this)) {
-	    bool stat = loadPrevMsgId();
+	    stat = loadPrevMsgId();
 	    mSdMutex->release(this);
-	    return stat;
-	} else return true;
+	} 
+	return stat;
+    }
     case READ_HEADER:
         return getterLoop(now, mWifiMutex, true);
     case READ_MSG:
@@ -488,7 +510,8 @@ void AppChannel::consumePayload(StrBuf *result, Mutex *alreadyOwnedSdMutex)
     // now it's safe to write the msg id out to file to complete the atomic operation of aquiring a message
     SdFat sd;
     SDUtils::initSd(sd);
-    
+
+    GlobalYield();
     if (sd.exists(FILENAME)) {
         // the following ugliness exists to ensure that the operation is transactional.
         // Specifically, I want to leave the old file there until I'm certain that I've been able
@@ -507,9 +530,13 @@ void AppChannel::consumePayload(StrBuf *result, Mutex *alreadyOwnedSdMutex)
 	    }
 	}
     
+	GlobalYield();
+	
 	bool wrote = writeMsgIdFile(sd, NEW_FILENAME, mNewMsgId.c_str(), mNewMsgId.len());
 	assert(wrote, "Couldn't create or write to NEW_FILENAME");
 
+	GlobalYield();
+	
 	if (sd.remove(FILENAME)) {
 	    if (!writeMsgIdFile(sd, FILENAME, mNewMsgId.c_str(), mNewMsgId.len())) {
 	        // not quite fatal... but things probably won't proceed well!
@@ -523,11 +550,16 @@ void AppChannel::consumePayload(StrBuf *result, Mutex *alreadyOwnedSdMutex)
 	    // not quite fatal, but pretty bad... the id has been written to the NEW_FILENAME, but I cannot cleanup
 	    TRACE("The id has been written to NEW_FILENAME, but cannot cleanup FILENAME");
 	}
+
+	GlobalYield();
+	
     } else {
         bool wrote = writeMsgIdFile(sd, FILENAME, mNewMsgId.c_str(), mNewMsgId.len());
 	assert(wrote, "Couldn't write to FILENAME");
     }
 
+    GlobalYield();
+	
     *result = mPayload;
     mPrevMsgId = mNewMsgId;
     mHavePayload = false;
@@ -535,13 +567,19 @@ void AppChannel::consumePayload(StrBuf *result, Mutex *alreadyOwnedSdMutex)
 }
 
 
-void AppChannel::toString(unsigned long now, Str *str) const
+unsigned long MyTimeProvider::getSecondsSinceEpoch(unsigned long now) const
 {
     unsigned long secondsSinceBoot = (now+500)/1000;
-    unsigned long secondsSinceMark = secondsSinceBoot - secondsAtMark();
-    unsigned long secondsSinceEpoch = secondsSinceMark + mTimestamp;
+    unsigned long secondsSinceMark = secondsSinceBoot - getSecondsAtMark();
+    unsigned long secondsSinceEpoch = secondsSinceMark + mTimestampAtMark;
+    return secondsSinceEpoch;
+}
+
+
+void MyTimeProvider::toString(unsigned long now, Str *str) const
+{
     char timestampStr[16];
-    sprintf(timestampStr, "%lu", secondsSinceEpoch);
+    sprintf(timestampStr, "%lu", getSecondsSinceEpoch(now));
 
     *str = timestampStr;
 }

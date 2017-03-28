@@ -18,10 +18,7 @@ class HttpGet : public HttpOp {
    HttpGet(const Str &ssid, const Str &ssidPswd, 
 	   const Str &host, int port, const Str &page,
 	   const Str &dbUser, const Str &dbPswd,
-	   bool isSSL = false)
-     : HttpOp(ssid, ssidPswd, host, port, dbUser, dbPswd, isSSL), m_page(page)
-  {
-  }
+	   bool isSSL = false);
      
    HttpGet(const char *ssid, const char *ssidPswd, 
 	   const IPAddress &hostip, int port, const char *page,

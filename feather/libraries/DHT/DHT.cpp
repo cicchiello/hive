@@ -120,6 +120,8 @@ float DHT::computeHeatIndex(float temperature, float percentHumidity, bool isFah
   return isFahrenheit ? hi : convertFtoC(hi);
 }
 
+extern "C" void GlobalYield();
+
 boolean DHT::read(bool force) {
   // Check if sensor was read less than two seconds ago and return early
   // to use last reading.
@@ -138,12 +140,30 @@ boolean DHT::read(bool force) {
   // Go into high impedence state to let pull-up raise data line level and
   // start the reading process.
   digitalWrite(_pin, HIGH);
-  delay(250);
+
+  unsigned long remaining = 250, start, delta;
+  while (remaining > 15) {
+      start = millis();
+      GlobalYield();
+      if ((delta = (millis()-start)) < 15) {
+	  delay(15-delta);
+      }
+      delta = millis()-start;
+      remaining -= delta;
+  }
+  while (remaining-- > 0) {
+      delay(1);
+  }
 
   // First set data line low for 20 milliseconds.
   pinMode(_pin, OUTPUT);
   digitalWrite(_pin, LOW);
-  delay(20);
+
+  start = millis();
+  GlobalYield();
+  if ((delta = (millis()-start)) < 20) {
+      delay(20-delta);
+  }
 
   uint32_t cycles[80];
   {
@@ -186,6 +206,8 @@ boolean DHT::read(bool force) {
     }
   } // Timing critical code is now complete.
 
+  GlobalYield();
+  
   // Inspect pulses and determine which ones are 0 (high state cycle count < low
   // state cycle count), or 1 (high state cycle count > low state cycle count).
   for (int i=0; i<40; ++i) {

@@ -5,12 +5,15 @@
 class Str;
 class StrBuf;
 class Mutex;
+class TimeProvider;
+
+const TimeProvider *GetTimeProvider();
+extern "C" {void GlobalYield();};
 
 class Sensor {
  public:
     Sensor(const char *sensorName,
 	   const class RateProvider &rateProvider,
-	   const class TimeProvider &timeProvider,
 	   unsigned long now);
     ~Sensor();
 
@@ -18,7 +21,6 @@ class Sensor {
     virtual bool loop(unsigned long now) = 0;
 
     const RateProvider &getRateProvider() const {return mRateProvider;}
-    const TimeProvider &getTimeProvider() const {return mTimeProvider;}
     
     virtual const char *getName() const;
     
@@ -38,7 +40,6 @@ class Sensor {
 
     Str *mName;
     const class RateProvider &mRateProvider;
-    const class TimeProvider &mTimeProvider;
 };
 
 

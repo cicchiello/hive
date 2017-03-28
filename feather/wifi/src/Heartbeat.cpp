@@ -15,9 +15,8 @@
 HeartBeat::HeartBeat(const HiveConfig &config,
 		     const char *name,
 		     const class RateProvider &rateProvider,
-		     const class TimeProvider &timeProvider,
 		     unsigned long now, Mutex *wifiMutex)
-  : SensorBase(config, name, rateProvider, timeProvider, now, wifiMutex),
+  : SensorBase(config, name, rateProvider, now, wifiMutex),
     mCreateTimestampStr(0), mCreateTimestamp(now)
 {
     TF("HeartBeat::HeartBeat");
@@ -37,9 +36,9 @@ bool HeartBeat::sensorSample(Str *valueStr)
     TF("HeartBeat::sensorSample");
 
     if (mCreateTimestampStr == NULL) {
-        if (getTimeProvider().haveTimestamp()) {
+        if (GetTimeProvider()) {
 	    mCreateTimestampStr = new Str();
-	    getTimeProvider().toString(mCreateTimestamp, mCreateTimestampStr);
+	    GetTimeProvider()->toString(mCreateTimestamp, mCreateTimestampStr);
 
 	    TRACE2("will report uptime as: ", mCreateTimestampStr->c_str());
 	    *valueStr = *mCreateTimestampStr;

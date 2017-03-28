@@ -14,7 +14,6 @@ class AudioUpload : public SensorBase {
 		const char *contentType,
 		const char *filename,
 		const class RateProvider &rateProvider,
-		const class TimeProvider &timeProvider,
 		unsigned long now,
 		Mutex *wifiMutex, Mutex *sdMutex);
     ~AudioUpload();
@@ -27,8 +26,9 @@ class AudioUpload : public SensorBase {
 
     Mutex *getSdMutex() const {return mSdMutex;}
     
-    virtual bool processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms);
-    
+    virtual bool processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms,
+			       bool *keepMutex, bool *success);
+
  private:
     AudioUpload(const AudioUpload &); // intentionally unimplemented
     const AudioUpload &operator=(const AudioUpload &o); // intentionallly unimplemented

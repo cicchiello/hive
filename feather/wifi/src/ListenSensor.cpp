@@ -14,7 +14,6 @@
 
 #include <listener.h>
 #include <Mutex.h>
-#include <TimeProvider.h>
 
 
 #define NOOP            0
@@ -29,11 +28,10 @@
 ListenSensor::ListenSensor(const HiveConfig &config,
 			   const char *name, 
 			   const RateProvider &rateProvider,
-			   const TimeProvider &timeProvider,
 			   unsigned long now,
 			   int ADCPIN, int BIASPIN,
 			   Mutex *wifiMutex, Mutex *sdMutex)
-  : SensorBase(config, name, rateProvider, timeProvider, now, wifiMutex),
+  : SensorBase(config, name, rateProvider, now, wifiMutex),
     mState(NOOP), mStart(false), mUploader(NULL), mSdMutex(sdMutex),
     mListener(NULL), mMillisecondsToRecord(0), mADCPIN(ADCPIN), mBIASPIN(BIASPIN),
     mValue(new Str()), mAttName(new Str(DEFAULT_ATTACHMENT_NAME))
@@ -55,7 +53,6 @@ ListenSensor::~ListenSensor()
 void ListenSensor::start(int millisecondsToRecord, const char *attName)
 {
     TF("ListenSensor::start");
-    TRACE("entry");
     mStart = true;
     *mAttName = attName;
     mMillisecondsToRecord = millisecondsToRecord;
@@ -82,12 +79,12 @@ bool ListenSensor::loop(unsigned long now)
     bool callMeBack = true;
     unsigned long callMeBackIn_ms = 50l;
     switch (mState) {
-    case NOOP: if (mStart) {
+    case NOOP:
+      if (mStart) {
 	  bool muticesOwned = (getWifiMutex()->whoOwns() == this) && (getSdMutex()->whoOwns() == this);
 	  if (!muticesOwned) {
 	      bool muticesAvailable = getWifiMutex()->isAvailable() && getSdMutex()->isAvailable();
 	      if (muticesAvailable) {
-	          TRACE("Both Mutexes aquired");
 		  bool ownWifi = getWifiMutex()->own(this);
 		  bool ownSd = getSdMutex()->own(this);
 		  assert(ownWifi && ownSd, "ownWifi && ownSd");
@@ -95,10 +92,9 @@ bool ListenSensor::loop(unsigned long now)
 	      }
 	  }
 	  if (muticesOwned) {
-	      TRACE("Acquired both mutexes");
+	      TRACE("Acquired both mutices");
 	      mListener = new Listener(mADCPIN, mBIASPIN);
 	      bool stat = mListener->record(mMillisecondsToRecord, "/LISTEN.WAV", true);
-	      HivePlatform::nonConstSingleton()->registerPulseGenConsumer_22K(getPulseGenConsumer());
 	      callMeBackIn_ms = 1l;
 
 	      assert(stat, "Couldn't start recording");
@@ -107,7 +103,7 @@ bool ListenSensor::loop(unsigned long now)
 	      m.append(mMillisecondsToRecord);
 	      *mValue = m.c_str();
 
-	      TRACE("Recording...");
+	      PH2("Recording; now: ", now);
 	      mStartTimestamp = now;
 	      mState = RECORDING;
 	      mStart = false;
@@ -121,30 +117,38 @@ bool ListenSensor::loop(unsigned long now)
 	bool stat = mListener->loop(true);
 	while (!mListener->isDone()) {
 	    HivePlatform::nonConstSingleton()->clearWDT();
-	    delay(5);
+	    GlobalYield();
 	    stat = mListener->loop(true);
 	}
 	
 	if (mListener->isDone()) {
-	    HivePlatform::nonConstSingleton()->unregisterPulseGenConsumer_22K(getPulseGenConsumer());
 	    if (mListener->hasError()) {
 	        PH2("Audio capture Failed: ", mListener->getErrmsg());
 		callMeBack = false;
 		mState = NOOP;
+		getSdMutex()->release(this);
+		getWifiMutex()->release(this);
 	    } else {
-	        TRACE2("Audio Capture complete; proceeding to upload it:", (millis()-mStartTimestamp));
+	        PH2("Audio Capture complete; proceeding to upload it; now:", millis());
 		StrBuf attachmentDescription;
 		attachmentDescription.append((int)(mMillisecondsToRecord/1000)).append("s-audio-clip");
 		mState = UPLOADING;
 		mUploader = new AudioUpload(getConfig(), getName(), attachmentDescription.c_str(),
 					    mAttName->c_str(), ATTACHMENT_CONTENT_TYPE,
-					    CONTENT_FILENAME, getRateProvider(), getTimeProvider(),
+					    CONTENT_FILENAME, getRateProvider(), 
 					    now, getWifiMutex(), getSdMutex());
+		
+		// pass ownership of the mutices to the uploader
+		getSdMutex()->release(this);
+		getWifiMutex()->release(this);
+		bool uploaderOwnsSdMutex = getSdMutex()->own(mUploader);
+		bool uploaderOwnsWifiMutex = getWifiMutex()->own(mUploader);
+		assert(uploaderOwnsSdMutex && uploaderOwnsWifiMutex, "Mutices *not* passed to AudioUpload object");
 	    }
-	    getSdMutex()->release(this);
-	    getWifiMutex()->release(this);
+
 	    delete mListener;
 	    mListener = NULL;
+	    GlobalYield();
 	}
     }
       break;
@@ -152,13 +156,13 @@ bool ListenSensor::loop(unsigned long now)
     case UPLOADING: {
         callMeBack = mUploader->loop(now);
 	if (!callMeBack) {
-	    Str timeStr;
-	    getTimeProvider().toString(millis(), &timeStr);
 	    PH2("Audio Capture Success!  Total time: ", (millis()-mStartTimestamp));
-	    PH2("Time now: ", timeStr.c_str());
+	    PH2("Time now: ", millis());
 	    delete mUploader;
 	    mUploader = NULL;
 	    mState = NOOP;
+	    assert(getSdMutex()->whoOwns() == NULL, "SD Mutex hasn't been released");
+	    assert(getWifiMutex()->whoOwns() == NULL, "Wifi Mutex hasn't been released");
 	}
     }
       break;

@@ -13,7 +13,6 @@ class ConfigPersister : public Sensor {
  public:
     ConfigPersister(const HiveConfig &config,
 		    const class RateProvider &rateProvider,
-		    const class TimeProvider &timeProvider,
 		    const char *configFilename,
 		    unsigned long now, Mutex *sdMutex);
     ~ConfigPersister();

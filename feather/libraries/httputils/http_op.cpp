@@ -62,6 +62,16 @@ typedef MyMap MapType;
 static MapType sDnsResolutions;
 
 
+HttpOp::HttpOp(const Str &ssid, const Str &ssidPswd, const Str &hostname, int port,
+	       const Str &dbUser, const Str &dbPswd,
+	       bool isSSL)
+  : m_ssid(ssid), m_pswd(ssidPswd), mSpecifiedHostname(hostname), m_port(port),
+    m_dbuser(dbUser), m_dbpswd(dbPswd), mSpecifiedHostIP(), m_isSSL(isSSL), m_shutdown(true)
+{
+  TF("HttpOp::HttpOp");
+  init();
+}
+   
 HttpOp::~HttpOp()
 {
     TF("HttpOp::~HttpOp");
@@ -88,7 +98,7 @@ void HttpOp::init()
     // make sure that I'm not already connected
     if (getContext().getWifi().status() == WL_CONNECTED) {
         TRACE("WiFi shield is already connected!?!?");
-	FAIL();
+	//FAIL();
     }
 
     mDnsCnt = mHttpConnectCnt = mWifiConnectState = m_retries = m_disconnectCnt = 0;

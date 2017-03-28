@@ -11,7 +11,6 @@
 #include <Mutex.h>
 
 #include <RateProvider.h>
-#include <TimeProvider.h>
 
 #include <http_binaryput.h>
 #include <http_dataprovider.h>
@@ -26,10 +25,9 @@
 #include <http_couchpost.h>
 
 
-
 class MyDataProvider : public HttpDataProvider {
 public:
-    static const int BUFSZ = 512;
+    static const int BUFSZ = 1024;
   
 private:
     unsigned char buf[BUFSZ];
@@ -63,28 +61,19 @@ public:
 
     int takeIfAvailable(unsigned char **_buf) {
         TF("MyDataProvider::takeIfAvailable");
-        int b = 0, i = 0;
-	while (mF.curPosition() < mSz) {
-	    b = mF.read();
-            if (b == -1) {
-		TRACE("EOF encountered; returning buffer");
-	        mIsDone = true;
-		*_buf = buf;
-	        return i;
-	    } else {
-	        char c = (char) (b & 0xff);
-		buf[i++] = c;
-		if (i >= BUFSZ) {
-		    //TRACE2("returning a buffer of size ", i);
-		    *_buf = buf;
-		    return i;
-		}
-	    }
+	int avail = mSz - mF.curPosition();
+	if (avail > 1024) avail = 1024;
+	int n = mF.read(buf, avail);
+	if (n > 0) {
+	    TRACE(n == avail ? "providing full buffer" : "providing partially full buffer");
+	    mIsDone = mF.curPosition() == mSz;
+	} else {
+	    PH("Error encounted");
+	    mIsDone = true;
+	    n = 0;
 	}
-	TRACE("returning empty or partial buffer");
 	*_buf = buf;
-	mIsDone = true;
-	return i;
+	return n;
     }
 
     bool isDone() const {
@@ -129,11 +118,10 @@ AudioUpload::AudioUpload(const HiveConfig &config,
 			 const char *contentType,
 			 const char *filename, 
 			 const class RateProvider &rateProvider,
-			 const class TimeProvider &timeProvider,
 			 unsigned long now,
 			 Mutex *wifiMutex, Mutex *sdMutex)
-  : SensorBase(config, sensorName, rateProvider, timeProvider, now, wifiMutex),
-    mTransferStart(0), mSdMutex(sdMutex),
+  : SensorBase(config, sensorName, rateProvider, now, wifiMutex),
+    mSdMutex(sdMutex),
     mBinaryPutter(NULL), mDataProvider(NULL),
     mAttachmentName(new Str(attachmentName)), mDocId(new Str()), mRevision(new Str()),
     mContentType(new Str(contentType)), mFilename(new Str(filename)),
@@ -141,7 +129,8 @@ AudioUpload::AudioUpload(const HiveConfig &config,
     mIsDone(false), mHaveDocId(false)
 {
     TF("AudioUpload::AudioUpload");
-    TRACE2("now: ", now);
+    setNextPostTime(now+100l);
+    setSample(*mAttDesc);
 }
 
 
@@ -179,8 +168,11 @@ bool AudioUpload::loop(unsigned long now)
         return false;
 
     if (!mHaveDocId) {
+        TF("AudioUpload::loop; deferring to SensorBase");
         return SensorBase::loop(now);
     } else {
+        TF("AudioUpload::loop; my processing");
+	unsigned long callMeBackIn_ms = 10l;
         const char *objName = getName();
 	bool muticesOwned = (getWifiMutex()->whoOwns() == this) && (mSdMutex->whoOwns() == this);
 	if (!muticesOwned) {
@@ -193,11 +185,10 @@ bool AudioUpload::loop(unsigned long now)
 		muticesOwned = true;
 	    }
 	}
-        if ((now >= getNextPostTime()) && muticesOwned) {
-	    unsigned long callMeBackIn_ms = 10l;
+        if (muticesOwned) {
 	    bool done = false;
 	    if (mBinaryPutter == 0) {
-	        TF("AudioUpload::loop; creating HttpBinaryPut");
+		PH2("Starting attachment upload; now: ", millis());
 	        const char *docId = mDocId->c_str();
 		const char *attName = mAttachmentName->c_str();
 		const char *rev = mRevision->c_str();
@@ -214,6 +205,7 @@ bool AudioUpload::loop(unsigned long now)
 		//TRACE2("using ssl? ", (getConfig().isSSL() ? "yes" : "no"));
 		//TRACE2("with dbuser: ", getConfig().getDbUser());
 		//TRACE2("with dbpswd: ", getConfig().getDbPswd());
+		PH2("uploading attachment to doc: ", url.c_str());
 
 		mDataProvider = new MyDataProvider(mFilename->c_str());
 		mBinaryPutter = new HttpBinaryPut(getConfig().getSSID(), getConfig().getPSWD(),
@@ -222,7 +214,6 @@ bool AudioUpload::loop(unsigned long now)
 						  getConfig().getDbUser(), getConfig().getDbPswd(),
 						  getConfig().isSSL(),
 						  mDataProvider, mContentType->c_str());
-		mTransferStart = now;
 	    } else {
 	        TF("AudioUpload::loop; processing HttpBinaryPut event");
 	        HttpBinaryPut::EventResult r = mBinaryPutter->event(now, &callMeBackIn_ms);
@@ -237,8 +228,7 @@ bool AudioUpload::loop(unsigned long now)
 				assert(mDataProvider->isDone(),
 				       "upload appeared to succeed, but not at EOF");
 				retry = false;
-				unsigned long transferTime = now - mTransferStart;
-				PH3("Upload completed; upload took ", transferTime, " ms");
+				PH2("Upload done; now: ", millis());
 			    } else {
 			        StrBuf dump;
 				PH2("Received unexpected couch response:",
@@ -262,14 +252,17 @@ bool AudioUpload::loop(unsigned long now)
 		    //TRACE2("mBinaryPutter scheduled a callback in (ms): ", callMeBackIn_ms);
 		}
 	    }
-	    setNextPostTime(now + callMeBackIn_ms);
+	} else {
+	    //TRACE2("Mutices aren't available; now: ", now);
 	}
+	setNextPostTime(now + callMeBackIn_ms);
 	return !mIsDone;
     }
 }
 
 
-bool AudioUpload::processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms)
+bool AudioUpload::processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms,
+				bool *keepMutex, bool *success)
 {
     TF("AudioUpload::processResult");
 
@@ -288,8 +281,9 @@ bool AudioUpload::processResult(const HttpCouchConsumer &consumer, unsigned long
 	    *mRevision = rev;
 	    mHaveDocId = true;
 	    mIsDone = false;
-	    PH2("saved doc to id/rev: ",
-		StrBuf(id.c_str()).append("/").append(rev.c_str()).c_str());
+	    *keepMutex = true;
+	    *success = true;
+	    TRACE4("saved doc to id/rev: ", id.c_str(), "/", rev.c_str());
 	} else {
 	    PH("Unexpected problem with the result");
 	}

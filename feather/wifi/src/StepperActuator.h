@@ -8,11 +8,13 @@
 class Str;
 class HiveConfig;
 class RateProvider;
+class MotorSpeedActuator;
 
 class StepperActuator : public Actuator {
  public:
     StepperActuator(const HiveConfig &config,
 		    const RateProvider &rateProvider,
+		    const MotorSpeedActuator &motorSpeedProvider,
 		    const char *name, unsigned long now,
 		    int address, int port, bool isBackwards=false);
     // ports: 1==M1 & M2; 2==M3 & M4
@@ -49,6 +51,7 @@ class StepperActuator : public Actuator {
     bool mRunning, mIsBackwards;
     class Adafruit_StepperMotor *m;
     class Adafruit_MotorShield *AFMS;
+    const MotorSpeedActuator &mMotorSpeedProvider;
 };
 
 

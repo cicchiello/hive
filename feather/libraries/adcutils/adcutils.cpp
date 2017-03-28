@@ -1,5 +1,6 @@
 #include <adcutils.h>
 
+#define HEADLESS
 #define NDEBUG
 #include <Trace.h>
 
@@ -10,6 +11,8 @@
 #include <Arduino.h>
 
 
+
+#define DEDICATED_PULSE_GENERATOR 1
 
 static __inline__ void ADCsync() __attribute__((always_inline, unused));
 static void   ADCsync() {
@@ -40,17 +43,10 @@ ADCUtils::~ADCUtils()
 }
 
 
-static int s_cnts = 0;
 void ADCUtils::swapBufs()
 {
     assert(m_currBuf, "buf is NULL");
-    s_cnts++;
-    if (m_freeBufs->isEmpty()) {
-        PL("ADCUtils::swapBufs assertion violation detected");
-	P("ADCUtils::swapBufs has been called ");
-	PL(s_cnts);
-        assert(!m_freeBufs->isEmpty(), "Buffer Queue overflow detected");
-    }
+    assert(!m_freeBufs->isEmpty(), "Buffer Queue overflow detected");
     m_persistCb(m_currBuf);
     m_currBuf = m_freeBufs->pop();
     assert(m_currBuf, "buf is NULL");
@@ -135,6 +131,7 @@ void ADCUtils::init(int PIN, size_t bufSz, PersistBufferFunc persistCb)
     }
     m_bufSz = bufSz;
     m_freeBufs->clear();
+    assert(m_freeBufs->isEmpty(), "m_freeBufs->isEmpty()");
     for (int i = 0; i < NumBufs; i++)
         m_freeBufs->push(m_bufs[i]);
     assert(m_freeBufs->isFull(), "Buffer isn't full even though I just filled it");
@@ -143,9 +140,7 @@ void ADCUtils::init(int PIN, size_t bufSz, PersistBufferFunc persistCb)
     assert(m_currBuf, "buf is NULL");
     
     assert(!m_freeBufs->isFull(), "Buffer is full even though I just popped");
-    
     m_persistCb = persistCb;
-    
     ADC->CTRLA.bit.ENABLE = 0x01;
     ADCsync();
 
@@ -155,6 +150,10 @@ void ADCUtils::init(int PIN, size_t bufSz, PersistBufferFunc persistCb)
     NVIC_EnableIRQ( ADC_IRQn ) ;
 
     m_enabled = true;
+    m_sampleCnt = 0;
+    m_overrunCnt = 0;
+    m_conversionsTriggered = 0;
+    
     ADCHandler = Enabled_ADCHandler;
     m_readyToTrigger = true;
 }
@@ -163,11 +162,10 @@ void ADCUtils::init(int PIN, size_t bufSz, PersistBufferFunc persistCb)
 void ADCUtils::init(int PIN, size_t bufSz, int sampleRate, PersistBufferFunc persistCb)
 {
     TF("ADCUtils::init (2)");
-    TRACE("entry");
     init(PIN, bufSz, persistCb);
     
-    PlatformUtils::nonConstSingleton().initPulseGenerator(0, sampleRate);
-    PlatformUtils::nonConstSingleton().startPulseGenerator(0, ADCPulseCallback);
+    PlatformUtils::nonConstSingleton().initPulseGenerator(DEDICATED_PULSE_GENERATOR, sampleRate);
+    PlatformUtils::nonConstSingleton().startPulseGenerator(DEDICATED_PULSE_GENERATOR, ADCPulseCallback);
 }
 
 
@@ -213,12 +211,12 @@ void ADCUtils::freeBuf(uint16_t *b)
 
 void ADCUtils::stop()
 {
-    TF("ADCUtils::stop");
     if (m_currBuf != NULL) {
-	PlatformUtils::nonConstSingleton().stopPulseGenerator(0);
+	PlatformUtils::nonConstSingleton().stopPulseGenerator(DEDICATED_PULSE_GENERATOR);
 	ADC->CTRLA.bit.ENABLE = 0x00;
 	ADCsync();
 	assert(m_currBuf, "buf is NULL");
+	assert(!m_freeBufs->isFull(), "m_freeBufs is already full!?!");
 	m_freeBufs->push(m_currBuf);
 	m_currBuf = NULL;
 	m_enabled = false;

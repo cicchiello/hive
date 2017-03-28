@@ -33,13 +33,12 @@ const Str SensorBase::UNDEF("NAN"); // used to indicate that SensorBase should n
 SensorBase::SensorBase(const HiveConfig &config,
 		       const char *name,
 		       const class RateProvider &rateProvider,
-		       const class TimeProvider &timeProvider,
 		       unsigned long now, Mutex *wifiMutex)
-  : Sensor(name, rateProvider, timeProvider, now), mValueStr(new Str(UNDEF)),
-    mPoster(0), mConfig(config), mWifiMutex(wifiMutex)
+  : Sensor(name, rateProvider, now), mValueStr(new Str(UNDEF)), mValueCacheEnabled(false),
+    mPoster(0), mConfig(config), mWifiMutex(wifiMutex), mPrevValueStr(new Str(UNDEF)), mDidFirstPost(false)
 {
     setNextSampleTime(now + FIRST_SAMPLE);
-    mNextPostTime = now + FIRST_POST;
+    setNextPostTime(now + FIRST_POST);
 }
 
 
@@ -49,11 +48,13 @@ SensorBase::~SensorBase()
 }
 
 
-bool SensorBase::processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms)
+bool SensorBase::processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms,
+			       bool *keepMutex, bool *success)
 {
     TF("SensorBase::processResult");
     if (consumer.hasOk()) {
         TRACE("POST succeeded");
+        *success = true;
     } else {
         PH2("fail POST; response: ", consumer.getResponse().c_str());
     }
@@ -62,7 +63,7 @@ bool SensorBase::processResult(const HttpCouchConsumer &consumer, unsigned long 
 }
 
 
-bool SensorBase::postImplementation(unsigned long now, Mutex *wifi)
+bool SensorBase::postImplementation(unsigned long now, Mutex *wifi, bool *success)
 {
     TF("SensorBase::postImplementation");
     bool callMeBack = true;
@@ -74,7 +75,7 @@ bool SensorBase::postImplementation(unsigned long now, Mutex *wifi)
 	    // curl -v -H "Content-Type: application/json" -X POST "https://afteptsecumbehisomorther:e4f286be1eef534f1cddd6240ed0133b968b1c9a@jfcenterprises.cloudant.com:443/hive-sensor-log" -d '{"hiveid":"F0-17-66-FC-5E-A1","sensor":"heartbeat","timestamp":"1485894682","value":"0.9.104"}'
   
 	    Str timestampStr;
-	    getTimeProvider().toString(now, &timestampStr);
+	    GetTimeProvider()->toString(now, &timestampStr);
 
 	    CouchUtils::Doc doc;
 	    doc.addNameValue(new CouchUtils::NameValuePair("hiveid",
@@ -107,14 +108,13 @@ bool SensorBase::postImplementation(unsigned long now, Mutex *wifi)
 					mConfig.getDbUser(), mConfig.getDbPswd(), 
 					mConfig.isSSL());
 	} else {
-	    HivePlatform::nonConstSingleton()->clearWDT();
-	    HivePlatform::singleton()->markWDT("processing events");
 	    HttpCouchPost::EventResult er = mPoster->event(now, &callMeBackIn_ms);
 	    if (!mPoster->processEventResult(er)) {
-	        bool retry = true;
+	        bool retry = true, keepMutex = false;
 		callMeBackIn_ms = 5000l;
 		if (mPoster->getHeaderConsumer().hasOk()) {
-		    callMeBack = processResult(mPoster->getCouchConsumer(), &callMeBackIn_ms);
+		    TRACE2("Calling processResult for: ", getName());
+		    callMeBack = processResult(mPoster->getCouchConsumer(), &callMeBackIn_ms, &keepMutex, success);
 		    retry = false;
 		} else if (mPoster->isTimeout()) {
 		    PH("timeout; POST failed");
@@ -127,11 +127,14 @@ bool SensorBase::postImplementation(unsigned long now, Mutex *wifi)
 		mPoster->shutdownWifiOnDestruction(retry);
 		delete mPoster;
 		mPoster = NULL;
-		wifi->release(this);
+		if (!keepMutex) 
+		    wifi->release(this);
 	    }
 	}
+	setNextPostTime(now + callMeBackIn_ms);
+    } else {
+        //PH("can't get the mutex");
     }
-    mNextPostTime = now + callMeBackIn_ms;
 
     return callMeBack;
 }
@@ -149,19 +152,34 @@ bool SensorBase::loop(unsigned long now)
     
     if (now >= getNextSampleTime()) {
         sensorSample(mValueStr);
-        TRACE4("sampled sensor ", getName(), ": ", mValueStr->c_str());
+        PH4("sampled sensor ", getName(), ": ", mValueStr->c_str());
 	setNextSampleTime(now + DELTA);
     }
 
     const char *value = NULL;
     bool callMeBack = true; // normally want to be called back -- at some later pre-determined time
-    if ((now >= mNextPostTime) && !mValueStr->equals(UNDEF)) {
-        //TRACE2("calling postImplementation for: ", getName());
-        // let the postImplementation say whether we're totally done or not
-        callMeBack = postImplementation(now, mWifiMutex);
+    if (now >= mNextPostTime) {
+        bool haveSomethingToPost = !mValueStr->equals(UNDEF);
+	if (mValueCacheEnabled && mValueStr->equals(*mPrevValueStr))
+	    haveSomethingToPost = false;
+        if (haveSomethingToPost) {
+	    // let the postImplementation say whether we're totally done or not
+            bool postSucceeded = false;
+	    callMeBack = postImplementation(now, mWifiMutex, &postSucceeded);
+	    if (postSucceeded && mValueCacheEnabled) 
+	        *mPrevValueStr = *mValueStr;
+	    if (postSucceeded)
+	        mDidFirstPost = true;
+	} else {
+	    if (mDidFirstPost) {
+	        setNextPostTime(now + DELTA);
+	    }
+	}
     }
     
     return callMeBack;
 }
+
+
 
 

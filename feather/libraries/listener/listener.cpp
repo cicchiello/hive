@@ -2,7 +2,6 @@
 
 #define HEADLESS
 #define NDEBUG
-
 #include <Trace.h>
 
 #include <strutils.h>
@@ -11,6 +10,7 @@
 #include <adcutils.h>
 #include <listener_wav.h>
 #include <platformutils.h>
+
 
 static void fail(const char *errMsg);
 
@@ -141,9 +141,7 @@ void persistBuffer(uint16_t *buf)
 bool Listener::record(unsigned int duration_ms, const char *wavFilename, bool verbose) 
 {
     TF("Listener::record");
-    if (verbose) {
-        TRACE2("Listener::record ", millis());
-    }
+    PH2("starting; now: ", millis());
     
     m_wavFilename = wavFilename;
     m_duration_ms = duration_ms;
@@ -196,12 +194,12 @@ bool Listener::record(unsigned int duration_ms, const char *wavFilename, bool ve
     m_chunkCnt = m_skipCnt = 0;
 
     // setup ADC bufferring
-    ADCUtils::nonConstSingleton().init(m_ADCPIN, SAMPLES_PER_CHUNK, persistBuffer);
+    ADCUtils::nonConstSingleton().init(m_ADCPIN, SAMPLES_PER_CHUNK, SAMPLES_PER_SECOND, persistBuffer);
+
     m_initializedADC = true;
 
     m_captureStartTime_us = micros();
     m_endTime = m_captureStartTime_us + m_duration_ms*1000;
-
     m_state = Capturing;
 
     return !hasError();
@@ -335,10 +333,10 @@ bool Listener::loop(bool verbose)
 	    stopRecord();
 	    
 	    if (!hasError()) {
-		if (verbose) {
-		    TRACE2("Generating ", m_wavFilename);
-		    TRACE2(" from raw file ", RAW_FILENAME);
+	        PH4("Generating ", m_wavFilename, " from raw file ", RAW_FILENAME);
+		PH2("now: ", millis());
 
+		if (verbose) {
 		    TRACE2("m_chunkCnt: ", m_chunkCnt);
 		    TRACE2("Max: ", m_max);
 		    TRACE2("Min: ", m_min); 
@@ -368,8 +366,7 @@ bool Listener::loop(bool verbose)
 	    } else {
 		m_state = Done;
 
-		if (verbose) 
-		    PH("Done");
+		PH2("Done generating wav file; now: ", millis());
 	    }
 	    delete m_wavCreator;
 	    m_wavCreator = NULL;

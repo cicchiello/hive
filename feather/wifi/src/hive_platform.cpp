@@ -200,18 +200,18 @@ static void registerPulseGenConsumer(PulseGenConsumer *consumer, PulseGenConsume
 }
 
 
-static void unregisterPulseGenConsumer(PulseGenConsumer *consumer, PulseGenConsumer **arr, PulseGenConsumer **stage)
+static void unregisterPulseGenConsumer(PulseGenConsumer *consumer, PulseGenConsumer ***arr, PulseGenConsumer ***stage)
 {
     int i = 0, j = 0;
-    while (arr[i]) {
-        if (arr[i] == consumer) i++;
-	else stage[j++] = arr[i++];
+    while ((*arr)[i]) {
+        if ((*arr)[i] == consumer) i++;
+	else (*stage)[j++] = (*arr)[i++];
     }
-    stage[j] = 0;
+    (*stage)[j] = 0;
 
-    PulseGenConsumer **t = arr;
-    arr = stage;
-    stage = t;
+    PulseGenConsumer **t = *arr;
+    *arr = *stage;
+    *stage = t;
 }
 
 
@@ -235,19 +235,19 @@ void HivePlatform::registerPulseGenConsumer_22K(class PulseGenConsumer *consumer
 
 void HivePlatform::unregisterPulseGenConsumer_11K(class PulseGenConsumer *consumer)
 {
-    TF("HivePlatform::registerPulseGenConsumer_11K");
+    TF("HivePlatform::unregisterPulseGenConsumer_11K");
     TRACE("unregistering a consumer");
 
-    unregisterPulseGenConsumer(consumer, sConsumers11K, sConsumers11K_stage);
+    unregisterPulseGenConsumer(consumer, &sConsumers11K, &sConsumers11K_stage);
 }
 
 
 void HivePlatform::unregisterPulseGenConsumer_22K(class PulseGenConsumer *consumer)
 {
-    TF("HivePlatform::registerPulseGenConsumer_22K");
+    TF("HivePlatform::unregisterPulseGenConsumer_22K");
     TRACE("unregistering a consumer");
 
-    unregisterPulseGenConsumer(consumer, sConsumers22K, sConsumers22K_stage);
+    unregisterPulseGenConsumer(consumer, &sConsumers22K, &sConsumers22K_stage);
 }
 
 
@@ -275,8 +275,6 @@ static void notifyConsumers()
 void HivePlatform::pulseGen_22K_init()
 {
     TF("HivePlatform::pulseGen_22K_init");
-    WDT_TRACE("HivePlatform::pulseGen_22K_init(); initializing pulse generator");
     PlatformUtils::nonConstSingleton().initPulseGenerator(0, SAMPLES_PER_SECOND_22K);
     PlatformUtils::nonConstSingleton().startPulseGenerator(0, notifyConsumers);
-    WDT_TRACE("HivePlatform::pulseGen_22K_init(); initialized pulse generator");
 }

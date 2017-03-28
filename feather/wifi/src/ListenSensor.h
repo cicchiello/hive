@@ -7,7 +7,6 @@
 
 class HiveConfig;
 class RateProvider;
-class TimeProvider;
 class ListenerWavCreator;
 
 class ListenSensor : public SensorBase, PulseGenConsumer {
@@ -15,7 +14,6 @@ public:
     ListenSensor(const HiveConfig &config,
 		 const char *name, 
 		 const RateProvider &rateProvider,
-		 const TimeProvider &timeProvider,
 		 unsigned long now,
 		 int ADCPIN, int BIASPIN,
 		 Mutex *wifiMutex, Mutex *sdMutex);

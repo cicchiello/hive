@@ -17,11 +17,14 @@
 
 #include <hive_platform.h>
 
+#include <MotorSpeedActuator.h>
+
 #include <str.h>
 #include <strutils.h>
 
-#define REVSTEPS 200
-#define RPM 60
+#define REVSTEPS 200.0
+
+extern "C" {void GlobalYield();};
 
 
 class StepperActuatorPulseGenConsumer : public PulseGenConsumer {
@@ -148,25 +151,19 @@ PulseGenConsumer *StepperActuator::getPulseGenConsumer()
 
 StepperActuator::StepperActuator(const HiveConfig &config,
 				 const RateProvider &rateProvider,
+				 const MotorSpeedActuator &motorSpeedProvider,
 				 const char *name,
 				 unsigned long now,
 				 int address, int port,
 				 bool isBackwards)
-  : Actuator(name, now), mLoc(0), mTarget(0), 
+  : Actuator(name, now), mLoc(0), mTarget(0), mMotorSpeedProvider(motorSpeedProvider),
     mRunning(false), mIsBackwards(isBackwards)
 {
     TF("StepperActuator::StepperActuator");
     
     AFMS = new Adafruit_MotorShield(address);
     AFMS->begin();
-    m = AFMS->getStepper(REVSTEPS, port); // 200==steps per revolution; ports 1==M1 & M2, 2==M3 & M4
-    m->setSpeed(RPM);
-
-    int usPerStep = 60000000 / ((uint32_t)REVSTEPS * (uint32_t)RPM);
-    D(TAG("StepperActuator", "scheduling steps at the rate of once per ").c_str());
-    D(usPerStep);
-    DL(" us");
-    mMsPerStep = usPerStep/1000;
+    m = AFMS->getStepper((int)REVSTEPS, port); // 200==steps per revolution; ports 1==M1 & M2, 2==M3 & M4
 }
 
 
@@ -256,10 +253,20 @@ void StepperActuator::processMsg(unsigned long now, const char *msg)
         TRACE2("mTarget was: ", mTarget);
 	TRACE2("new target is: ", newTarget);
 
+	GlobalYield();
+	
         mTarget = newTarget;
         if (mTarget != mLoc) {
 	    PH3("Running for ", (mTarget-mLoc), " steps");
 
+	    int rpm = 3*mMotorSpeedProvider.stepsPerSecond()/10;
+	    m->setSpeed(rpm);
+
+	    double dmsPerStep = 1000.0/mMotorSpeedProvider.stepsPerSecond();
+	    mMsPerStep = (int) dmsPerStep;
+	    PH2("setting rpm to ", rpm);
+	    PH3("scheduling steps at the rate of once per ", mMsPerStep, " ms");
+    
 	    // put this StepperActuator on the ISR handler list
 	    // (consider that it might already be there)
 	    StepperActuatorPulseGenConsumer::nonConstSingleton()->addStepper(this);
@@ -285,6 +292,7 @@ bool StepperActuator::isMyMsg(const char *msg) const
 	bool r = (strncmp(msg, token, strlen(token)) == 0) && StringUtils::isNumber(msg+strlen(token));
 	if (r) {
 	    TRACE("it's mine!");
+PH2("it's mine!  now: ", millis());
 	}
 	return r;
     } else {

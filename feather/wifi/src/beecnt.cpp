@@ -10,18 +10,19 @@
 
 #include <Trace.h>
 
+#include <TimeProvider.h>
+
 #include <strbuf.h>
 
 BeeCounter::BeeCounter(const HiveConfig &config, const char *name,
 		       const class RateProvider &rateProvider,
-		       const class TimeProvider &timeProvider,
 		       unsigned long now,
 		       int _ploadPin, int _clockPin, int _dataPin,
 		       Mutex *wifiMutex)
-  : SensorBase(config, name, rateProvider, timeProvider, now, wifiMutex),
+  : SensorBase(config, name, rateProvider, now, wifiMutex),
     mFirstRead(true), mNumBeesIn(0), mNumBeesOut(0),
     ploadPin(_ploadPin), clockPin(_clockPin), dataPin(_dataPin),
-    mLastSampleTime(now), mNextMidnight(0)
+    mLastSampleTime(now), mNextMidnight(0), mMidnightInitialized(false)
 {
     //initialize digital pins
     pinMode(ploadPin, OUTPUT);
@@ -39,11 +40,7 @@ BeeCounter::BeeCounter(const HiveConfig &config, const char *name,
 	mInDuration[i] = mOutDuration[i] = 0;
     }
 
-    
-    mNextMidnight = 1489161600; // HKG midnight 3/11/2017
-    while (mNextMidnight < now) {
-        mNextMidnight += 60*60*24;
-    }
+    enableValueCache(true); // allow the base class to defer POSTs until there's a change in sampled value
 }
 
 
@@ -64,10 +61,6 @@ inline static void halfClkDelay()
     ;
 }
 
-PulseGenConsumer *BeeCounter::getPulseGenConsumer()
-{
-    return this;
-}
 
 void BeeCounter::readReg() 
 {
@@ -134,19 +127,28 @@ bool BeeCounter::sensorSample(Str *value)
 }
 
 
-void BeeCounter::pulse(unsigned long now)
-{
-    sample(now);
-}
-
-
 bool BeeCounter::sample(unsigned long now)
 {
     TF("BeeCounter::sample");
-
-    if (now > mNextMidnight) {
-        mNextMidnight += 60*60*24;
-	mNumBeesIn = mNumBeesOut = 0;
+    
+    const TimeProvider *t = GetTimeProvider();
+    if (t) {
+        if (!mMidnightInitialized) {
+	    unsigned long secondsSinceEpoch = t->getSecondsSinceEpoch(now);
+	    mNextMidnight = 1489161600; // HKG midnight 3/11/2017
+	    while (mNextMidnight < secondsSinceEpoch) {
+	        mNextMidnight += 60*60*24;
+	    }
+	    mMidnightInitialized = true;
+	    PH2("Using this as initial midnight time: ", mNextMidnight);
+	}
+	if (t->getSecondsSinceEpoch(now) > mNextMidnight) {
+	    mNextMidnight += 60*60*24;
+	    mNumBeesIn = mNumBeesOut = 0;
+	    PH("Doing midnight reset");
+	    assert(mNextMidnight > now, "mNextMidnight > now");
+	    PH2("Using this as next midnight time: ", mNextMidnight);
+	}
     }
     
     if (now <= mLastSampleTime)
@@ -154,8 +156,8 @@ bool BeeCounter::sample(unsigned long now)
 
     bool tookTooLong = false;
     if (!mFirstRead && (now > mLastSampleTime+20)) {
-        TRACE2("now: ", now);
         PH3("called too infrequently; last call was : ", (now-mLastSampleTime), " ms ago");
+        PH2("now: ", now);
 	tookTooLong = true;
     }
     mLastSampleTime = now;

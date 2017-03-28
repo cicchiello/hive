@@ -12,7 +12,6 @@ class HumidSensor : public SensorBase {
     HumidSensor(const HiveConfig &config,
 		const char *name,
 		const class RateProvider &rateProvider,
-		const class TimeProvider &timeProvider,
 		unsigned long now, Mutex *wifiMutex);
     ~HumidSensor();
 

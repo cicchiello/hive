@@ -19,9 +19,8 @@
 
 Sensor::Sensor(const char *sensorName,
 	       const RateProvider &rateProvider,
-	       const TimeProvider &timeProvider,
 	       unsigned long now)
-  : mRateProvider(rateProvider), mTimeProvider(timeProvider)
+  : mRateProvider(rateProvider)
 {
     mName = new Str(sensorName);
     
