@@ -41,29 +41,28 @@ public class CouchCmdPush {
 		mTruncate = truncate;
 	}
 
-	private void createNewMsgDoc(final String channelDocId, final String channelDocRev, String prevId) {
+	private void createNewMsgDoc(final String channelDocId, final String channelDocRev, final String prevId) {
 		try {
 			// create a new msg doc
 			final String dbUrl = DbCredentialsProperty.getCouchChannelDbUrl(mCtxt);
 			final String authToken = DbCredentialsProperty.getAuthToken(mCtxt);
-			String timestamp = Long.toString(System.currentTimeMillis()/1000);
-			String payload = mSensorName + "|" + mInstruction;
+			final String payload = mSensorName + "|" + mInstruction;
 	
 			JSONObject msgDoc = new JSONObject();
 			msgDoc.put("prev-msg-id", mTruncate ? "0" : prevId);
 			msgDoc.put("payload", payload);
-			msgDoc.put("timestamp", timestamp);
+			msgDoc.put("timestamp", Long.toString(System.currentTimeMillis()/1000));
 			
 		    CouchPostBackground.OnCompletion postOnCompletion = new CouchPostBackground.OnCompletion() {
 		    	public void onSuccess(String msgId, String msgRev) {
 		    		try {
-		    			String timestamp = Long.toString(System.currentTimeMillis()/1000);
-					
 						JSONObject newChannelDoc = new JSONObject();
 						if (channelDocRev != null)
 							newChannelDoc.put("_rev", channelDocRev);
 						newChannelDoc.put("msg-id", msgId);
-						newChannelDoc.put("timestamp", timestamp);
+						newChannelDoc.put("prev-msg-id", mTruncate ? "0" : prevId);
+						newChannelDoc.put("payload", payload);
+						newChannelDoc.put("timestamp", Long.toString(System.currentTimeMillis()/1000));
 		
 						// log the command
 						String rpt = dbUrl+"/"+channelDocId+" "+newChannelDoc.toString();
