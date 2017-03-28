@@ -1,8 +1,10 @@
 package com.jfc.apps.hive;
 
+import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.HiveFactoryResetProperty;
 import com.jfc.misc.prop.IPropertyMgr;
 import com.jfc.misc.prop.StepsPerRevolutionProperty;
+import com.jfc.misc.prop.StepsPerSecondProperty;
 import com.jfc.misc.prop.ThreadsPerMeterProperty;
 
 import java.lang.reflect.InvocationTargetException;
@@ -66,12 +68,14 @@ public class MotorSettingsActivity extends Activity {
 
         mMgrs.add(new ThreadsPerMeterProperty(this, (TextView) findViewById(R.id.threads_per_meter_text), (ImageButton) findViewById(R.id.threads_per_meter_button)));
         mMgrs.add(new StepsPerRevolutionProperty(this, (TextView) findViewById(R.id.steps_per_rev_text), (ImageButton) findViewById(R.id.steps_per_rev_button)));
+        mMgrs.add(new StepsPerSecondProperty(this, (TextView) findViewById(R.id.steps_per_second_text), (ImageButton) findViewById(R.id.steps_per_second_button)));
 
         List<HiveFactoryResetProperty.Resetter> resetters = new ArrayList<HiveFactoryResetProperty.Resetter>();
     	resetters.add(new HiveFactoryResetProperty.Resetter() {
     		public void reset(Context ctxt) {
     			ThreadsPerMeterProperty.resetThreadsPerMeter(ctxt);
     			StepsPerRevolutionProperty.resetStepsPerRevolution(ctxt);
+    			StepsPerSecondProperty.resetStepsPerSecond(ctxt, HiveEnv.getHiveAddress(ctxt, ActiveHiveProperty.getActiveHiveName(ctxt)));
     		}});
         mMgrs.add(new HiveFactoryResetProperty(this, (ImageButton) findViewById(R.id.motorResetButton), 
         		R.string.motor_reset_question, resetters));

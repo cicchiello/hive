@@ -274,39 +274,7 @@ public class MainActivity extends Activity {
 											"heartbeat", R.id.hiveUptimeText, mDbAlert, onSaveValue);
 						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "heartbeat"), onCompletion).execute();
 						            
-						            
-									onSaveValue = new PollSensorBackground.OnSaveValue() {
-										@Override
-										public void save(final Activity activity, final String objId, String value, final long timestamp) {
-											CouchGetBackground.OnCompletion displayer = new CouchGetBackground.OnCompletion() {
-												public void complete(JSONObject results) {
-													try {
-														if (results.has("_attachments")) {
-															String attName = results.getJSONObject("_attachments").keys().next();
-															AudioSampler.setAttachment(activity, HiveId, objId, attName, timestamp);
-														}
-														AudioSampler.updateParentUI(activity, HiveId, 
-																					R.id.audioSampleText, 
-																					R.id.audioSampleTimestampText, 
-																					R.id.audioSampleButton);
-													} catch (JSONException e) {
-														// TODO Auto-generated catch block
-														e.printStackTrace();
-													}
-												}
-												public void objNotFound(String query) {failed(query, "Object Not Found (listener)");}
-												public void failed(String query, String msg) {
-													Toast.makeText(MainActivity.this, msg+"; sending a report to my developer", Toast.LENGTH_LONG).show();
-													ACRA.getErrorReporter().handleException(new Exception(msg));												}
-											};
-											final String dbUrl = DbCredentialsProperty.getCouchLogDbUrl(activity);
-											String authToken = null;
-											new CouchGetBackground(dbUrl+"/"+objId, authToken, displayer).execute();
-										}
-									};
-									onCompletion = PollSensorBackground.getSensorOnCompletion(MainActivity.this, 
-											"listener", 0 /*R.id.audioSampleText*/, mDbAlert, onSaveValue);
-						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "listener"), onCompletion).execute();
+						            audio.pollCloud();
 								}
 							}
 						}

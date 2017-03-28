@@ -12,10 +12,14 @@ import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.acra.ACRA;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import com.jfc.apps.hive.MainActivity;
 import com.jfc.apps.hive.R;
 import com.jfc.srvc.cloud.CouchCmdPush;
+import com.jfc.srvc.cloud.CouchGetBackground;
+import com.jfc.srvc.cloud.PollSensorBackground;
 import com.jfc.util.misc.DbAlertHandler;
 import com.jfc.util.misc.DialogUtils;
 import com.jfc.util.misc.SplashyText;
@@ -101,13 +105,51 @@ public class AudioSampler {
 		        });
 		        mAlert = builder.show();
 
-				setPlaybackState(false, getAttName(mActivity, hiveId));
+		        setRecordingState(false);
+				setPlaybackState(getAttName(mActivity, hiveId));
 			}
 		};
 		
 		mSampleButton.setOnClickListener(ocl);
 	}
 
+	public void pollCloud()
+	{
+		PollSensorBackground.OnSaveValue onSaveValue = new PollSensorBackground.OnSaveValue() {
+			@Override
+			public void save(final Activity activity, final String objId, String value, final long timestamp) {
+				CouchGetBackground.OnCompletion displayer = new CouchGetBackground.OnCompletion() {
+					public void complete(JSONObject results) {
+						try {
+							if (results.has("_attachments")) {
+								String attName = results.getJSONObject("_attachments").keys().next();
+								AudioSampler.setAttachment(activity, mHiveId, objId, attName, timestamp);
+							}
+							AudioSampler.updateParentUI(activity, mHiveId, 
+														R.id.audioSampleText, 
+														R.id.audioSampleTimestampText, 
+														R.id.audioSampleButton);
+						} catch (JSONException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+					}
+					public void objNotFound(String query) {failed(query, "Object Not Found (listener)");}
+					public void failed(String query, String msg) {
+						Toast.makeText(mActivity, msg+"; sending a report to my developer", Toast.LENGTH_LONG).show();
+						ACRA.getErrorReporter().handleException(new Exception(msg));												}
+				};
+				final String dbUrl = DbCredentialsProperty.getCouchLogDbUrl(activity);
+				String authToken = null;
+				new CouchGetBackground(dbUrl+"/"+objId, authToken, displayer).execute();
+			}
+		};
+		String dbUrl = DbCredentialsProperty.getCouchLogDbUrl(mActivity);
+		PollSensorBackground.ResultCallback onCompletion = PollSensorBackground.getSensorOnCompletion(mActivity, 
+				"listener", 0 /*R.id.audioSampleText*/, mDbAlert, onSaveValue);
+        new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(mHiveId, "listener"), onCompletion).execute();
+	}
+	
 	static private String uniqueIdentifier(String base, String hiveId) {
 		return base + "|" + hiveId;
 	}
@@ -285,42 +327,42 @@ public class AudioSampler {
 	}
 
 	
-	private void setPlaybackState(boolean isRecording, final String attName) {
+	private void setRecordingState(boolean isRecording) {
 		if (mAlert != null) {
 	        final ImageView recordIv = (ImageView) mAlert.findViewById(R.id.record_button);
-			ImageView playIv = (ImageView) mAlert.findViewById(R.id.play_button);
-			ImageView shareIv = (ImageView) mAlert.findViewById(R.id.share_button);
-			TextView recordingTimestampTv = (TextView) mAlert.findViewById(R.id.recordingTimestamp);
 			if (isRecording && recordIv != null) {
 				recordIv.setImageResource(R.drawable.recording);
 				
 				mProgress = new ProgressDialog(mAlert.getContext());
 				mProgress.setTitle("Recording and Uploading...");
-				mProgress.setMessage("Working (will take over 2 minutes)...");
+				mProgress.setMessage(mActivity.getText(R.string.workingOnRecording));
 				mProgress.setCancelable(false); // disable dismiss by tapping outside of the dialog
 				mProgress.show();
 			} else {
-				if (mProgress != null)
+				if (mProgress != null) {
 					mProgress.dismiss();
+					mProgress = null;
+				}
 		        
 				recordIv.setImageResource(R.drawable.record);
 		        recordIv.setOnClickListener(new View.OnClickListener() {
 					@Override
 					public void onClick(View v) {
 						final long requestTimestamp = System.currentTimeMillis()/1000;
-						final String attName = "LISTEN_"+requestTimestamp+".WAV";
+						final String proposedAttName = "LISTEN_"+requestTimestamp+".WAV";
+						final String mostRecentAttName = getAttName(mActivity, mHiveId);
 		        		CouchCmdPush.OnCompletion onCompletion = new CouchCmdPush.OnCompletion() {
 							@Override
 							public void success() {
 								mActivity.runOnUiThread(new Runnable() {
 									@Override
 									public void run() {
-										setPlaybackState(true, attName);
+										setRecordingState(true);
 										setRequestTimestamp(mActivity, mHiveId, requestTimestamp);
 										mSampleButton.setImageResource(R.drawable.ic_rarrow_disabled);
 										mSampleButton.setEnabled(false);
 										mAudioTV.setText("working");
-										waitForPlayback(20, attName);
+										waitForPlayback(20, proposedAttName);
 									}
 								});
 							}
@@ -339,20 +381,31 @@ public class AudioSampler {
 							public void serviceUnavailable(final String msg) {mDbAlert.informDbInaccessible(mActivity, msg, 0);}
 						};
 		
-						new CouchCmdPush(mActivity, "listen-ctrl", "start|20|"+attName, onCompletion).execute();
+						new CouchCmdPush(mActivity, "listen-ctrl", "start|20|"+proposedAttName, onCompletion).execute();
 					}
 				});
 			}
-		
+		}
+	}
+
+	
+	private void setPlaybackState(final String attName) {
+		if (mAlert != null) {
+			ImageView playIv = (ImageView) mAlert.findViewById(R.id.play_button);
+			ImageView shareIv = (ImageView) mAlert.findViewById(R.id.share_button);
+			TextView recordingTimestampTv = (TextView) mAlert.findViewById(R.id.recordingTimestamp);
 			if (attName != null && !attName.equals(DEFAULT_AUDIO_ATTACHMENT)) {
 				shareIv.setImageResource(R.drawable.ic_action_share);
 				playIv.setImageResource(R.drawable.ic_play);
 				Calendar cal = Calendar.getInstance(Locale.ENGLISH);
 				cal.setTimeInMillis(Long.parseLong(attName.substring(attName.indexOf('_')+1,attName.indexOf('.')))*1000);
 				String recordingTimestampStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
-				if (!recordingTimestampTv.getText().toString().equals(recordingTimestampStr)) {
+				String prevTimestampStr = recordingTimestampTv.getText().toString();
+				if (!prevTimestampStr.equals(recordingTimestampStr)) {
 					recordingTimestampTv.setText(recordingTimestampStr);
 					SplashyText.highlightModifiedField(mActivity, recordingTimestampTv);
+				} else {
+					Log.i("TAG", "leaving the field unchanged");
 				}
 				final String objId = getObjId(mActivity, mHiveId);
 				View.OnClickListener ocl = new View.OnClickListener() {
@@ -365,12 +418,7 @@ public class AudioSampler {
 					}
 				};
 				playIv.setOnClickListener(ocl);
-				ocl = new View.OnClickListener() {
-					@Override
-					public void onClick(View v) {
-						downloadAndShareClip(objId, attName);
-					}
-				};
+				ocl = new View.OnClickListener() {public void onClick(View v) {downloadAndShareClip(objId, attName);}};
 				shareIv.setOnClickListener(ocl);
 			} else {
 				shareIv.setImageResource(R.drawable.ic_action_share_disabled);
@@ -387,8 +435,12 @@ public class AudioSampler {
 			@Override
 			public void run() {
 				// check about once a second whenever this activity is running
-				int timeout = recordingDuration_s + recordingDuration_s*8;
+				int wavConversionDuration_s = (int)(17.0*recordingDuration_s/20.0+1.0);
+				int uploadDuration_s = (int)(50.0*recordingDuration_s/20.0+1.0);
+				int fudge_s = 40;
+				int timeout = recordingDuration_s + wavConversionDuration_s + uploadDuration_s + fudge_s;
 				boolean done = false;
+				int pollCnt = 0;
 				while (!mStopPoller.get() && !done) {
 					try {
 						Thread.sleep(1000);
@@ -396,12 +448,24 @@ public class AudioSampler {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
+
+					pollCnt++;
+					if (pollCnt % 5 == 0)
+						  pollCloud();
 					
 					if (!mStopPoller.get())
 						done = !startingAttName.equals(getAttName(mActivity, mHiveId)) || (timeout-- <= 0);
 				}
+				final boolean donetest = done;
+				final boolean stoptest = mStopPoller.get();
 				mActivity.runOnUiThread(new Runnable() {
-					public void run() {setPlaybackState(false, getAttName(mActivity, mHiveId));}
+					public void run() {
+						boolean donetest2 = donetest;
+						boolean stoptest2 = stoptest;
+						String att = getAttName(mActivity, mHiveId);
+						setPlaybackState(att);
+						setRecordingState(false);
+					}
 				});
 			}
 		};

@@ -212,6 +212,89 @@
 	   		<TextView
 	   		    android:layout_width="wrap_content"
 	   		    android:layout_height="wrap_content"
+	   		    android:text="@string/steps_per_second_label"
+	   		    android:textAppearance="?android:attr/textAppearanceMedium"
+	   		    android:textStyle="bold" />
+	
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
+	   		    android:layout_marginLeft="15dip"
+	   		    android:text="@string/steps_per_second_desc_hint"
+	   		    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+   		</LinearLayout>
+   		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:layout_gravity="end"
+	        android:orientation="vertical" >
+	        
+			<TextView
+			    android:layout_width="match_parent"
+			    android:layout_height="1dip"
+		        android:layout_weight="0.5"
+			    android:text="@string/empty"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+	    	<TextView
+			    android:id="@+id/steps_per_second_text"
+			    android:layout_width="wrap_content"
+			    android:layout_height="wrap_content"
+		        android:layout_weight="0.5"
+	        	android:background="#848989"
+		        android:layout_gravity="end"
+			    android:text="@string/steps_per_second_desc_hint" />
+
+			<TextView
+			    android:layout_width="match_parent"
+			    android:layout_height="1dip"
+		        android:layout_weight="0.5"
+			    android:text="@string/empty"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+			
+			<TextView
+			    android:layout_width="match_parent"
+			    android:layout_height="1dip"
+		        android:layout_weight="0.5"
+			    android:text="@string/empty"
+			    android:textAppearance="?android:attr/textAppearanceSmall" />
+
+	    </LinearLayout>
+	    
+	    <ImageButton
+		    android:id="@+id/steps_per_second_button"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_weight="0.01"
+		    android:contentDescription="@string/steps_per_second_desc_hint"
+		    android:src="@drawable/ic_rarrow"
+		    android:text="@string/empty" />
+
+	</LinearLayout>
+
+    <View
+	    android:layout_width="fill_parent"
+	    android:layout_height="2dip"
+	    android:background="#888888" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+	    android:layout_marginLeft="15dip"
+        android:orientation="horizontal" >
+		
+	    <LinearLayout
+	        android:layout_width="wrap_content"
+	        android:layout_height="match_parent"
+	        android:layout_weight="0.5"
+	        android:orientation="vertical" >
+	        
+	   		<TextView
+	   		    android:layout_width="wrap_content"
+	   		    android:layout_height="wrap_content"
 	   		    android:text="@string/motor_reset_label"
 	   		    android:textAppearance="?android:attr/textAppearanceMedium"
 	   		    android:textStyle="bold" />

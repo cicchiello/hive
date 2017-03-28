@@ -9,7 +9,7 @@
     
 	<string name="about_dialog_title">About Hivewiz</string>
 	<string name="version_label">App Version:</string>
-    <string name="app_version">1.9</string>
+    <string name="app_version">1.10</string>
 
     <string name="settings">Settings&#8230;</string>
     
@@ -63,6 +63,7 @@
 	<string name="audioSampleLabel">Audio Sample</string>
 	<string name="audio_dialog_title">Audio Sample</string>
 	<string name="audioSampleRecordDesc">Record 20s Sample:</string>
+	<string name="workingOnRecording">Working (will take approx 90s)&#8230;</string>
 	<string name="audioSamplePlayDesc">Most recent:</string>
 	<string name="record_label">Record</string>
 	<string name="play_label">Play</string>
@@ -109,7 +110,15 @@
 	<string name="steps_per_rev_label">Motor steps per rev</string>
 	<string name="steps_per_rev_desc_hint">Steps per rev</string>
 	
-    <string name="ap_label">WiFi Access Point</string>
+	<string name="steps_per_second_dialog_title">Steps per Second</string>
+	<string name="steps_per_second_label">Motor steps per second</string>
+	<string name="steps_per_second_desc_hint">Steps per second</string>
+	
+	<string name="prescale_dialog_title">Clock Prescale</string>
+	<string name="prescale_label">Clock Prescale</string>
+	<string name="prescale_hint">sets step rate</string>
+	
+	<string name="ap_label">WiFi Access Point</string>
     <string name="ap_desc_hint">SSID and Password</string>
     <string name="ap_title">WiFi Access Point&#8230;</string>
 	

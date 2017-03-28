@@ -33,13 +33,15 @@ import android.widget.Toast;
 public class UptimeProperty implements IPropertyMgr {
 	private static final String TAG = UptimeProperty.class.getName();
 
+	public static final String EMBEDDED_TIMESTAMP = "timestamp";
+
 	private static final String UPTIME_PROPERTY = "UPTIME";
 	private static final String UPTIME_TIMESTAMP = "UPTIME_TIMESTAMP";
 	private static final String EMBEDDED_CONFIG_PROPERTY = "EMBEDDED_CONFIG";
 	private static final String DEFAULT_UPTIME = "0";
 	private static final String DEFAULT_UPTIME_TIMESTAMP = "0";
 	private static final String DEFAULT_EMBEDDED_CONFIG = "{}";
-
+	
 	private Activity mActivity;
 	private AlertDialog mAlert;
 

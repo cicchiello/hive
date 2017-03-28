@@ -35,7 +35,6 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 	private static final String DEFAULT_SAMPLE_RATE_TIMESTAMP = "0";
 	
 	private static final String EMBEDDED_SAMPLE_RATE_PROPERTY = "sensor-rate-seconds";
-	private static final String EMBEDDED_TIMESTAMP = "timestamp";
 	
     // created on constructions -- no need to save on pause
 	private TextView mSampleRateTv;
@@ -84,7 +83,7 @@ public class SensorSampleRateProperty implements IPropertyMgr {
 		JSONObject config = UptimeProperty.getEmbeddedConfig(activity, mHiveId);
 		if (config.has(EMBEDDED_SAMPLE_RATE_PROPERTY)) {
 			try {
-				long configTimestamp = Long.parseLong(config.getString(EMBEDDED_TIMESTAMP));
+				long configTimestamp = Long.parseLong(config.getString(UptimeProperty.EMBEDDED_TIMESTAMP));
 				long propertyTimestamp = getRateTimestamp(activity, mHiveId);
 				if (configTimestamp >= propertyTimestamp) {
 					int seconds = Integer.parseInt(config.getString(EMBEDDED_SAMPLE_RATE_PROPERTY));

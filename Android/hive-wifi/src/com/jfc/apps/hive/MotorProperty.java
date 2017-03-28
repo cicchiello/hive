@@ -17,6 +17,7 @@ import android.widget.TextView;
 import com.jfc.misc.prop.DbCredentialsProperty;
 import com.jfc.misc.prop.PropertyBase;
 import com.jfc.misc.prop.StepsPerRevolutionProperty;
+import com.jfc.misc.prop.StepsPerSecondProperty;
 import com.jfc.misc.prop.ThreadsPerMeterProperty;
 import com.jfc.srvc.cloud.PollSensorBackground;
 import com.jfc.srvc.cloud.PollSensorBackground.OnSaveValue;
@@ -84,19 +85,14 @@ public class MotorProperty extends PropertyBase {
         	@Override
         	public void onClick(DialogInterface dialog, int which) {
 				EditText et = (EditText) mAlert.findViewById(R.id.textValue);
-				String linearDistanceMillimetersStr = et.getText().toString();
-				double linearDistanceMillimeters = Long.parseLong(linearDistanceMillimetersStr);
+				double linearDistanceMillimeters = Long.parseLong(et.getText().toString());
 				long steps = linearDistanceToSteps(mActivity, linearDistanceMillimeters/1000.0);
 
 				if (steps != 0) {
 					String sensor = "motor"+Integer.toString(mMotorIndex)+"-target";
 					postToDb(sensor, Long.toString(steps));
-					String action = "moving"+(steps > 0 ? "+":"")+Long.toString(steps);
-					long timestamp_s = System.currentTimeMillis()/1000;
-					String timestamp = Long.toString(timestamp_s);
-					MotorProperty.setMotorProperty(mActivity, mHiveId, mMotorIndex, action, timestamp);
 					display();
-					startPolling(Math.abs(steps)/StepsPerRevolutionProperty.getStepsPerSecond(mActivity));
+					startPolling((int) (Math.abs(steps)/StepsPerSecondProperty.getStepsPerSecond(mActivity, mHiveId)));
 				}
 				
 				mAlert.dismiss(); 
@@ -117,6 +113,7 @@ public class MotorProperty extends PropertyBase {
         mAlert.findViewById(R.id.minus).setOnClickListener(new View.OnClickListener() {public void onClick(View v) {dec();}});
         mAlert.findViewById(R.id.minusMinus).setOnClickListener(new View.OnClickListener() {public void onClick(View v) {dec100();}});
 	}
+
 	
 	public void pollCloud() {
 		String dbUrl = DbCredentialsProperty.getCouchLogDbUrl(mActivity);
@@ -127,13 +124,15 @@ public class MotorProperty extends PropertyBase {
 					if (value.startsWith(MOTOR_ACTION_MOVING)) {
 						// determine if the value should be ignored
 						long steps = Long.parseLong(value.substring(MOTOR_ACTION_MOVING.length()));
-						long shouldHaveTaken_s = Math.abs(steps)/StepsPerRevolutionProperty.getStepsPerSecond(mActivity);
+						long shouldHaveTaken_s = Math.abs(steps)/StepsPerSecondProperty.getStepsPerSecond(mActivity, mHiveId);
 						long shouldHaveFinishedBy_s = timestamp_s + shouldHaveTaken_s;
 						long now_s = System.currentTimeMillis()/1000;
 						if (now_s > shouldHaveFinishedBy_s+shouldHaveTaken_s) { // give it twice as long as it should have
 							// ignore it!
 							value = MOTOR_ACTION_STOPPED;
 						}
+					} else {
+						Log.i(TAG, "stopped");
 					}
 					MotorProperty.setMotorProperty(mActivity, mHiveId, mMotorIndex, value, timestamp_s);
 				}
@@ -177,48 +176,63 @@ public class MotorProperty extends PropertyBase {
 
 	
 	private AtomicBoolean mStopPoller = new AtomicBoolean(false);
-	private AtomicInteger mPollCounter = new AtomicInteger(0);
 	private Runnable mPoller = null;
 	private Thread mPollerThread = null;
-	private void startPolling(final double startPollingIn_s) {
+	private void startPolling(final int runningDuration_s) {
 		if (mPoller == null) {
 			mPoller = new Runnable() {
 				@Override
 				public void run() {
-					// first wait a while -- since I know how long the motor should run, no use polling until around when it 
-					// should be done
-
-					// 95ms*10==950ms -- nearly 1s
-					// 95ms*(10*startPollingIn_s) == desired wait before polling
-					mPollCounter.set(0);
-					while (!mStopPoller.get() && (mPollCounter.getAndIncrement() < 10*startPollingIn_s)) {
+					// check about once a second whenever this activity is running
+					
+					// first, wait for evidence that the motor is moving...
+					int messageDeliveryTime_s = 10;
+					int fudge_s = 20; // big fudge factor to account for vagaries of message delivery
+					int timeout_s = messageDeliveryTime_s + fudge_s;
+					boolean done = false;
+					mStopPoller.set(false);
+					int pollCnt = 0;
+					
+					// first have to wait until I see evidence of the motor moving -- then wait until it stops
+					while (!mStopPoller.get() && !done) {
 						try {
-							Thread.sleep(95);
+							Thread.sleep(1000);
 						} catch (InterruptedException e) {
 							// TODO Auto-generated catch block
 							e.printStackTrace();
 						}
+	
+						if (pollCnt++ % 3 == 0) 
+							pollCloud();
+
+						mActivity.runOnUiThread(new Runnable() {public void run() {display();}});
+						
+						done = (timeout_s-- <= 0) || 
+								getMotorAction(mActivity, mHiveId, mMotorIndex).equals(MOTOR_ACTION_MOVING);
 					}
 
-					// now poll the db once every 3s, but give up if it goes a full minute
-					long started = System.currentTimeMillis();
-					mPollCounter.set(0);
-					boolean done = false;
-					while (!done && !mStopPoller.get()) {
-						try {
-							Thread.sleep(95);
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
+					if (!mStopPoller.get()) {
+						// next wait for evidence that the motor has stopped
+						timeout_s = runningDuration_s + messageDeliveryTime_s + fudge_s;
+						done = false;
+						pollCnt = 0;
 						
-						// 95ms*5*10==4750ms
-						if (mPollCounter.getAndIncrement() >= 3*10) {
-							mPollCounter.set(0);
+						// first have to wait until I see evidence of the motor moving -- then wait until it stops
+						while (!mStopPoller.get() && !done) {
+							try {
+								Thread.sleep(1000);
+							} catch (InterruptedException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+		
+							if (pollCnt++ % 3 == 0) 
+								pollCloud();
 
-							pollCloud();
-							done = getMotorAction(mActivity, mHiveId, mMotorIndex).equals(MOTOR_ACTION_STOPPED) ||
-									   (System.currentTimeMillis()-started > 60000);
+							mActivity.runOnUiThread(new Runnable() {public void run() {display();}});
+							
+							done = (timeout_s-- <= 0) || 
+									getMotorAction(mActivity, mHiveId, mMotorIndex).equals(MOTOR_ACTION_STOPPED);
 						}
 					}
 					Log.i(TAG, "Done");
@@ -244,7 +258,7 @@ public class MotorProperty extends PropertyBase {
 		mAlert = null;
 	}
 
-	
+
 	// derived class should do whatever is necessary to determine if the Property hasn't been defined or ever touched
 	protected boolean isPropertyDefined() {
 		return isMotorPropertyDefined(mActivity, mHiveId, mMotorIndex);
@@ -260,15 +274,14 @@ public class MotorProperty extends PropertyBase {
 	
 	// do whatever is necessary to display the current state in the ParentView
 	protected void display() {
-		long timestampMillis = getMotorTimestamp(mActivity, mHiveId, mMotorIndex)*1000;
+		long timestamp_s = getMotorTimestamp(mActivity, mHiveId, mMotorIndex);
 
 		String action = getMotorAction(mActivity, mHiveId, mMotorIndex);
 		boolean isStopped = !action.startsWith(MOTOR_ACTION_MOVING);
 		if (!isStopped) {
 			// determine if the property value should be ignored
 			long steps = Long.parseLong(action.substring(MOTOR_ACTION_MOVING.length()));
-			long shouldHaveTaken_s = Math.abs(steps)/StepsPerRevolutionProperty.getStepsPerSecond(mActivity);
-			long timestamp_s = timestampMillis/1000;
+			long shouldHaveTaken_s = Math.abs(steps)/StepsPerSecondProperty.getStepsPerSecond(mActivity, mHiveId);
 			long shouldHaveFinishedBy_s = timestamp_s + shouldHaveTaken_s;
 			long now_s = System.currentTimeMillis()/1000;
 			if (now_s > shouldHaveFinishedBy_s+shouldHaveTaken_s) { // give it twice as long as it should have
@@ -286,7 +299,6 @@ public class MotorProperty extends PropertyBase {
 			mButton.setImageResource(R.drawable.ic_rarrow_disabled);
 	    	mButton.setEnabled(false);
 		}
-		long timestamp_s = timestampMillis / 1000;
 		HiveEnv.setValueWithSplash(mActivity, mValueTV.getId(), mTimestampTV.getId(), action, true, timestamp_s);
 	}
 
@@ -356,22 +368,13 @@ public class MotorProperty extends PropertyBase {
 	}
 	
 	private static void setMotorProperty(Activity activity, String hiveId, int motorIndex, String action, String date) {
-		{
-			SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
-			if (!SP.getString(uniqueIdentifier(MOTOR_ACTION_PROPERTY, hiveId, motorIndex), DEFAULT_MOTOR_ACTION).equals(action)) {
-				SharedPreferences.Editor editor = SP.edit();
-				editor.putString(uniqueIdentifier(MOTOR_ACTION_PROPERTY, hiveId, motorIndex), action);
-				editor.commit();
-			}
-		}
-		
-		{
-			SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
-			if (!SP.getString(uniqueIdentifier(MOTOR_TIMESTAMP_PROPERTY, hiveId, motorIndex), DEFAULT_MOTOR_TIMESTAMP).equals(date)) {
-				SharedPreferences.Editor editor = SP.edit();
-				editor.putString(uniqueIdentifier(MOTOR_TIMESTAMP_PROPERTY, hiveId, motorIndex), date);
-				editor.commit();
-			}
+		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
+		if (!SP.getString(uniqueIdentifier(MOTOR_ACTION_PROPERTY, hiveId, motorIndex), DEFAULT_MOTOR_ACTION).equals(action) ||
+			!SP.getString(uniqueIdentifier(MOTOR_TIMESTAMP_PROPERTY, hiveId, motorIndex), DEFAULT_MOTOR_TIMESTAMP).equals(date)) {
+			SharedPreferences.Editor editor = SP.edit();
+			editor.putString(uniqueIdentifier(MOTOR_ACTION_PROPERTY, hiveId, motorIndex), action);
+			editor.putString(uniqueIdentifier(MOTOR_TIMESTAMP_PROPERTY, hiveId, motorIndex), date);
+			editor.commit();
 		}
 	}
 }
