@@ -1,5 +1,6 @@
 #include <http_couchget.h>
 
+#define HEADLESS
 #define NDEBUG
 #include <strutils.h>
 
@@ -7,9 +8,23 @@
 
 
 
+HttpCouchGet::HttpCouchGet(const Str &ssid, const Str &ssidPswd, 
+			   const Str &host, int port, const Str &page,
+			   const Str &dbUser, const Str &dbPswd, 
+			   bool isSSL)
+  : HttpGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
+    m_consumer(getContext())
+{
+  TF("HttpCouchGet::HttpCouchGet");
+//PH2("entry; now: ", millis());  
+  init();
+}
+
+
 void HttpCouchGet::init()
 {
     TF("HttpCouchGet::init");
+//PH2("entry; now: ", millis());  
     m_consumer.reset();
     m_doc.clear();
     m_haveDoc = m_parsedDoc = false;

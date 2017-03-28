@@ -51,11 +51,10 @@ static Latch *sSingleton = 0;
 Latch::Latch(const HiveConfig &config,
 	     const char *name,
 	     const class RateProvider &rateProvider,
-	     const class TimeProvider &timeProvider,
 	     unsigned long now, int servoPin,
 	     const TempSensor &tempSensor, const ServoConfig &servoConfig, 
 	     Mutex *wifiMutex)
-  : SensorBase(config, name, rateProvider, timeProvider, now, wifiMutex),
+  : SensorBase(config, name, rateProvider, now, wifiMutex),
     mServoPin(servoPin), mTempSensor(tempSensor),
     mServoConfigProvider(servoConfig), mCurrentConfig(new LocalServoConfig()),
     mIsHigh(false), mIsMoving(false), mIsAtClockwiseLimit(true)

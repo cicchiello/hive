@@ -21,12 +21,7 @@ class HttpCouchGet : public HttpGet {
    HttpCouchGet(const Str &ssid, const Str &ssidPswd, 
 		const Str &host, int port, const Str &page,
 		const Str &dbUser, const Str &dbPswd, 
-		bool isSSL = false)
-     : HttpGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
-       m_consumer(getContext())
-       {
-	 init();
-       }
+		bool isSSL = false);
   
    HttpCouchGet(const char *ssid, const char *ssidPswd, 
 		const IPAddress &hostip, int port, const char *page,

@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+#define HEADLESS
 #define NDEBUG
 #include <Trace.h>
 
@@ -227,39 +228,36 @@ void TC4_Handler (void)
 //This function enables TC4 or TC5 and waits for it to be ready
 void PlatformUtils::startPulseGenerator(int whichGenerator, PlatformUtils::PulseCallbackFunc cb)
 {
-    WDT_TRACE("INFO: in startPulseGenerator");
-  
+    TF("PlatformUtils::startPulseGenerator");
+ 
     switch (whichGenerator) {
     case 0: {
-        if (cb == NULL) s_pulseCb[0] = noopPulseHandler;
-	else {
+        if (cb == NULL) {
+	    s_pulseCb[0] = noopPulseHandler;
+	} else {
 	    if (s_pulseCb[0] != noopPulseHandler) {
-	        WDT_TRACE("FATAL: s_pulseDb[0] already allocated");
+	        WDT_TRACE("FATAL: s_pulseCb[0] already allocated");
 		while (1) {};
 	    }
 	    s_pulseCb[0] = cb;
-	    WDT_TRACE("INFO: s_pulseCb[0] registered");
 	}
         TC5->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE; //set the CTRLA register
 	while (TC5->COUNT16.STATUS.reg & TC_STATUS_SYNCBUSY)
 	    ;
-	WDT_TRACE("INFO: TC5 enabled");
     }
       break;
     case 1: {
         if (cb == NULL) s_pulseCb[1] = noopPulseHandler;
 	else {
-	  WDT_TRACE("INFO: testing s_pulseCb[1]");
 	    if (s_pulseCb[1] != noopPulseHandler) {
 	        WDT_TRACE("FATAL: s_pulseCb[1] already allocated");
 		while (1) ;
 	    }
-	    WDT_TRACE("INFO: s_pulseCb[1] registered");
+	    s_pulseCb[1] = cb;
 	}
         TC4->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE; //set the CTRLA register
 	while (TC4->COUNT16.STATUS.reg & TC_STATUS_SYNCBUSY)
 	    ;
-	WDT_TRACE("INFO: TC4 enabled");
     }
       break;
     default: {
@@ -267,8 +265,6 @@ void PlatformUtils::startPulseGenerator(int whichGenerator, PlatformUtils::Pulse
 	while (1) {};
     }
     }
-    
-    WDT_TRACE("INFO: at end of startPulseGenerator");
 }
 
 

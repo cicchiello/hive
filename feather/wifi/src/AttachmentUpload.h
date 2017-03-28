@@ -11,7 +11,6 @@ class AttachmentUpload : public SensorBase {
 		     const char *sensorName,
 		     const char *contentType,
 		     const class RateProvider &rateProvider,
-		     const class TimeProvider &timeProvider,
 		     unsigned long now,
 		     Mutex *wifiMutex, Mutex *sdMutex);
 
@@ -28,7 +27,8 @@ class AttachmentUpload : public SensorBase {
 
     virtual const char *logValue() const = 0;
     
-    virtual bool processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms);
+    virtual bool processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms,
+			       bool *keepMutex, bool *success);
 
     bool isAttachmentUploadDone() const {return mIsDone;}
     

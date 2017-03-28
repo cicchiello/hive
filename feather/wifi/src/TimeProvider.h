@@ -5,7 +5,7 @@ class TimeProvider {
  public:
     virtual void toString(unsigned long now, Str *str) const = 0;
 
-    virtual bool haveTimestamp() const;
+    virtual unsigned long getSecondsSinceEpoch(unsigned long now) const = 0;
 };
 
 #endif

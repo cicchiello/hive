@@ -81,12 +81,7 @@ class HttpOp {
    
    HttpOp(const Str &ssid, const Str &ssidPswd, const Str &hostname, int port,
 	  const Str &dbUser, const Str &dbPswd,
-	  bool isSSL = false)
-     : m_ssid(ssid), m_pswd(ssidPswd), mSpecifiedHostname(hostname), m_port(port),
-       m_dbuser(dbUser), m_dbpswd(dbPswd), mSpecifiedHostIP(), m_isSSL(isSSL), m_shutdown(true)
-   {
-     init();
-   }
+	  bool isSSL = false);
    
    HttpOp(const char *ssid, const char *ssidPswd, const IPAddress &hostip, int port,
 	  const char *dbUser, const char *dbPswd,

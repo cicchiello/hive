@@ -1,0 +1,57 @@
+Release notes for version 1.0.268:
+
+
+This release includes bug fixes and enhancements to both the MCU firmware and Android app.  
+
+
+Please plan on installing the following firmware:
+https://jfcenterprises.cloudant.com/transfer/hive-1.0.268/hive.bin
+
+
+It's the same process as before to place the firmware on the MCU module.  Download the file, connect
+your PC to the USB, put the MCU in firmware upload mode (double-press the tiny button next to the
+USB connector), then run the bossac program as before.   I think I've written about this process
+a couple times; here's one of them:
+     https://docs.google.com/document/d/1W1DZwI7sake5m6TDdBS6u3deZZ_eG_eNkR4GXV3UOy4/edit
+
+
+
+Also, the Android app should be updated to version 1.10.  The Google Play Store link for alpha access is:
+https://play.google.com/apps/testing/com.jfc.apps.hive
+
+
+
+Bug fixes:
+  - AudioCapture crash was observed on the second audio capture.  Since the crashes were tracked to
+  contention on use of one of the mcu on-chip timers, I've modified the audio capture code to use its
+  own dedicated on-chip timer.  The original timer will continue to be shared by several other facilities.
+  Since those other facilities don't need to shutdown/restart and change the pulse rate, they aren't
+  expected to have contention issues.
+  - The AudioUpload code was waiting (unnecessarily) 30s, after the *.wav file was ready, but before
+  uploading to the db.  This delay has been removed.
+  - Prevent any sensor uploads, soon after startup, until the correct time is known (prevents "TBD"'s
+  from being put in the db).
+  - Reset-at-midnight has been fixed for the bee counter.  The time-since-restart was incorrecty being
+  used instead of the time since epoch.
+  - While investigating the reset-at-midnight problem, I discovered cases where calculating the current
+  time will sometimes cause a crash (usually after connection is lost).  This has been corrected.
+
+
+Enhancements:
+  - Increased buffer size used for file upload during Audio upload to db to improve performance.
+  - Represent Temperature and Humidity to resolution of 1/10th degree/% to further reduce the frequency
+  of required uploads
+  - Feedback from Angus suggested the motor should be moving much slower than currently, and its speed
+  should be user-configurable.  Since it is much slower, I can switch back to the simpler stepper motor
+  driver and let the user configure exactly the number of steps per second.  To do so, had to add new
+  App dialog and new firmware class called MotorSpeedActuator to take the command from the app and
+  forward to motor control code.
+
+
+Additional note:
+  - Nothing of value was found in any of the crash reports on 3/26.  All reports at that time were
+  about the innaccessible db.  The reports make it clear that the db was innaccessible at the time for
+  both me and Angus (not to mention my own observations at the time) but I couldn't find any
+  confirmation or explanation of an outage from Cloudant.
+
+

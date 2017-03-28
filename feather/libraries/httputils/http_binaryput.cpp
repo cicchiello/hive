@@ -132,13 +132,19 @@ HttpBinaryPut::EventResult HttpBinaryPut::event(unsigned long now, unsigned long
 	        unsigned char *buf = 0;
 		int sz = m_provider->takeIfAvailable(&buf);
 		if (sz > 0) {
+#ifdef ENABLE_TRACKING		
 		    unsigned long b = micros();
+#endif
 		    TRACE2("Sending a chunk of size ", sz);
-		    getContext().getClient().write(buf, sz);
+                    getContext().getClient().write(buf, sz);
 
 		    int remaining;
 		    getContext().getClient().flushOut(&remaining);
 		    mRetryFlush = remaining > 0;
+
+		    if (mRetryFlush) {
+		        TRACE2("a retry is necessary: ", remaining);
+		    }
 
 #ifndef HEADLESS
 #ifndef NDEBUG
@@ -157,8 +163,7 @@ HttpBinaryPut::EventResult HttpBinaryPut::event(unsigned long now, unsigned long
 		    unsigned long n = micros();
 		    tracker[trackerCnt].endTime = n;
 		    tracker[trackerCnt++].writeDelta = n - b;
-#endif		
-
+#endif
 		} else {
 		    TRACE("Nothing available");
 		}

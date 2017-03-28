@@ -11,7 +11,6 @@
 #include <Mutex.h>
 
 #include <RateProvider.h>
-#include <TimeProvider.h>
 
 #include <http_binaryput.h>
 #include <http_dataprovider.h>
@@ -127,10 +126,9 @@ AttachmentUpload::AttachmentUpload(const HiveConfig &config,
 			 const char *sensorName,
 			 const char *contentType,
 			 const class RateProvider &rateProvider,
-			 const class TimeProvider &timeProvider,
 			 unsigned long now,
 			 Mutex *wifiMutex, Mutex *sdMutex)
-  : SensorBase(config, sensorName, rateProvider, timeProvider, now, wifiMutex),
+  : SensorBase(config, sensorName, rateProvider, now, wifiMutex),
     mTransferStart(0), mSdMutex(sdMutex),
     mBinaryPutter(NULL), mDataProvider(NULL),
     mContentType(contentType),
@@ -259,7 +257,8 @@ bool AttachmentUpload::loop(unsigned long now)
 }
 
 
-bool AttachmentUpload::processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms)
+bool AttachmentUpload::processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms,
+				     bool *keepMutex, bool *success)
 {
     TF("AttachmentUpload::processResult");
 

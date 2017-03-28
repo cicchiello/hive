@@ -21,11 +21,9 @@ CrashUpload::CrashUpload(const HiveConfig &config,
 			 const char *attachmentName,
 			 const char *contentType,
 			 const class RateProvider &rateProvider,
-			 const class TimeProvider &timeProvider,
 			 unsigned long now,
 			 Mutex *wifiMutex, Mutex *sdMutex)
-  : AttachmentUpload(config, sensorName, contentType, rateProvider, timeProvider,
-		     now, wifiMutex, sdMutex),
+  : AttachmentUpload(config, sensorName, contentType, rateProvider, now, wifiMutex, sdMutex),
     mFirstEntry(true), mDeleteFile(false), mHaveFileToUpload(false)
 {
     TF("CrashUpload::CrashUpload");

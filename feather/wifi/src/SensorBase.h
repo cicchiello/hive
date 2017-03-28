@@ -14,7 +14,6 @@ class SensorBase : public Sensor {
  public:
     SensorBase(const HiveConfig &config, const char *name,
 	       const class RateProvider &rateProvider,
-	       const class TimeProvider &timeProvider,
 	       unsigned long now, Mutex *wifiMutex);
     ~SensorBase();
 
@@ -29,23 +28,27 @@ class SensorBase : public Sensor {
     
  protected:
     const HiveConfig &getConfig() const {return mConfig;}
+
+    void enableValueCache(bool v) {mValueCacheEnabled = v;}
     
     void setSample(const Str &value);
     
     unsigned long getNextPostTime() const;
     void setNextPostTime(unsigned long n);
     
-    bool postImplementation(unsigned long now, Mutex *wifi);
+    bool postImplementation(unsigned long now, Mutex *wifi, bool *success);
     
-    virtual bool processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms);
+    virtual bool processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms,
+			       bool *keepMutex, bool *success);
     
  private:
     unsigned long mNextPostTime;
 
-    Str *mValueStr;
+    Str *mValueStr, *mPrevValueStr;
     const HiveConfig &mConfig;
     class HttpCouchPost *mPoster;
     Mutex *mWifiMutex;
+    bool mDidFirstPost, mValueCacheEnabled;
 };
 
 inline

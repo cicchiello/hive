@@ -13,7 +13,6 @@ class ConfigUploader : public Sensor {
  public:
     ConfigUploader(const HiveConfig &config,
 		   const class RateProvider &rateProvider,
-		   const class TimeProvider &timeProvider,
 		   unsigned long now, Mutex *wifi);
     ~ConfigUploader();
 

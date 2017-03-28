@@ -17,11 +17,10 @@
 StepperMonitor::StepperMonitor(const HiveConfig &config,
 			       const char *name,
 			       const class RateProvider &rateProvider,
-			       const class TimeProvider &timeProvider,
 			       unsigned long now,
 			       const class StepperActuator *actuator,
 			       Mutex *wifiMutex)
-  : SensorBase(config, name, rateProvider, timeProvider, now, wifiMutex),
+  : SensorBase(config, name, rateProvider, now, wifiMutex),
     mActuator2(0), mActuator(actuator), mPrevTarget(0), mNextAction(now+1500l), mDoPost(false)
 {
     TF("StepperMonitor::StepperMonitor");
@@ -32,11 +31,10 @@ StepperMonitor::StepperMonitor(const HiveConfig &config,
 StepperMonitor::StepperMonitor(const HiveConfig &config,
 			       const char *name,
 			       const class RateProvider &rateProvider,
-			       const class TimeProvider &timeProvider,
 			       unsigned long now,
 			       const class StepperActuator2 *actuator,
 			       Mutex *wifiMutex)
-  : SensorBase(config, name, rateProvider, timeProvider, now, wifiMutex),
+  : SensorBase(config, name, rateProvider, now, wifiMutex),
     mActuator2(actuator), mActuator(0), mPrevTarget(0), mNextAction(now+1500l), mDoPost(false)
 {
     TF("StepperMonitor::StepperMonitor");
@@ -64,11 +62,12 @@ bool StepperMonitor::isItTimeYet(unsigned long now)
 }
 
 
-bool StepperMonitor::processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms)
+bool StepperMonitor::processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms,
+				   bool *keepMutex, bool *success)
 {
     TF("StepperMonitor::processResult");
     mDoPost = false;
-    return SensorBase::processResult(consumer, callMeBackIn_ms);
+    return SensorBase::processResult(consumer, callMeBackIn_ms, keepMutex, success);
 }
 
 

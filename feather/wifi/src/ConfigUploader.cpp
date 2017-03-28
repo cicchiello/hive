@@ -24,9 +24,8 @@
 
 ConfigUploader::ConfigUploader(const HiveConfig &config,
 			       const class RateProvider &rateProvider,
-			       const class TimeProvider &timeProvider,
 			       unsigned long now, Mutex *wifi)
-  : Sensor("config-uploader", rateProvider, timeProvider, now),
+  : Sensor("config-uploader", rateProvider, now),
     mConfig(config), mDoUpload(false), mNextActionTime(now + 10000l),
     mGetter(0), mPutter(0), mWifiMutex(wifi), mDocToUpload(0)
 {}
@@ -164,8 +163,8 @@ void ConfigUploader::prepareDocToUpload(const CouchUtils::Doc &existingDoc,
         newDoc->addNameValue(new CouchUtils::NameValuePair("_rev", CouchUtils::Item(rev)));
 
     Str timestr;
-    if (getTimeProvider().haveTimestamp()) {
-        getTimeProvider().toString(now, &timestr);
+    if (GetTimeProvider()) {
+        GetTimeProvider()->toString(now, &timestr);
 	newDoc->addNameValue(new CouchUtils::NameValuePair(HiveConfig::TimestampProperty, CouchUtils::Item(timestr)));
     }
 }

@@ -15,7 +15,6 @@ class Latch : public SensorBase, private PulseGenConsumer {
     Latch(const HiveConfig &config,
 	  const char *name,
 	  const class RateProvider &rateProvider,
-	  const class TimeProvider &timeProvider,
 	  unsigned long now,
 	  int servoPin, const TempSensor &tempSensor, const ServoConfig &servoConfig,
 	  Mutex *wifiMutex);

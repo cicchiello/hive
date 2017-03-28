@@ -11,7 +11,6 @@ class CrashUpload : public AttachmentUpload {
 		const char *attachmentName,
 		const char *contentType,
 		const class RateProvider &rateProvider,
-		const class TimeProvider &timeProvider,
 		unsigned long now,
 		Mutex *wifiMutex, Mutex *sdMutex);
 

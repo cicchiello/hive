@@ -11,9 +11,9 @@ class HiveConfig;
 class Mutex;
 
 
-class AppChannel : public TimeProvider {
+class AppChannel {
  public:
-    AppChannel(const HiveConfig &config, unsigned long now, Mutex *wifiMutex, Mutex *sdMutex);
+    AppChannel(const HiveConfig &config, unsigned long now, TimeProvider **timeProvider, Mutex *wifiMutex, Mutex *sdMutex);
     ~AppChannel();
 
     // returns true when it has the time; false to be called back later
@@ -28,40 +28,24 @@ class AppChannel : public TimeProvider {
 
     void consumePayload(StrBuf *payload, Mutex *alreadyOwnedSdMutex);
 
-    unsigned long secondsAtMark() const;
-    unsigned long markTimestamp() const {return mTimestamp;}
-
-    // TimeProvider API
-    void toString(unsigned long now, Str *str) const;
-    bool haveTimestamp() const;
-    
  private:
     bool loadPrevMsgId();
     bool getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHeader);
     bool processDoc(const CouchUtils::Doc &doc, bool gettingHeader, unsigned long now, unsigned long *callMeBackIn_ms);
 
-    unsigned long mNextAttempt, mStartTime, mTimestamp, mSecondsAtMark;
+    unsigned long mNextAttempt, mStartTime;
     int mState, mRetryCnt;
 
     const HiveConfig &mConfig;
-    bool mInitialMsg, mHavePayload, mWasOnline, mHaveTimestamp;
+    bool mInitialMsg, mHavePayload, mWasOnline;
     StrBuf mPrevMsgId, mNewMsgId, mPayload, mPrevETag;
     Str mChannelUrl;
+
+    TimeProvider **mTimeProvider;
     
     class AppChannelGetter *mGetter;
     Mutex *mWifiMutex, *mSdMutex;
 };
 
-inline
-bool AppChannel::haveTimestamp() const
-{
-    return mHaveTimestamp;
-}
-
-inline
-unsigned long AppChannel::secondsAtMark() const
-{
-    return mSecondsAtMark;
-}
 
 #endif

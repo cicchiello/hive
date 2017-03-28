@@ -21,12 +21,12 @@ static DHT dht(DHTPIN, DHTTYPE);
 TempSensor::TempSensor(const HiveConfig &config,
 		       const char *name,
 		       const class RateProvider &rateProvider,
-		       const class TimeProvider &timeProvider,
 		       unsigned long now, Mutex *wifiMutex)
-  : SensorBase(config, name, rateProvider, timeProvider, now, wifiMutex),
+  : SensorBase(config, name, rateProvider, now, wifiMutex), 
     mTempStr(new Str("NAN")), mT(25.0), mHasTemp(false)
 {
     dht.begin();
+    enableValueCache(true); // allow the base class to defer POSTs until there's a change in sampled value
 }
 
 
@@ -42,6 +42,7 @@ DHT &TempSensor::getDht()
     return dht;
 }
 
+
 bool TempSensor::sensorSample(Str *value)
 {
     double t = dht.readTemperature();
@@ -54,16 +55,16 @@ bool TempSensor::sensorSample(Str *value)
 	mHasTemp = true;
 
 	int degrees = (int) t;
-	int hundredths = (int) (100*(t - ((double) degrees)));
+	int tenths = (int) (10*(t - ((double) degrees)));
 	    
 	char degreesStr[20];
 	sprintf(degreesStr, "%d", degrees);
 	
-	char hundredthsStr[20];
-	sprintf(hundredthsStr, "%d", hundredths);
+	char tenthsStr[20];
+	sprintf(tenthsStr, "%d", tenths);
 
 	char output[20];
-	sprintf(output, "%s.%s", degreesStr, hundredthsStr);
+	sprintf(output, "%s.%s", degreesStr, tenthsStr);
 	    
 	*value = output;
     

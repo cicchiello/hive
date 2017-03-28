@@ -13,8 +13,6 @@
 #include <couchutils.h>
 #include <Mutex.h>
 
-#include <TimeProvider.h>
-
 #include <http_couchget.h>
 #include <http_couchput.h>
 
@@ -25,10 +23,9 @@
 
 ConfigPersister::ConfigPersister(const HiveConfig &config,
 				 const class RateProvider &rateProvider,
-				 const class TimeProvider &timeProvider,
 				 const char *configFilename, 
 				 unsigned long now, Mutex *sdMutex)
-  : Sensor("config-persister", rateProvider, timeProvider, now),
+  : Sensor("config-persister", rateProvider, now),
     mConfig(config), mDoPersist(false), 
     mSdMutex(sdMutex), mWriter(0), mConfigFilename(configFilename)
 {}

@@ -13,6 +13,16 @@
 #include <MyWiFi.h>
 
 
+HttpGet::HttpGet(const Str &ssid, const Str &ssidPswd, 
+		 const Str &host, int port, const Str &page,
+		 const Str &dbUser, const Str &dbPswd,
+		 bool isSSL)
+  : HttpOp(ssid, ssidPswd, host, port, dbUser, dbPswd, isSSL), m_page(page)
+{
+  TF("HttpGet::HttpGet");
+PH2("entry; now: ", millis());  
+}
+
 HttpResponseConsumer &HttpGet::getResponseConsumer()
 {
     return getHeaderConsumer();

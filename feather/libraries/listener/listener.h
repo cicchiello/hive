@@ -12,7 +12,6 @@ public:
     static const uint8_t SAMPLE_RESOLUTION = 10;  // sampling at 10bits
     static const uint32_t BYTES_PER_SAMPLE = 2;
     static const uint32_t SAMPLES_PER_SECOND = 22050;
-    static const uint32_t SECONDS_OF_RECORDING = 10;
     static const uint32_t SD_BLK_SZ = 512;
 
     static const uint16_t SAMPLES_PER_CHUNK = 256;
