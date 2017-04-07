@@ -44,7 +44,9 @@ public class MainActivity extends Activity {
 	private AtomicInteger mPollCounter = new AtomicInteger(0);
 	private Thread mPollerThread = null;
 	private Runnable mPoller = null;
-	private MotorProperty m0, m1, m2;
+	
+	private LimitedMotorProperty m0;
+	private MotorProperty m1, m2;
 	private LatchProperty latch;
 	private UptimeProperty uptime;
 	private AudioSampler audio;
@@ -116,10 +118,10 @@ public class MainActivity extends Activity {
 								  (TextView) findViewById(R.id.latch_text), 
 								  (TextView) findViewById(R.id.latchTimestampText));
 		
-		m0 = new MotorProperty(this, HiveId, 0, 
-							   (TextView) findViewById(R.id.motor0Text), 
-							   (ImageButton) findViewById(R.id.selectMotor0Button),
-							   (TextView) findViewById(R.id.motor0TimestampText));
+		m0 = new LimitedMotorProperty(this, HiveId, 0, 
+									  (TextView) findViewById(R.id.motor0Text), 
+									  (ImageButton) findViewById(R.id.selectMotor0Button),
+									  (TextView) findViewById(R.id.motor0TimestampText));
 		
 		m1 = new MotorProperty(this, HiveId, 1, 
 							   (TextView) findViewById(R.id.motor1Text), 

@@ -29,14 +29,15 @@ public class MotorProperty extends PropertyBase {
 
 	private static final String MOTOR_ACTION_PROPERTY = "MOTOR_ACTION_PROPERTY";
 	private static final String MOTOR_TIMESTAMP_PROPERTY = "MOTOR_TIMESTAMP_PROPERTY";
-	private static final String MOTOR_ACTION_STOPPED = "stopped";
-	private static final String MOTOR_ACTION_MOVING = "moving";
-	private static final String DEFAULT_MOTOR_ACTION = MOTOR_ACTION_STOPPED;
 	private static final String DEFAULT_MOTOR_TIMESTAMP = "0";
 	
-	private AlertDialog mAlert;
-	private int mMotorIndex;
-	private DbAlertHandler mDbAlertHandler;
+	protected static final String MOTOR_ACTION_STOPPED = "stopped";
+	protected static final String MOTOR_ACTION_MOVING = "moving";
+	protected static final String DEFAULT_MOTOR_ACTION = MOTOR_ACTION_STOPPED;
+	
+	protected AlertDialog mAlert;
+	protected int mMotorIndex;
+	protected DbAlertHandler mDbAlertHandler;
 	
 	public static double stepsToLinearDistance(Activity activity, long steps) {
 		double lsteps = steps;
@@ -75,7 +76,7 @@ public class MotorProperty extends PropertyBase {
 	}
 
 	
-	private void showDialog() {
+	protected void showDialog() {
 		AlertDialog.Builder builder = new AlertDialog.Builder(mActivity);
 		
 		builder.setIcon(R.drawable.ic_hive);
@@ -142,7 +143,7 @@ public class MotorProperty extends PropertyBase {
 	}
 
 	
-	private void inc() {
+	protected void inc() {
 		EditText tv = (EditText) mAlert.findViewById(R.id.textValue);
 		String valueStr = tv.getText().toString();
 		int n = Integer.parseInt(valueStr)+1;
@@ -150,7 +151,7 @@ public class MotorProperty extends PropertyBase {
 		SplashyText.highlightModifiedField(mActivity, tv);
 	}
 	
-	private void inc100() {
+	protected void inc100() {
 		EditText tv = (EditText) mAlert.findViewById(R.id.textValue);
 		String valueStr = tv.getText().toString();
 		int n = Integer.parseInt(valueStr)+100;
@@ -158,7 +159,7 @@ public class MotorProperty extends PropertyBase {
 		SplashyText.highlightModifiedField(mActivity, tv);
 	}
 	
-	private void dec() {
+	protected void dec() {
 		EditText tv = (EditText) mAlert.findViewById(R.id.textValue);
 		String valueStr = tv.getText().toString();
 		int n = Integer.parseInt(valueStr)-1;
@@ -166,7 +167,7 @@ public class MotorProperty extends PropertyBase {
 		SplashyText.highlightModifiedField(mActivity, tv);
 	}
 	
-	private void dec100() {
+	protected void dec100() {
 		EditText tv = (EditText) mAlert.findViewById(R.id.textValue);
 		String valueStr = tv.getText().toString();
 		int n = Integer.parseInt(valueStr)-100;
@@ -178,7 +179,7 @@ public class MotorProperty extends PropertyBase {
 	private AtomicBoolean mStopPoller = new AtomicBoolean(false);
 	private Runnable mPoller = null;
 	private Thread mPollerThread = null;
-	private void startPolling(final int runningDuration_s) {
+	protected void startPolling(final int runningDuration_s) {
 		if (mPoller == null) {
 			mPoller = new Runnable() {
 				@Override
@@ -191,7 +192,6 @@ public class MotorProperty extends PropertyBase {
 					int timeout_s = messageDeliveryTime_s + fudge_s;
 					boolean done = false;
 					mStopPoller.set(false);
-					int pollCnt = 0;
 					
 					// first have to wait until I see evidence of the motor moving -- then wait until it stops
 					while (!mStopPoller.get() && !done) {
@@ -202,20 +202,18 @@ public class MotorProperty extends PropertyBase {
 							e.printStackTrace();
 						}
 	
-						if (pollCnt++ % 3 == 0) 
-							pollCloud();
+						pollCloud();
 
-						mActivity.runOnUiThread(new Runnable() {public void run() {display();}});
-						
-						done = (timeout_s-- <= 0) || 
-								getMotorAction(mActivity, mHiveId, mMotorIndex).equals(MOTOR_ACTION_MOVING);
+						String action = getMotorAction(mActivity, mHiveId, mMotorIndex);
+						done = (timeout_s-- <= 0) || action.startsWith(MOTOR_ACTION_MOVING);
 					}
 
+					mActivity.runOnUiThread(new Runnable() {public void run() {display();}});
+					
 					if (!mStopPoller.get()) {
 						// next wait for evidence that the motor has stopped
 						timeout_s = runningDuration_s + messageDeliveryTime_s + fudge_s;
 						done = false;
-						pollCnt = 0;
 						
 						// first have to wait until I see evidence of the motor moving -- then wait until it stops
 						while (!mStopPoller.get() && !done) {
@@ -226,14 +224,13 @@ public class MotorProperty extends PropertyBase {
 								e.printStackTrace();
 							}
 		
-							if (pollCnt++ % 3 == 0) 
-								pollCloud();
+							pollCloud();
 
-							mActivity.runOnUiThread(new Runnable() {public void run() {display();}});
-							
-							done = (timeout_s-- <= 0) || 
-									getMotorAction(mActivity, mHiveId, mMotorIndex).equals(MOTOR_ACTION_STOPPED);
+							String action = getMotorAction(mActivity, mHiveId, mMotorIndex);
+							done = (timeout_s-- <= 0) || !action.startsWith(MOTOR_ACTION_MOVING);
 						}
+
+						mActivity.runOnUiThread(new Runnable() {public void run() {display();}});
 					}
 					Log.i(TAG, "Done");
 					cancelPoller();
