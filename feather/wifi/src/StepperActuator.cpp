@@ -179,6 +179,22 @@ StepperActuator::~StepperActuator()
 }
 
 
+void StepperActuator::stop()
+{
+    TF("StepperActuator::stop");
+    PH("Stopped");
+	    
+    m->release();
+    mRunning = false;
+
+    // remove this StepperActuator from the ISR handler list
+    StepperActuatorPulseGenConsumer::nonConstSingleton()->removeStepper(this);
+
+    mLoc = mTarget = 0;
+    TRACE("Released the stepper motor");
+}
+
+
 void StepperActuator::step()
 {
     TF("StepperActuator::step");
@@ -196,18 +212,8 @@ void StepperActuator::step()
 	//const PinDescription &p = g_APinDescription[5];
 	//PORT->Group[p.ulPort].OUTTGL.reg = (1ul << p.ulPin) ;
 	
-	if (mLoc == mTarget) {
-	    PH("Stopped");
-	    
-	    m->release();
-	    mRunning = false;
-
-	    // remove this StepperActuator from the ISR handler list
-	    StepperActuatorPulseGenConsumer::nonConstSingleton()->removeStepper(this);
-
-	    mLoc = mTarget = 0;
-	    TRACE("Released the stepper motor");
-	}
+	if (mLoc == mTarget) 
+	    stop();
     }
 }
 
@@ -228,6 +234,29 @@ bool StepperActuator::isItTimeYetForSelfDrive(unsigned long now)
 bool StepperActuator::loop(unsigned long now)
 {
     return mLoc != mTarget;
+}
+
+
+void StepperActuator::start()
+{
+    TF("StepperActuator::start");
+    PH3("Running for ", (mTarget-mLoc), " steps");
+
+    int rpm = 3*mMotorSpeedProvider.stepsPerSecond()/10;
+    m->setSpeed(rpm);
+
+    double dmsPerStep = 1000.0/mMotorSpeedProvider.stepsPerSecond();
+    mMsPerStep = (int) dmsPerStep;
+    PH2("setting rpm to ", rpm);
+    PH3("scheduling steps at the rate of once per ", mMsPerStep, " ms");
+    
+    // put this StepperActuator on the ISR handler list
+    // (consider that it might already be there)
+    StepperActuatorPulseGenConsumer::nonConstSingleton()->addStepper(this);
+
+    scheduleNextStep(millis());
+    
+    mRunning = true;
 }
 
 
@@ -257,23 +286,7 @@ void StepperActuator::processMsg(unsigned long now, const char *msg)
 	
         mTarget = newTarget;
         if (mTarget != mLoc) {
-	    PH3("Running for ", (mTarget-mLoc), " steps");
-
-	    int rpm = 3*mMotorSpeedProvider.stepsPerSecond()/10;
-	    m->setSpeed(rpm);
-
-	    double dmsPerStep = 1000.0/mMotorSpeedProvider.stepsPerSecond();
-	    mMsPerStep = (int) dmsPerStep;
-	    PH2("setting rpm to ", rpm);
-	    PH3("scheduling steps at the rate of once per ", mMsPerStep, " ms");
-    
-	    // put this StepperActuator on the ISR handler list
-	    // (consider that it might already be there)
-	    StepperActuatorPulseGenConsumer::nonConstSingleton()->addStepper(this);
-
-	    scheduleNextStep(millis());
-	    
-	    mRunning = true;
+	    start();
 	}
     }
 }
@@ -291,8 +304,7 @@ bool StepperActuator::isMyMsg(const char *msg) const
 	const char *token = "|";
 	bool r = (strncmp(msg, token, strlen(token)) == 0) && StringUtils::isNumber(msg+strlen(token));
 	if (r) {
-	    TRACE("it's mine!");
-PH2("it's mine!  now: ", millis());
+	    PH2("it's mine!  now: ", millis());
 	}
 	return r;
     } else {

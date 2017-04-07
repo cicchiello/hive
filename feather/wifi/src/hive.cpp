@@ -22,6 +22,8 @@
 #include <HumidSensor.h>
 #include <StepperMonitor.h>
 #include <StepperActuator.h>
+#include <LimitStepperMonitor.h>
+#include <LimitStepperActuator.h>
 #include <MotorSpeedActuator.h>
 #include <beecnt.h>
 #include <Indicator.h>
@@ -49,6 +51,9 @@
 #define BEECNT_DATA_PIN         11
 
 #define LATCH_SERVO_PIN         12
+
+#define POSLIMITSWITCH_PIN       5
+#define NEGLIMITSWITCH_PIN       6
 
 static const char *ResetCause = "unknown";
 static int s_mainState = INIT_SENSORS;
@@ -145,8 +150,6 @@ void setup(void)
 
     PH2("ResetCause: ", ResetCause);
 
-    pinMode(5, OUTPUT);
-    
     //pinMode(5, OUTPUT);         // for debugging: used to indicate ISR invocations for motor drivers
     
     delay(500);
@@ -234,9 +237,11 @@ void loop(void)
 	MotorSpeedActuator *motorSpeed = new MotorSpeedActuator(&CNF, "steps-per-second", now);
 	s_actuators[actuatorIndex++] = motorSpeed;
 	
-	StepperActuator *motor0 = new StepperActuator(CNF, *rate, *motorSpeed, "motor0-target", now, 0x60, 1);
-	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor0", *rate, now, motor0,
-						      &sWifiMutex);
+	LimitStepperActuator *motor0 = new LimitStepperActuator(CNF, *rate, *motorSpeed, "motor0-target", now,
+							        POSLIMITSWITCH_PIN, NEGLIMITSWITCH_PIN,
+								0x60, 1);
+	s_sensors[sensorIndex++] = new LimitStepperMonitor(CNF, "motor0", *rate, now, motor0,
+							   &sWifiMutex);
 	s_actuators[actuatorIndex++] = motor0;
 	
 	StepperActuator *motor1 = new StepperActuator(CNF, *rate, *motorSpeed, "motor1-target", now, 0x60, 2);

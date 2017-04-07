@@ -1,0 +1,14 @@
+#!/bin/bash
+
+gpio -g mode 23 out
+gpio -g write 23 1
+sleep 1
+gpio -g write 23 0
+sleep 0.1
+gpio -g write 23 1
+sleep 0.1
+gpio -g write 23 0
+#sleep 10
+#gpio -g write 23 1
+#gpio -g mode 23 in
+

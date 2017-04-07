@@ -37,11 +37,15 @@ class StepperActuator : public Actuator {
  protected:
     virtual const char *className() const {return "StepperActuator";}
 
+    virtual void start();
+    virtual void stop();
+    
+    virtual void step();
+
  private:
     friend class StepperActuatorPulseGenConsumer;
     
     bool isItTimeYetForSelfDrive(unsigned long now);
-    void step();
     
     static StepperActuator **s_steppers;
     static bool s_pulseInitialized;
