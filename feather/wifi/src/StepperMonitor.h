@@ -32,7 +32,7 @@ class StepperMonitor : public SensorBase {
     
     bool processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms,
 		       bool *keepMutex, bool *success);
-    
+
  private:
     const char *className() const {return "StepperMonitor";}
 

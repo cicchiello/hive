@@ -21,7 +21,7 @@ StepperMonitor::StepperMonitor(const HiveConfig &config,
 			       const class StepperActuator *actuator,
 			       Mutex *wifiMutex)
   : SensorBase(config, name, rateProvider, now, wifiMutex),
-    mActuator2(0), mActuator(actuator), mPrevTarget(0), mNextAction(now+1500l), mDoPost(false)
+    mActuator2(0), mActuator(actuator), mPrevTarget(-1), mNextAction(now+1500l), mDoPost(false)
 {
     TF("StepperMonitor::StepperMonitor");
     setNextSampleTime(now + 1000000000); // don't let the base class ever perform it's sample function
@@ -35,7 +35,7 @@ StepperMonitor::StepperMonitor(const HiveConfig &config,
 			       const class StepperActuator2 *actuator,
 			       Mutex *wifiMutex)
   : SensorBase(config, name, rateProvider, now, wifiMutex),
-    mActuator2(actuator), mActuator(0), mPrevTarget(0), mNextAction(now+1500l), mDoPost(false)
+    mActuator2(actuator), mActuator(0), mPrevTarget(-1), mNextAction(now+1500l), mDoPost(false)
 {
     TF("StepperMonitor::StepperMonitor");
     setNextSampleTime(now + 1000000000); // don't let the base class ever perform it's sample function
@@ -77,7 +77,7 @@ bool StepperMonitor::loop(unsigned long now)
 
     if (now > mNextAction || mNextAction > now +200l) {
         mNextAction = now + 200l;
-	setNextSampleTime(now + 1000000000); // don't let the base class ever perform it's sample function
+	setNextSampleTime(now + 1000000); // don't let the base class ever perform it's sample function
     }
     
     int target = mActuator ? mActuator->getTarget() : mActuator2->getTarget();
