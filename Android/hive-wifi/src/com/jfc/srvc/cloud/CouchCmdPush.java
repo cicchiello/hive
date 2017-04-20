@@ -66,7 +66,7 @@ public class CouchCmdPush {
 		
 						// log the command
 						String rpt = dbUrl+"/"+channelDocId+" "+newChannelDoc.toString();
-						ACRA.getErrorReporter().handleSilentException(new Exception("About to issue query: "+rpt));
+						//ACRA.getErrorReporter().handleSilentException(new Exception("About to issue query: "+rpt));
 						
 						CouchPutBackground.OnCompletion putOnCompletion = new CouchPutBackground.OnCompletion() {
 					    	public void complete(JSONObject results) {

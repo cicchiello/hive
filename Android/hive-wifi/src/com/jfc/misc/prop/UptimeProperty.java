@@ -112,8 +112,7 @@ public class UptimeProperty implements IPropertyMgr {
 			public void failed(final String query, final String msg) {
 				mActivity.runOnUiThread(new Runnable() {
 					public void run() {
-						Toast.makeText(mActivity, msg+".  Sending a report to my developer", Toast.LENGTH_LONG).show();
-						ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
+						Toast.makeText(mActivity, "No Configuration record found in the db; some functionality will be unavailable until then", Toast.LENGTH_LONG).show();
 					}
 				});
 			}

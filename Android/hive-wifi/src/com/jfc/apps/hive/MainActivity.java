@@ -3,16 +3,11 @@ package com.jfc.apps.hive;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.acra.ACRA;
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.AudioSampler;
 import com.jfc.misc.prop.DbCredentialsProperty;
 import com.jfc.misc.prop.LatchProperty;
 import com.jfc.misc.prop.UptimeProperty;
-import com.jfc.srvc.cloud.CouchGetBackground;
 import com.jfc.srvc.cloud.PollSensorBackground;
 import com.jfc.util.misc.DbAlertHandler;
 import com.jfc.util.misc.DialogUtils;

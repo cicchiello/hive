@@ -87,15 +87,14 @@ public class WifiAPProperty implements IPropertyMgr {
 		CouchGetBackground.OnCompletion ssidOnCompletion =new CouchGetBackground.OnCompletion() {
 			@Override
 			public void objNotFound(String query) {
-				failed(query, "Object Not Found (config AP)");
+				failed(query, "Object Not Found: ");
 			}
 			
 			@Override
 			public void failed(final String query, final String msg) {
 				mActivity.runOnUiThread(new Runnable() {
 					public void run() {
-						Toast.makeText(mActivity, msg+"; sending a report to my developer", Toast.LENGTH_LONG).show();
-						ACRA.getErrorReporter().handleException(new Exception(query+"failed with msg: "+msg));
+						Toast.makeText(mActivity, "No Configuration record found in the db; some functionality will be unavailable until then", Toast.LENGTH_LONG).show();
 					}
 				});
 			}
@@ -125,8 +124,8 @@ public class WifiAPProperty implements IPropertyMgr {
 					public void failed(final String query, final String msg) {
 						mActivity.runOnUiThread(new Runnable() {
 							public void run() {
-								Toast.makeText(mActivity, msg+"; sending a report to my developer", Toast.LENGTH_LONG).show();
-								ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
+								Toast.makeText(mActivity, "No Configuration record found in the db; using last known value", Toast.LENGTH_LONG).show();
+								onDialog(getSSID(mCtxt), getPSWD(mCtxt));
 							}
 						});
 					}
@@ -150,7 +149,11 @@ public class WifiAPProperty implements IPropertyMgr {
 		} catch (JSONException je) {
 			Toast.makeText(mActivity, "Couldn't parse the JSON doc", Toast.LENGTH_LONG).show();
 		}
-		
+		onDialog(originalSsid, originalPswd);
+	}
+	
+
+	private void onDialog(String originalSsid, String originalPswd) {
 		AlertDialog.Builder builder = new AlertDialog.Builder(mActivity);
 		
 		builder.setIcon(R.drawable.ic_hive);
