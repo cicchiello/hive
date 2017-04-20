@@ -41,6 +41,26 @@
 #endif
 
 
+#define DBHOST0 "jfcenterprises.cloudant.com"
+#define DBUSER0 "afteptsecumbehisomorther"
+#define DBPSWD0 "e4f286be1eef534f1cddd6240ed0133b968b1c9a"
+#define DBPORT0 "443"
+#define DBISSSL0 "true"
+
+#define DBHOST1 "hivewiz.cloudant.com"
+#define DBUSER1 "gromespecorgingeoughtnev"
+#define DBPSWD1 "075b14312a355c8563a77bd05c91fe519873fdf4"
+#define DBPORT1 "443"
+#define DBISSSL1 "true"
+
+#define DBHOST2 "192.168.1.85"
+#define DBUSER2 ""
+#define DBPSWD2 ""
+#define DBPORT2 "5943"
+#define DBISSSL2 "false"
+
+
+
 class ProvisionImp {
   public:
     unsigned long mNextActionTime, mStartTime;
@@ -114,9 +134,7 @@ class ProvisionImp {
   bool loadLoop(unsigned long now);
 
   void sendOk(WiFiClient &client);
-  void sendPage(WiFiClient &client, const char *ssid, const char *pswd,
-		const char *dbHost, int dbPort, bool isSsl,
-		const char *dbUser, const char *dbPswd);
+  void sendPage(WiFiClient &client, const char *ssid, const char *pswd, const char *dbHost);
   void parseRequest(const char *url);
 
   // search for a string of the form key=value in
@@ -383,8 +401,7 @@ bool ProvisionImp::apLoop(unsigned long now, Mutex *wifiMutex)
 			    sendOk(*mClient);
 
 			    sendPage(*mClient, mConfig.getSSID().c_str(), mConfig.getPSWD().c_str(),
-				     mConfig.getDbHost().c_str(), mConfig.getDbPort(), mConfig.isSSL(),
-				     mConfig.getDbUser().c_str(), mConfig.getDbPswd().c_str());
+				     mConfig.getDbHost().c_str());
 				
 			    // close the connection:
 			    mClient->stop();
@@ -477,14 +494,13 @@ bool ProvisionImp::stopLoop(unsigned long now, Mutex *wifiMutex)
 /* STATIC */
 void ProvisionImp::sendPage(WiFiClient &client,
 			    const char *ssid, const char *pswd,
-			    const char *dbHost, int dbPort, bool isSsl,
-			    const char *dbUser, const char *dbPswd)
+			    const char *dbHost)
 {
     const char *pageStart = "<html><head><title>Hivewiz Provisioning</title><style>body{font-family: Arial}</style></head><body><form method=\"get\" action=\"/\"><input type=\"hidden\" name=\"save\" value=\"1\">\r\n";
     const char *pageEnd = "</form><hr>\r\n</body></html>\r\n";
 
     // html pages (NOTE: make sure you don't have the '{' without the closing '}' !
-    const char *pageSet = "<h2>Hivewiz Settings</h2><input type=\"hidden\" name=\"page\" value=\"wifi\"><table border=\"0\"><tr><td><b>SSID:</b></td><td><input type=\"text\" name=\"ssid\" value=\"{ssid}\" size=\"40\"></td></tr><tr><td><b>Password:</b></td><td><input type=\"text\" name=\"pass\" value=\"******\" size=\"40\"></td></tr><tr><td><b>CouchDB url:</b></td><td><input type=\"text\" name=\"couchDbHost\" value=\"{couchDbHost}\" size=\"40\"></td></tr><tr><td><b>CouchDB port:</b></td><td><input type=\"text\" name=\"couchDbPort\" value=\"{couchDbPort}\" size=\"40\"></td></tr><tr><td><b>CouchDB uses ssl (y/n):</b></td><td><input type=\"text\" name=\"isSsl\" value=\"{isSsl}\" size=\"40\"></td></tr><tr><td><b>CouchDB Username:</b></td><td><input type=\"text\" name=\"couchDbUser\" value=\"{couchDbUser}\" size=\"40\"></td></tr><tr><td><b>CouchDB Password:</b></td><td><input type=\"text\" name=\"couchDbPswd\" value=\"{couchDbPswd}\" size=\"40\"></td></tr><tr><td><b>Status:</b></td></tr><td>{status} <a href=\"?page=wifi\">[refresh]</a></td></tr><tr><td></td><td><input type=\"submit\" value=\"Save\"></td></tr><tr></tr></table>\r\n";
+    const char *pageSet = "<h2>Hivewiz Settings</h2><input type=\"hidden\" name=\"page\" value=\"wifi\"><table border=\"0\"><tr><td><b>SSID:</b></td><td><input type=\"text\" name=\"ssid\" value=\"{ssid}\" size=\"40\"></td></tr><tr><td><b>Password:</b></td><td><input type=\"text\" name=\"pass\" value=\"******\" size=\"40\"></td></tr><tr><td><b>CouchDB url:</b></td><td><input type=\"text\" name=\"couchDbHost\" value=\"{couchDbHost}\" size=\"40\"></td></tr><tr><td><b>Status:</b></td></tr><td>{status} <a href=\"?page=wifi\">[refresh]</a></td></tr><tr><td></td><td><input type=\"submit\" value=\"Save\"></td></tr><tr></tr></table>\r\n";
     const char *pageSavedInfo = "<br><b style=\"color: green\">Settings Saved!</b>\r\n";
 
     client.print(pageStart);
@@ -496,14 +512,6 @@ void ProvisionImp::sendPage(WiFiClient &client,
     r = StringUtils::replace(&buf2, r, "{pass}", pswd);
     buf1 = "";
     r = StringUtils::replace(&buf1, r, "{couchDbHost}", dbHost);
-    buf2 = "";
-    r = StringUtils::replace(&buf2, r, "{couchDbPort}", StrBuf().append(dbPort).c_str());
-    buf1 = "";
-    r = StringUtils::replace(&buf1, r, "{isSsl}", isSsl?"y":"n");
-    buf2 = "";
-    r = StringUtils::replace(&buf2, r, "{couchDbUser}", dbUser);
-    buf1 = "";
-    r = StringUtils::replace(&buf1, r, "{couchDbPswd}", dbPswd);
 
     StrBuf statMsg = "Loaded Config";
     if (mInvalidInput) {
@@ -574,45 +582,25 @@ void ProvisionImp::parseRequest(const char *line)
 
 	buf = "";
 	getKeyVal("couchDbHost", line, &buf);
-	newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbHostProperty, CouchUtils::Item(buf.c_str())));
 
-	buf = "";
-	getKeyVal("couchDbUser", line, &buf);
-	newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbUserProperty, CouchUtils::Item(buf.c_str())));
-
-	buf = "";
-	getKeyVal("couchDbPswd", line, &buf);
-	newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbPswdProperty, CouchUtils::Item(buf.c_str())));
-
-	buf = "";
-	getKeyVal("couchDbPort", line, &buf);
-	newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbPortProperty, CouchUtils::Item(buf.c_str())));
-	if (!StringUtils::isNumber(buf.c_str())) {
-	    TRACE2("couchDbPort failed isNumber test: ", buf.c_str());
-	    mInvalidInput = true;
-	    mInvalidFieldname = "CouchDbPort";
-	}
-
-	buf = "";
-	getKeyVal("isSsl", line, &buf);
-	StrBuf buf2 = buf.tolower();
-	bool isValidFlag =
-	  (strcmp(buf2.c_str(), "y") == 0) ||
-	  (strcmp(buf2.c_str(), "n") == 0) ||
-	  (strcmp(buf2.c_str(), "true") == 0) ||
-	  (strcmp(buf2.c_str(), "false") == 0) ||
-	  (strcmp(buf2.c_str(), "yes") == 0) ||
-	  (strcmp(buf2.c_str(), "no") == 0);
-	bool isSsl =
-	  (strcmp(buf2.c_str(), "y") == 0) ||
-	  (strcmp(buf2.c_str(), "true") == 0) ||
-	  (strcmp(buf2.c_str(), "yes") == 0);
-	newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::IsSslProperty,
-							  CouchUtils::Item(isSsl ? "true" : "false")));
-	if (!isValidFlag) {
-	    TRACE2("IsSSL property validity check failed: ", buf.c_str());
-	    mInvalidInput = true;
-	    mInvalidFieldname = "uses ssl";
+	if (strcmp(buf.tolower().c_str(), DBHOST0) == 0) {
+	    newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbHostProperty, CouchUtils::Item(DBHOST0)));
+	    newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbUserProperty, CouchUtils::Item(DBUSER0)));
+	    newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbPswdProperty, CouchUtils::Item(DBPSWD0)));
+	    newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbPortProperty, CouchUtils::Item(DBPORT0)));
+	    newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::IsSslProperty, CouchUtils::Item(DBISSSL0)));
+	} else if (strcmp(buf.tolower().c_str(), DBHOST1) == 0) {
+	    newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbHostProperty, CouchUtils::Item(DBHOST1)));
+	    newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbUserProperty, CouchUtils::Item(DBUSER1)));
+	    newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbPswdProperty, CouchUtils::Item(DBPSWD1)));
+	    newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbPortProperty, CouchUtils::Item(DBPORT1)));
+	    newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::IsSslProperty, CouchUtils::Item(DBISSSL1)));
+	} else if (strcmp(buf.tolower().c_str(), DBHOST2) == 0) {
+	    newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbHostProperty, CouchUtils::Item(DBHOST2)));
+	    newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbUserProperty, CouchUtils::Item(DBUSER2)));
+	    newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbPswdProperty, CouchUtils::Item(DBPSWD2)));
+	    newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::DbPortProperty, CouchUtils::Item(DBPORT2)));
+	    newDoc.addNameValue(new CouchUtils::NameValuePair(HiveConfig::IsSslProperty, CouchUtils::Item(DBISSSL2)));
 	}
 	
 	const CouchUtils::Doc &prevDoc = mConfig.getDoc();

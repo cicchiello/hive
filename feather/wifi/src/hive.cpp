@@ -297,18 +297,20 @@ void loop(void)
 	assert(GetTimeProvider(), "GetTimeProvider()");
 
 	int sensorIndex = 0;
-	while (s_isOnline && s_sensors[sensorIndex]) {
-	    HivePlatform::nonConstSingleton()->clearWDT();
-	    unsigned long mark = now;
-	    //TRACE2("testing isItTimeYet for sensor ", sensorIndex);
-	    if (s_sensors[sensorIndex]->isItTimeYet(now)) {
-	        //TRACE2("invoking loop for sensor ", sensorIndex);
-	        s_sensors[sensorIndex]->loop(now);
-		now = millis();
-		if (now - mark > 20) {
-		    TRACE4("Sensor ", sensorIndex, " took longer than expected; delta: ", (now-mark));
+	while (s_sensors[sensorIndex]) {
+	    if (s_isOnline || s_sensors[sensorIndex]->worksOffline()) {
+	        HivePlatform::nonConstSingleton()->clearWDT();
+		unsigned long mark = now;
+		//TRACE2("testing isItTimeYet for sensor ", sensorIndex);
+		if (s_sensors[sensorIndex]->isItTimeYet(now)) {
+		    //TRACE2("invoking loop for sensor ", sensorIndex);
+		    s_sensors[sensorIndex]->loop(now);
+		    now = millis();
+		    if (now - mark > 20) {
+		        TRACE4("Sensor ", sensorIndex, " took longer than expected; delta: ", (now-mark));
+		    }
+		    rxLoop(now); // consider rx after every operation to ensure responsiveness from app
 		}
-		rxLoop(now); // consider rx after every operation to ensure responsiveness from app
 	    }
 
 	    ++sensorIndex;

@@ -23,7 +23,7 @@ StrBuf::StrBuf(const char *s)
   : buf(0), cap(0), deleted(false)
 {
     if (s != NULL) {
-        int l = strlen(s);
+        int l = strlen(s)+1;
 	expand(l);
 	strcpy(buf, s);
     }
@@ -32,7 +32,7 @@ StrBuf::StrBuf(const char *s)
 StrBuf::StrBuf(const StrBuf &str)
   : buf(0), cap(0), deleted(false)
 {
-    int l = str.len();
+    int l = str.len()+1;
     expand(l);
     strcpy(buf, str.c_str());
 }

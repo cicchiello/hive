@@ -400,7 +400,12 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 		} else {
 		    if (mGetter->hasNotFound()) {
 		        PH2("object not found, so nothing to do @ ", now);
-			// nothing to do
+			// nothing to do but report as much as possible
+			if (gettingHeader) {
+			    PH2("url: ", mChannelUrl.c_str());
+			} else {
+			    PH2("msgId: ", mNewMsgId.c_str());
+			}
 			isOnlineNow = true;
 		    } else if (mGetter->isTimeout()) {
 		        PH2("timed out; retrying again in 5s; now: ", now);

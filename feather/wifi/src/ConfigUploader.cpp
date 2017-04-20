@@ -200,7 +200,7 @@ bool ConfigUploader::processGetter(const HiveConfig &config, unsigned long now, 
 	} else if (mGetter->hasNotFound()) {
 	    TRACE("Doc doesn't exist in db");
 	    mDocToUpload = new CouchUtils::Doc();
-	    prepareDocToUpload(mGetter->getConfig(), mDocToUpload, now, NULL);
+	    prepareDocToUpload(config.getDoc(), mDocToUpload, now, NULL);
 	    retry = false;
 	} else if (mGetter->isError()) {
 	    PH2("doc not found in the response: ", mGetter->getFullResponse().c_str());

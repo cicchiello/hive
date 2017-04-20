@@ -17,6 +17,7 @@ class Sensor {
 	   unsigned long now);
     ~Sensor();
 
+    virtual bool worksOffline() const {return false;}
     virtual bool isItTimeYet(unsigned long now);
     virtual bool loop(unsigned long now) = 0;
 

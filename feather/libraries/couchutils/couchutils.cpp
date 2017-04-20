@@ -436,10 +436,11 @@ void printDocImp(const CouchUtils::Doc &doc, int indent)
         for (int j = 0; j < indent; j++)
 	    P(' ');
 	printNameValuePairImp(doc[i], indent);
-	if (i+1 < sz) 
+	if (i+1 < sz) {
 	    PL(",");
-	else
+	} else {
 	    PL();
+	}
     }
 }
 
