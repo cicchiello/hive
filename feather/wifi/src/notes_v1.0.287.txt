@@ -1,0 +1,50 @@
+Release notes for version 1.0.287:
+
+
+This release includes enhancements to facility switching between the 2 known db servers.  Updates are
+prepared for both the MCU firmware and the Android app.
+
+Please install the following firmware:
+    https://jfcenterprises.cloudant.com/transfer/hive-1.0.287/hive.bin
+
+
+The Android app should be updated to version 1.12.  The Google Play Store link for alpha
+access is:
+    https://play.google.com/apps/testing/com.jfc.apps.hive
+
+
+
+Enhancements:
+  - Upon testing the new db (hivewiz.cloudant.com) it was discovered that both the App and the MCU
+  Firmware had problems when attempting to switch between dbs.  The App couldn't be updated unless
+  the user manually keyed in the monster key/pswd credentials -- cut-and-paste couldn't be used!
+  Cut-and-paste couldn't be used because you could only put one string in the paste buffer at a time
+  and paste it into the DbCredentials dialog; switching to another app to get the second piece of
+  the set caused the DbCredentials dialog to be brought down -- losing the first piece!  On the other
+  hand, if you pasted one piece, then clicked ok, the credentials would be set inconsistently (and
+  wrong) -- putting the app in a state where it can't communicate.  Similarly, for the firmware, when
+  setting up credentials in provisioning, the phone is temporariliy connected to the Hivewiz's AP,
+  meaning that you can't switch to another app to get the credential pieces unless that app didn't
+  need to access the web.  Both cases are catch-22's.
+  - To fix this longterm, the credential User Interfaces would have to be changed to force an atomic
+  editing operation of all or none.  I've not taken this approach for the near term.
+  - Instead, I hard-coded the credentials of the 2 known dbs (jfcenterprises.cloudant.com and
+  hivewiz.cloudant.com), so only the db host need be chosen -- the rest of the credentials are now
+  hidden.
+  - Though it's not easily tested, the default db credentials in the firmware have been changed to
+  be based on hivewiz.cloudant.com.  So, a brand new Hivewiz device without anything on it's SD card
+  should present hivewiz.cloudant.com in the Provisioning web page, and there is no longer any outward
+  mention (anywhere) of jfcenterprises.cloudant.com.
+
+
+
+
+For uploading the firmware:
+   It's the same process as before to place the firmware on the MCU module.  Download the file, connect
+   your PC to the USB, put the MCU in firmware upload mode (double-press the tiny button next to the
+   USB connector), then run the bossac program as before.   I think I've written about this process
+   a couple times; here's one of them:
+       https://docs.google.com/document/d/1W1DZwI7sake5m6TDdBS6u3deZZ_eG_eNkR4GXV3UOy4/edit
+
+
+  
