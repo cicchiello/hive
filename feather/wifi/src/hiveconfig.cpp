@@ -100,11 +100,12 @@ void HiveConfig::setDefault()
     mDoc.addNameValue(new CouchUtils::NameValuePair(TimestampProperty, CouchUtils::Item("1400000000")));
     mDoc.addNameValue(new CouchUtils::NameValuePair(SsidProperty, CouchUtils::Item("<MyWifi>")));
     mDoc.addNameValue(new CouchUtils::NameValuePair(SsidPswdProperty, CouchUtils::Item("<MyPasscode>")));
-    mDoc.addNameValue(new CouchUtils::NameValuePair(DbHostProperty, CouchUtils::Item("jfcenterprises.cloudant.com")));
+    mDoc.addNameValue(new CouchUtils::NameValuePair(DbHostProperty, CouchUtils::Item("hivewiz.cloudant.com")));
     mDoc.addNameValue(new CouchUtils::NameValuePair(DbPortProperty, CouchUtils::Item("443")));
     mDoc.addNameValue(new CouchUtils::NameValuePair(IsSslProperty, CouchUtils::Item("true")));
-    mDoc.addNameValue(new CouchUtils::NameValuePair(DbUserProperty, CouchUtils::Item("afteptsecumbehisomorther")));
-    mDoc.addNameValue(new CouchUtils::NameValuePair(DbPswdProperty, CouchUtils::Item("e4f286be1eef534f1cddd6240ed0133b968b1c9a")));
+    mDoc.addNameValue(new CouchUtils::NameValuePair(DbUserProperty, CouchUtils::Item("gromespecorgingeoughtnev")));
+    mDoc.addNameValue(new CouchUtils::NameValuePair(DbPswdProperty, CouchUtils::Item("075b14312a355c8563a77bd05c91fe519873fdf4")));
+    
     TRACE("exit");
 }
 

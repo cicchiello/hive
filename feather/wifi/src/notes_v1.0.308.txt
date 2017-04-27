@@ -1,0 +1,38 @@
+Release notes for version 1.0.308:
+
+
+This release fixes some timing bugs discovered in firmware while debuging an sd card
+corruption.  The timing problems may not be related to the corruption.  The App also has
+some minor changes to prevent the suspected situation from happening in the future.
+
+Please install the following firmware:
+    https://jfcenterprises.cloudant.com/transfer/hive-1.0.308/hive.bin
+
+
+The Android app should be updated to version 1.13.  The Google Play Store link for alpha
+access is:
+    https://play.google.com/apps/testing/com.jfc.apps.hive
+
+
+
+Enhancements:
+  - The App now will prevent attempts to run any of the motors at the same time as the Audio
+  sampling.  It does so by immediately setting the state to "pending", then waiting for the
+  controller to respond with the system status.  The buttons will remain locked until the
+  controller reports that all activity finishes.
+
+
+Bug Fixes:
+  - Bugs discovered with incorrect error messages on the App when attempting to clear the cmd
+  queue were fixed.
+
+
+For uploading the firmware:
+   It's the same process as before to place the firmware on the MCU module.  Download the file, connect
+   your PC to the USB, put the MCU in firmware upload mode (double-press the tiny button next to the
+   USB connector), then run the bossac program as before.   I think I've written about this process
+   a couple times; here's one of them:
+       https://docs.google.com/document/d/1W1DZwI7sake5m6TDdBS6u3deZZ_eG_eNkR4GXV3UOy4/edit
+
+
+  

@@ -26,7 +26,7 @@ Str Str::sEmpty((const char *)0);
 
 
 Str::Item::Item(const char *_s)
-  : buf(0), cap(0), refs(0)
+  : buf(0), cap(0), refs(0), len(0)
 {
     TF("Str::Item::Item (1)");
     if (_s) {

@@ -73,6 +73,8 @@ static class Sensor *s_sensors[MAX_SENSORS];
 static class Actuator *s_actuators[Actuator::MAX_ACTUATORS];
 static BeeCounter *s_beecnt = NULL;
 
+static int sFirstMotorIndex = 0;
+
 #define CNF s_provisioner->getConfig()
 
 
@@ -194,7 +196,7 @@ void loop(void)
     unsigned long now = millis();
 
     rxLoop(now);
-
+ 
     if (!s_isOnline || (s_appChannel == NULL) || !GetTimeProvider())
         return;
 
@@ -240,7 +242,7 @@ void loop(void)
 	LimitStepperActuator *motor0 = new LimitStepperActuator(CNF, *rate, *motorSpeed, "motor0-target", now,
 							        POSLIMITSWITCH_PIN, NEGLIMITSWITCH_PIN,
 								0x60, 1);
-	s_sensors[sensorIndex++] = new LimitStepperMonitor(CNF, "motor0", *rate, now, motor0,
+	s_sensors[sFirstMotorIndex = sensorIndex++] = new LimitStepperMonitor(CNF, "motor0", *rate, now, motor0,
 							   &sWifiMutex);
 	s_actuators[actuatorIndex++] = motor0;
 	
@@ -297,18 +299,20 @@ void loop(void)
 	assert(GetTimeProvider(), "GetTimeProvider()");
 
 	int sensorIndex = 0;
-	while (s_isOnline && s_sensors[sensorIndex]) {
-	    HivePlatform::nonConstSingleton()->clearWDT();
-	    unsigned long mark = now;
-	    //TRACE2("testing isItTimeYet for sensor ", sensorIndex);
-	    if (s_sensors[sensorIndex]->isItTimeYet(now)) {
-	        //TRACE2("invoking loop for sensor ", sensorIndex);
-	        s_sensors[sensorIndex]->loop(now);
-		now = millis();
-		if (now - mark > 20) {
-		    TRACE4("Sensor ", sensorIndex, " took longer than expected; delta: ", (now-mark));
+	while (s_sensors[sensorIndex]) {
+	    if (s_isOnline || s_sensors[sensorIndex]->worksOffline()) {
+	        HivePlatform::nonConstSingleton()->clearWDT();
+		unsigned long mark = now;
+		//TRACE2("testing isItTimeYet for sensor ", sensorIndex);
+		if (s_sensors[sensorIndex]->isItTimeYet(now)) {
+		    //TRACE2("invoking loop for sensor ", sensorIndex);
+		    s_sensors[sensorIndex]->loop(now);
+		    now = millis();
+		    if (now - mark > 20) {
+		        TRACE4("Sensor ", sensorIndex, " took longer than expected; delta: ", (now-mark));
+		    }
+		    rxLoop(now); // consider rx after every operation to ensure responsiveness from app
 		}
-		rxLoop(now); // consider rx after every operation to ensure responsiveness from app
 	    }
 
 	    ++sensorIndex;
@@ -437,6 +441,15 @@ void rxLoop(unsigned long now)
 		assert(sSdMutex.whoOwns() == s_appChannel, "sSdMutex.whoOwns() == s_appChannel");
 		processMsg(payload.c_str(), now);
 		sSdMutex.release(s_appChannel);
+	    }
+	    if (s_isOnline && sWifiMutex.isAvailable()) {
+		///HACK!  Need to force the motors to be visited immediately after appchannel releases wifi
+		now = millis();
+		for (int i = 0; i < 3; i++) {
+		    if (s_sensors[i+sFirstMotorIndex]->isItTimeYet(now)) {
+		        s_sensors[i+sFirstMotorIndex]->loop(now);
+		    }
+		}
 	    }
 	}
 	if (!s_isOnline && s_appChannel->isOnline()) {

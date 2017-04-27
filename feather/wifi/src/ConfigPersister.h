@@ -17,6 +17,7 @@ class ConfigPersister : public Sensor {
 		    unsigned long now, Mutex *sdMutex);
     ~ConfigPersister();
 
+    bool worksOffline() const {return true;}
     bool isItTimeYet(unsigned long now);
     bool loop(unsigned long now);
 
