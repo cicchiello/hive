@@ -14,7 +14,7 @@ if [ -n "$SINCE" ]; then
     echo "Attempting to get all records with timestamp greater than $SINCE"
 else
     echo "Error: a unix timestamp must be supplied"
-    echo "usage: -s <unix-timestamp> -w {angus|me}"
+    echo "usage: -s <unix-timestamp> -w {angus|joe}"
     exit
 fi
 
@@ -22,7 +22,7 @@ if [ "$WHO" == "angus" ]; then
     echo "Angus' records requested"
     id="95efbfae334d4d512020204a311402ff"
 else
-    if [ "$WHO" == "me" ]; then
+    if [ "$WHO" == "joe" ]; then
 	echo "Me records requested"
 	id="d359371b544d4d51202020470b0b01ff"
     else
@@ -34,7 +34,8 @@ fi
 
 echo "Using user id ${id}"
 
-couchHost="http://jfcenterprises.cloudant.com"
+#couchHost="http://jfcenterprises.cloudant.com"
+couchHost="http://hivewiz.cloudant.com"
 db="hive-channel"
 headId="${id}-app"
 

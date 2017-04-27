@@ -15,7 +15,6 @@ import org.acra.ACRA;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.jfc.apps.hive.MainActivity;
 import com.jfc.apps.hive.R;
 import com.jfc.srvc.cloud.CouchCmdPush;
 import com.jfc.srvc.cloud.CouchGetBackground;
@@ -24,7 +23,6 @@ import com.jfc.util.misc.DbAlertHandler;
 import com.jfc.util.misc.DialogUtils;
 import com.jfc.util.misc.SplashyText;
 
-import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
@@ -32,9 +30,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.net.Uri;
-import android.os.Environment;
 import android.preference.PreferenceManager;
 import android.support.v4.content.FileProvider;
 import android.text.format.DateFormat;
@@ -68,53 +64,46 @@ public class AudioSampler {
 	private Activity mActivity;
 	private AlertDialog mAlert;
 	private Thread mPollerThread = null;
-	private File storageDir = null;
 	private DbAlertHandler mDbAlert = null;
-	private ImageButton mSampleButton = null;
 	private TextView mAudioTV = null;
 	private String mHiveId;
+	private ExclusiveButtonWrapper mSampleButton;
 	
 	public AudioSampler(Activity _activity, final String hiveId, ImageButton _sampleButton, TextView _audioTV, DbAlertHandler _dbAlert) {
+		mSampleButton = new ExclusiveButtonWrapper(_sampleButton, "audio");
 		mActivity = _activity;
 		mDbAlert = _dbAlert;
-		mSampleButton = _sampleButton;
 		mAudioTV = _audioTV;
 		mHiveId = hiveId;
 		
-	    if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())) {
-	        //RUNTIME PERMISSION Android M
-	        if(PackageManager.PERMISSION_GRANTED==mActivity.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)){
-	        	storageDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-	        }else{
-	        	MainActivity m = (MainActivity) mActivity;
-	        	m.requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
-	        }    
-	    }
-
 		View.OnClickListener ocl = new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				AlertDialog.Builder builder = new AlertDialog.Builder(mActivity);
-				
-				builder.setIcon(R.drawable.ic_hive);
-				builder.setView(R.layout.audio_dialog);
-				builder.setTitle(R.string.audio_dialog_title);
-		        builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
-		            @Override
-		            public void onClick(DialogInterface dialog, int which) {mAlert.dismiss(); mAlert = null;}
-		        });
-		        mAlert = builder.show();
-
-		        setRecordingState(false);
-				setPlaybackState(getAttName(mActivity, hiveId));
+				if (mAlert == null) {
+					AlertDialog.Builder builder = new AlertDialog.Builder(mActivity);
+					
+					builder.setIcon(R.drawable.ic_hive);
+					builder.setView(R.layout.audio_dialog);
+					builder.setTitle(R.string.audio_dialog_title);
+			        builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+			            @Override
+			            public void onClick(DialogInterface dialog, int which) {mAlert.dismiss(); mAlert = null;}
+			        });
+			        mAlert = builder.show();
+	
+			        setRecordingState(false);
+					setPlaybackState(getAttName(mActivity, hiveId));
+				}
 			}
 		};
 		
 		mSampleButton.setOnClickListener(ocl);
 	}
 
-	public void pollCloud()
-	{
+	public void pollCloud() {
+		if (mActivity == null) {
+			Log.i(TAG, "Stop here");
+		}
 		PollSensorBackground.OnSaveValue onSaveValue = new PollSensorBackground.OnSaveValue() {
 			@Override
 			public void save(final Activity activity, final String objId, String value, final long timestamp) {
@@ -125,10 +114,7 @@ public class AudioSampler {
 								String attName = results.getJSONObject("_attachments").keys().next();
 								AudioSampler.setAttachment(activity, mHiveId, objId, attName, timestamp);
 							}
-							AudioSampler.updateParentUI(activity, mHiveId, 
-														R.id.audioSampleText, 
-														R.id.audioSampleTimestampText, 
-														R.id.audioSampleButton);
+							updateParentUI();
 						} catch (JSONException e) {
 							// TODO Auto-generated catch block
 							e.printStackTrace();
@@ -223,44 +209,39 @@ public class AudioSampler {
 		}
 	}
 
-	static public void updateParentUI(final Activity activity, final String hiveId, final int audioResid, 
-									  final int audioTimestampResid, final int buttonResid) {
-		if (AudioSampler.isAudioPropertyDefined(activity, hiveId)) {
-			final String attName = AudioSampler.getAttName(activity, hiveId);
+	public void updateParentUI() {
+		if (AudioSampler.isAudioPropertyDefined(mActivity, mHiveId)) {
+			final String attName = AudioSampler.getAttName(mActivity, mHiveId);
 			String timestampStr = attName.substring(attName.indexOf('_')+1,attName.indexOf('.'));
-    		final ImageButton sampleButton = (ImageButton) activity.findViewById(buttonResid);
 			final CharSequence since = DateUtils.getRelativeTimeSpanString(Long.parseLong(timestampStr)*1000,
 									System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE);
-			activity.runOnUiThread(new Runnable() {
+			mActivity.runOnUiThread(new Runnable() {
 				@Override
 				public void run() {
-		    		TextView audioTimestampTv = (TextView) activity.findViewById(audioTimestampResid);
+		    		TextView audioTimestampTv = (TextView) mActivity.findViewById(R.id.audioSampleTimestampText);
 					Calendar cal = Calendar.getInstance(Locale.ENGLISH);
 					cal.setTimeInMillis(System.currentTimeMillis());
 					final String timestampStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
 					if (!timestampStr.equals(audioTimestampTv.getText().toString())) {
 						audioTimestampTv.setText(timestampStr);
-						SplashyText.highlightModifiedField(activity, audioTimestampTv);
+						SplashyText.highlightModifiedField(mActivity, audioTimestampTv);
 					}
 
 				    // if there's no audio clip in flight, then enable the button and attach a click listener
-					long lastRequestTimestamp = getReqTimestamp(activity, hiveId);
-					long lastAttachmentTimestamp = getTimestamp(activity, hiveId);
-		    		TextView audioTv = (TextView) activity.findViewById(audioResid);
+					long lastRequestTimestamp = getReqTimestamp(mActivity, mHiveId);
+					long lastAttachmentTimestamp = getTimestamp(mActivity, mHiveId);
 		    		String description = null;
 					if (lastAttachmentTimestamp > lastRequestTimestamp ||
 						System.currentTimeMillis() > (lastRequestTimestamp + 4*60)*1000) {
-						sampleButton.setImageResource(R.drawable.ic_rarrow);
-						sampleButton.setEnabled(true);
+						mSampleButton.enableButton();
 						description = since.toString();
 					} else {
-						sampleButton.setImageResource(R.drawable.ic_rarrow_disabled);
-						sampleButton.setEnabled(false);
+						mSampleButton.disableButton();
 						description = "working";
 					}
-		    		if (!description.equals(audioTv.getText().toString())) {
-		    			audioTv.setText(description);
-						SplashyText.highlightModifiedField(activity, audioTv);
+		    		if (!description.equals(mAudioTV.getText().toString())) {
+		    			mAudioTV.setText(description);
+						SplashyText.highlightModifiedField(mActivity, mAudioTV);
 		    		}
 				}
 			});
@@ -350,7 +331,6 @@ public class AudioSampler {
 					public void onClick(View v) {
 						final long requestTimestamp = System.currentTimeMillis()/1000;
 						final String proposedAttName = "LISTEN_"+requestTimestamp+".WAV";
-						final String mostRecentAttName = getAttName(mActivity, mHiveId);
 		        		CouchCmdPush.OnCompletion onCompletion = new CouchCmdPush.OnCompletion() {
 							@Override
 							public void success() {
@@ -359,8 +339,7 @@ public class AudioSampler {
 									public void run() {
 										setRecordingState(true);
 										setRequestTimestamp(mActivity, mHiveId, requestTimestamp);
-										mSampleButton.setImageResource(R.drawable.ic_rarrow_disabled);
-										mSampleButton.setEnabled(false);
+										mSampleButton.disableButton();
 										mAudioTV.setText("working");
 										waitForPlayback(20, proposedAttName);
 									}

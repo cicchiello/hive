@@ -1,7 +1,6 @@
 package com.jfc.apps.hive;
 
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -15,6 +14,7 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 
 import com.jfc.misc.prop.DbCredentialsProperty;
+import com.jfc.misc.prop.ExclusiveButtonWrapper;
 import com.jfc.misc.prop.PropertyBase;
 import com.jfc.misc.prop.StepsPerRevolutionProperty;
 import com.jfc.misc.prop.StepsPerSecondProperty;
@@ -33,8 +33,10 @@ public class MotorProperty extends PropertyBase {
 	
 	protected static final String MOTOR_ACTION_STOPPED = "stopped";
 	protected static final String MOTOR_ACTION_MOVING = "moving";
+	protected static final String MOTOR_ACTION_PENDING_MOVE = "pending";
 	protected static final String DEFAULT_MOTOR_ACTION = MOTOR_ACTION_STOPPED;
 	
+	protected ExclusiveButtonWrapper mButton;
 	protected AlertDialog mAlert;
 	protected int mMotorIndex;
 	protected DbAlertHandler mDbAlertHandler;
@@ -54,7 +56,8 @@ public class MotorProperty extends PropertyBase {
 	}
 	
 	public MotorProperty(Activity _activity, String _hiveId, int _motorIndex, TextView _valueTV, ImageButton button, TextView _timestampTV) {
-		super(_activity, _hiveId, _valueTV, button, _timestampTV);
+		super(_activity, _hiveId, _valueTV, _timestampTV);
+		this.mButton = new ExclusiveButtonWrapper(button, "motor"+Integer.toString(_motorIndex));
 		this.mMotorIndex = _motorIndex;
 
 		// make sure the motor is known to be stopped
@@ -77,42 +80,47 @@ public class MotorProperty extends PropertyBase {
 
 	
 	protected void showDialog() {
-		AlertDialog.Builder builder = new AlertDialog.Builder(mActivity);
-		
-		builder.setIcon(R.drawable.ic_hive);
-		builder.setView(R.layout.motor_dialog);
-		builder.setTitle("Motor "+Integer.toString(mMotorIndex+1)+" distance (mm)");
-		builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-        	@Override
-        	public void onClick(DialogInterface dialog, int which) {
-				EditText et = (EditText) mAlert.findViewById(R.id.textValue);
-				double linearDistanceMillimeters = Long.parseLong(et.getText().toString());
-				long steps = linearDistanceToSteps(mActivity, linearDistanceMillimeters/1000.0);
-
-				if (steps != 0) {
-					String sensor = "motor"+Integer.toString(mMotorIndex)+"-target";
-					postToDb(sensor, Long.toString(steps));
-					display();
-					startPolling((int) (Math.abs(steps)/StepsPerSecondProperty.getStepsPerSecond(mActivity, mHiveId)));
-				}
-				
-				mAlert.dismiss(); 
-				mAlert = null;
-        	}
-        });
-        builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {mAlert.dismiss(); mAlert = null;}
-        });
-        mAlert = builder.show();
-        
-        EditText tv = (EditText) mAlert.findViewById(R.id.textValue);
-        tv.setText("0");
-
-        mAlert.findViewById(R.id.plus).setOnClickListener(new View.OnClickListener() {public void onClick(View v) {inc();}});
-        mAlert.findViewById(R.id.plusPlus).setOnClickListener(new View.OnClickListener() {public void onClick(View v) {inc100();}});
-        mAlert.findViewById(R.id.minus).setOnClickListener(new View.OnClickListener() {public void onClick(View v) {dec();}});
-        mAlert.findViewById(R.id.minusMinus).setOnClickListener(new View.OnClickListener() {public void onClick(View v) {dec100();}});
+		if (mAlert == null) {
+			AlertDialog.Builder builder = new AlertDialog.Builder(mActivity);
+			
+			builder.setIcon(R.drawable.ic_hive);
+			builder.setView(R.layout.motor_dialog);
+			builder.setTitle("Motor "+Integer.toString(mMotorIndex+1)+" distance (mm)");
+			builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+	        	@Override
+	        	public void onClick(DialogInterface dialog, int which) {
+					EditText et = (EditText) mAlert.findViewById(R.id.textValue);
+					double linearDistanceMillimeters = Long.parseLong(et.getText().toString());
+					long steps = linearDistanceToSteps(mActivity, linearDistanceMillimeters/1000.0);
+	
+					if (steps != 0) {
+						setMotorProperty(mActivity, mHiveId, mMotorIndex, MOTOR_ACTION_PENDING_MOVE, 
+								         Long.toString(System.currentTimeMillis()/1000));
+						
+						String sensor = "motor"+Integer.toString(mMotorIndex)+"-target";
+						postToDb(sensor, Long.toString(steps));
+						display();
+						startPolling((int) (Math.abs(steps)/StepsPerSecondProperty.getStepsPerSecond(mActivity, mHiveId)));
+					}
+					
+					mAlert.dismiss(); 
+					mAlert = null;
+	        	}
+	        });
+	        builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+	            @Override
+	            public void onClick(DialogInterface dialog, int which) {mAlert.dismiss(); mAlert = null;}
+	        });
+	        mAlert = builder.show();
+	        
+	        EditText tv = (EditText) mAlert.findViewById(R.id.textValue);
+	        tv.setText("0");
+	
+	        mAlert.findViewById(R.id.plus).setOnClickListener(new View.OnClickListener() {public void onClick(View v) {inc();}});
+	        mAlert.findViewById(R.id.plusPlus).setOnClickListener(new View.OnClickListener() {public void onClick(View v) {inc100();}});
+	        mAlert.findViewById(R.id.minus).setOnClickListener(new View.OnClickListener() {public void onClick(View v) {dec();}});
+	        mAlert.findViewById(R.id.minusMinus).setOnClickListener(new View.OnClickListener() {public void onClick(View v) {dec100();}});
+		}
 	}
 
 	
@@ -126,16 +134,31 @@ public class MotorProperty extends PropertyBase {
 						// determine if the value should be ignored
 						long steps = Long.parseLong(value.substring(MOTOR_ACTION_MOVING.length()));
 						long shouldHaveTaken_s = Math.abs(steps)/StepsPerSecondProperty.getStepsPerSecond(mActivity, mHiveId);
-						long shouldHaveFinishedBy_s = timestamp_s + shouldHaveTaken_s;
+						long shouldHaveFinishedBy_s = timestamp_s + 2*shouldHaveTaken_s; // give it twice as long as it should have
 						long now_s = System.currentTimeMillis()/1000;
-						if (now_s > shouldHaveFinishedBy_s+shouldHaveTaken_s) { // give it twice as long as it should have
+						if (now_s > shouldHaveFinishedBy_s) { 
 							// ignore it!
 							value = MOTOR_ACTION_STOPPED;
 						}
 					} else {
-						Log.i(TAG, "stopped");
+						String prevValue = getMotorAction(mActivity, mHiveId, mMotorIndex);
+						if (prevValue.equals(MOTOR_ACTION_PENDING_MOVE)) {
+							// determine if the value should be ignored
+							long pendingTimestamp_s = getMotorTimestamp(mActivity, mHiveId, mMotorIndex);
+							long shouldHaveTaken_s = 10; // pending case shouldn't stay pending for more than a few seconds
+							long shouldHaveFinishedBy_s = pendingTimestamp_s + 2*shouldHaveTaken_s; // give it twice as long as it should have
+							long now_s = System.currentTimeMillis()/1000;
+							if (now_s > shouldHaveFinishedBy_s) { 
+								// ignore the pending state -- it's been too long; stick with whatever the cloud call returned
+							} else {
+								// still within pending window, so override the result from the cloud call
+								value = prevValue;
+								timestamp_s = pendingTimestamp_s;
+							}
+						}
 					}
 					MotorProperty.setMotorProperty(mActivity, mHiveId, mMotorIndex, value, timestamp_s);
+                    display();
 				}
 			});
 		new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(mHiveId, "motor"+Integer.toString(mMotorIndex)), 
@@ -274,27 +297,27 @@ public class MotorProperty extends PropertyBase {
 		long timestamp_s = getMotorTimestamp(mActivity, mHiveId, mMotorIndex);
 
 		String action = getMotorAction(mActivity, mHiveId, mMotorIndex);
-		boolean isStopped = !action.startsWith(MOTOR_ACTION_MOVING);
+		boolean isStopped = action.equals(MOTOR_ACTION_STOPPED);
 		if (!isStopped) {
-			// determine if the property value should be ignored
-			long steps = Long.parseLong(action.substring(MOTOR_ACTION_MOVING.length()));
-			long shouldHaveTaken_s = Math.abs(steps)/StepsPerSecondProperty.getStepsPerSecond(mActivity, mHiveId);
-			long shouldHaveFinishedBy_s = timestamp_s + shouldHaveTaken_s;
+			long shouldHaveTaken_s = 10; // pending case shouldn't stay pending for more than a few seconds
+			if (action.startsWith(MOTOR_ACTION_MOVING)) {
+				// determine if the property value should be ignored
+				long steps = Long.parseLong(action.substring(MOTOR_ACTION_MOVING.length()));
+				shouldHaveTaken_s = Math.abs(steps)/StepsPerSecondProperty.getStepsPerSecond(mActivity, mHiveId);
+				action = MOTOR_ACTION_MOVING;
+			}
+			long shouldHaveFinishedBy_s = timestamp_s + 2*shouldHaveTaken_s; // give it twice as long as it should have
 			long now_s = System.currentTimeMillis()/1000;
-			if (now_s > shouldHaveFinishedBy_s+shouldHaveTaken_s) { // give it twice as long as it should have
+			if (now_s > shouldHaveFinishedBy_s) { 
 				// ignore it!
 				isStopped = true;
 			}
 		}
 		
 		if (isStopped) {
-			action = MOTOR_ACTION_STOPPED;
-			mButton.setImageResource(R.drawable.ic_rarrow);
-	    	mButton.setEnabled(true);
+			mButton.enableButton();
 		} else {
-			action = MOTOR_ACTION_MOVING;
-			mButton.setImageResource(R.drawable.ic_rarrow_disabled);
-	    	mButton.setEnabled(false);
+			mButton.disableButton();
 		}
 		HiveEnv.setValueWithSplash(mActivity, mValueTV.getId(), mTimestampTV.getId(), action, true, timestamp_s);
 	}
@@ -308,7 +331,7 @@ public class MotorProperty extends PropertyBase {
 					@Override
 					public void run() {
                         saver.save(mActivity, objId, actionStr, Long.parseLong(timestampStr));
-                        display();
+//                        display();
 					}
 				});
 			}
@@ -364,7 +387,7 @@ public class MotorProperty extends PropertyBase {
 		setMotorProperty(activity, hiveId, motorIndex, action, date==0 ? DEFAULT_MOTOR_TIMESTAMP : Long.toString(date));
 	}
 	
-	private static void setMotorProperty(Activity activity, String hiveId, int motorIndex, String action, String date) {
+	public static void setMotorProperty(Activity activity, String hiveId, int motorIndex, String action, String date) {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(activity.getBaseContext());
 		if (!SP.getString(uniqueIdentifier(MOTOR_ACTION_PROPERTY, hiveId, motorIndex), DEFAULT_MOTOR_ACTION).equals(action) ||
 			!SP.getString(uniqueIdentifier(MOTOR_TIMESTAMP_PROPERTY, hiveId, motorIndex), DEFAULT_MOTOR_TIMESTAMP).equals(date)) {

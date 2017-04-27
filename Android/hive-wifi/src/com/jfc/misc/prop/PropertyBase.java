@@ -17,13 +17,11 @@ public class PropertyBase {
 	protected TextView mTimestampTV;
 	protected TextView mValueTV;
 	protected String mHiveId;
-	protected ImageButton mButton;
 	
-	protected PropertyBase(Activity _activity, String _hiveId, TextView _valueTV, ImageButton _button, TextView _timestampTV) {
+	protected PropertyBase(Activity _activity, String _hiveId, TextView _valueTV, TextView _timestampTV) {
 		this.mActivity = _activity;
 		this.mValueTV = _valueTV;
 		this.mTimestampTV = _timestampTV;
-		this.mButton = _button;
 		this.mHiveId = _hiveId;
 	}
 

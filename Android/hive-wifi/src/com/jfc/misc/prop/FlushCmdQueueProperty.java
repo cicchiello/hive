@@ -60,8 +60,13 @@ public class FlushCmdQueueProperty implements IPropertyMgr {
 		        		CouchCmdPush.OnCompletion onCompletion = new CouchCmdPush.OnCompletion() {
 							@Override
 							public void success() {
-								cancelAlert();
-								mAlert = DialogUtils.createAndShowAlertDialog(mActivity, "Queue cleared", 0, null, 0, null, android.R.string.ok, cancelAction);
+								mActivity.runOnUiThread(new Runnable() {
+									public void run() {
+										cancelAlert();
+										mCmds.clear();
+										mAlert = DialogUtils.createAndShowAlertDialog(mActivity, "Queue cleared", 0, null, 0, null, android.R.string.ok, cancelAction);
+									}
+								});
 							}
 							@Override
 							public void error(String query, final String msg) {
@@ -143,7 +148,9 @@ public class FlushCmdQueueProperty implements IPropertyMgr {
 			});
 		}
 
-		protected void processDoc(JSONObject doc) throws JSONException {}
+		protected void processDoc(JSONObject doc) throws JSONException {
+			Toast.makeText(mActivity, "base class processDoc unexpectedly called", Toast.LENGTH_LONG).show();
+		}
 		
 		@Override
 		public void complete(JSONObject result) {
@@ -154,8 +161,12 @@ public class FlushCmdQueueProperty implements IPropertyMgr {
 			}
 		}
 
-		public void failed(final String query, final String msg) {reportError(query, msg);}
-		public void objNotFound(String query) {failed(query, "Object Not Found");}
+		public void failed(final String query, final String msg) {
+			reportError(query, msg);
+		}
+		public void objNotFound(String query) {
+			failed(query, "Object Not Found");
+		}
 	};
 
 	private void getCmdQueue() {
@@ -224,6 +235,10 @@ public class FlushCmdQueueProperty implements IPropertyMgr {
 					});
 			    	new CouchGetBackground(dbUrl+"/"+cmdDoc.getString("prev-msg-id"), authToken, this).execute();
 				}
+			}
+			
+			public void objNotFound(String query) {
+				Toast.makeText(mActivity, "Cmd Queue is empty", Toast.LENGTH_LONG).show();
 			}
 		};
 

@@ -41,7 +41,8 @@ else
     echo "No particular user requested"
 fi
 
-couchHost="http://jfcenterprises.cloudant.com"
+#couchHost="http://jfcenterprises.cloudant.com"
+couchHost="http://hivewiz.cloudant.com"
 db="hive-sensor-log"
 designDoc="_design/SensorLog"
 view="by-hive-sensor"

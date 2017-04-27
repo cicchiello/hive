@@ -51,52 +51,54 @@ public class UptimeProperty implements IPropertyMgr {
 		View.OnClickListener ocl = new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
-				AlertDialog.Builder builder = new AlertDialog.Builder(mActivity);
-				
-				builder.setIcon(R.drawable.ic_hive);
-				builder.setView(R.layout.uptime_dialog);
-				builder.setTitle(R.string.uptime_dialog_title);
-		        builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
-		            @Override
-		            public void onClick(DialogInterface dialog, int which) {mAlert.dismiss(); mAlert = null;}
-		        });
-		        mAlert = builder.show();
-
-		        TextView upsinceTv = (TextView) mAlert.findViewById(R.id.upsince_text);
-		        TextView statusTv = (TextView) mAlert.findViewById(R.id.current_status_text);
-		        TextView embeddedVersionTv = (TextView) mAlert.findViewById(R.id.embedded_version_text);
-		        
-		        String upsinceValueStr = "unknown";
-		        if (isUptimePropertyDefined(mActivity, hiveId)) {
-					Calendar cal = Calendar.getInstance(Locale.ENGLISH);
-					cal.setTimeInMillis(1000*UptimeProperty.getUptime(mActivity, hiveId));
-					upsinceValueStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
+				if (mAlert == null) {
+					AlertDialog.Builder builder = new AlertDialog.Builder(mActivity);
 					
-		        	long uptimeTimestamp_s = getUptimeTimestamp(mActivity, hiveId);
-		        	long uptimeTimestamp_ms = 1000*uptimeTimestamp_s;
-		        	cal = Calendar.getInstance(Locale.ENGLISH);
-		        	cal.setTimeInMillis(uptimeTimestamp_ms);
-					String heartbeatTimeStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
-					int rate_minutes = SensorSampleRateProperty.getRate(mActivity, hiveId);
-					int second_ms = 1000;
-					int minute_s = 60;
-					long timeToBeSureOfDeath_ms = uptimeTimestamp_ms + (rate_minutes+1)*minute_s*second_ms;
-					if (System.currentTimeMillis() > timeToBeSureOfDeath_ms) {
-						statusTv.setText("Nothing since "+heartbeatTimeStr);
-						statusTv.setBackgroundColor(HiveEnv.ModifiableFieldErrorColor);
-					} else {
-						statusTv.setText("Up as of "+heartbeatTimeStr);
-						statusTv.setBackgroundColor(HiveEnv.ModifiableFieldBackgroundColor);
+					builder.setIcon(R.drawable.ic_hive);
+					builder.setView(R.layout.uptime_dialog);
+					builder.setTitle(R.string.uptime_dialog_title);
+			        builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+			            @Override
+			            public void onClick(DialogInterface dialog, int which) {mAlert.dismiss(); mAlert = null;}
+			        });
+			        mAlert = builder.show();
+	
+			        TextView upsinceTv = (TextView) mAlert.findViewById(R.id.upsince_text);
+			        TextView statusTv = (TextView) mAlert.findViewById(R.id.current_status_text);
+			        TextView embeddedVersionTv = (TextView) mAlert.findViewById(R.id.embedded_version_text);
+			        
+			        String upsinceValueStr = "unknown";
+			        if (isUptimePropertyDefined(mActivity, hiveId)) {
+						Calendar cal = Calendar.getInstance(Locale.ENGLISH);
+						cal.setTimeInMillis(1000*UptimeProperty.getUptime(mActivity, hiveId));
+						upsinceValueStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
+						
+			        	long uptimeTimestamp_s = getUptimeTimestamp(mActivity, hiveId);
+			        	long uptimeTimestamp_ms = 1000*uptimeTimestamp_s;
+			        	cal = Calendar.getInstance(Locale.ENGLISH);
+			        	cal.setTimeInMillis(uptimeTimestamp_ms);
+						String heartbeatTimeStr = DateFormat.format("dd-MMM-yy HH:mm",  cal).toString();
+						int rate_minutes = SensorSampleRateProperty.getRate(mActivity, hiveId);
+						int second_ms = 1000;
+						int minute_s = 60;
+						long timeToBeSureOfDeath_ms = uptimeTimestamp_ms + (rate_minutes+1)*minute_s*second_ms;
+						if (System.currentTimeMillis() > timeToBeSureOfDeath_ms) {
+							statusTv.setText("Nothing since "+heartbeatTimeStr);
+							statusTv.setBackgroundColor(HiveEnv.ModifiableFieldErrorColor);
+						} else {
+							statusTv.setText("Up as of "+heartbeatTimeStr);
+							statusTv.setBackgroundColor(HiveEnv.ModifiableFieldBackgroundColor);
+						}
+			        } else statusTv.setText("Unknown");
+			        
+			        upsinceTv.setText(upsinceValueStr);
+			        
+			        JSONObject config = UptimeProperty.getEmbeddedConfig(mActivity, hiveId);
+			        try {
+						embeddedVersionTv.setText(config.has("hive-version") ? config.getString("hive-version") : "e.f.g");
+					} catch (JSONException e) {
+						embeddedVersionTv.setText("e.f.g");
 					}
-		        } else statusTv.setText("Unknown");
-		        
-		        upsinceTv.setText(upsinceValueStr);
-		        
-		        JSONObject config = UptimeProperty.getEmbeddedConfig(mActivity, hiveId);
-		        try {
-					embeddedVersionTv.setText(config.has("hive-version") ? config.getString("hive-version") : "e.f.g");
-				} catch (JSONException e) {
-					embeddedVersionTv.setText("e.f.g");
 				}
 			}
 		};
