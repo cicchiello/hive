@@ -20,7 +20,7 @@ StepperMonitor::StepperMonitor(const HiveConfig &config,
 			       unsigned long now,
 			       const class StepperActuator *actuator,
 			       Mutex *wifiMutex)
-  : SensorBase(config, name, rateProvider, now, wifiMutex),
+  : SensorBase(config, name, rateProvider, now, wifiMutex), 
     mActuator2(0), mActuator(actuator), mPrevTarget(-1), mNextAction(now+1500l), mDoPost(false)
 {
     TF("StepperMonitor::StepperMonitor");
@@ -34,7 +34,7 @@ StepperMonitor::StepperMonitor(const HiveConfig &config,
 			       unsigned long now,
 			       const class StepperActuator2 *actuator,
 			       Mutex *wifiMutex)
-  : SensorBase(config, name, rateProvider, now, wifiMutex),
+  : SensorBase(config, name, rateProvider, now, wifiMutex), 
     mActuator2(actuator), mActuator(0), mPrevTarget(-1), mNextAction(now+1500l), mDoPost(false)
 {
     TF("StepperMonitor::StepperMonitor");
@@ -58,7 +58,11 @@ bool StepperMonitor::sensorSample(Str *value)
 
 bool StepperMonitor::isItTimeYet(unsigned long now)
 {
-    return (now >= mNextAction) || mDoPost;
+    if ((now >= mNextAction) || mDoPost)
+        return true;
+
+    int target = mActuator ? mActuator->getTarget() : mActuator2->getTarget();
+    return (target != mPrevTarget);
 }
 
 
@@ -76,7 +80,7 @@ bool StepperMonitor::loop(unsigned long now)
     TF("StepperMonitor::loop");
 
     if (now > mNextAction || mNextAction > now +200l) {
-        mNextAction = now + 200l;
+        mNextAction = now + 10000l;
 	setNextSampleTime(now + 1000000); // don't let the base class ever perform it's sample function
     }
     
@@ -95,8 +99,8 @@ bool StepperMonitor::loop(unsigned long now)
     if (target != mPrevTarget) {
         setSample(mSensorValue);
 	setNextPostTime(now);   // force immediate POST attempt to make the app as responsive as possible
-	mDoPost = true;
 	mPrevTarget = target;
+	mDoPost = true;
     }
       
     bool callMeBack = true;

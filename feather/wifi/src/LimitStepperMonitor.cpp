@@ -35,11 +35,47 @@ bool LimitStepperMonitor::sensorSample(Str *value)
 }
 
 
+
+static void getState(const LimitStepperActuator &actuator, Str *sensorValue)
+{
+    switch (actuator.getState()) {
+    case LimitStepperActuator::Stopped: {
+        static Str stopped("stopped");
+	*sensorValue = stopped;
+    }; break;
+    case LimitStepperActuator::MovingPositive: {
+        StrBuf buf("moving+");
+	buf.append(actuator.getTarget());
+	*sensorValue = buf.c_str();
+    }; break;
+    case LimitStepperActuator::MovingNegative: {
+        StrBuf buf("moving"); // '-' will be added automatically by virtue of the sign
+	buf.append(actuator.getTarget());
+	*sensorValue = buf.c_str();
+    }; break;
+    case LimitStepperActuator::AtPositiveLimit: {
+        static Str posLimit("@pos-limit");
+	*sensorValue = posLimit;
+    }; break;
+    case LimitStepperActuator::AtNegativeLimit: {
+        static Str negLimit("@neg-limit");
+	*sensorValue = negLimit;
+    }; break;
+    default: assert(0, "Invalid state");
+    }
+}
+
+
 bool LimitStepperMonitor::isItTimeYet(unsigned long now)
 {
     TF("LimitStepperMonitor::isItTimeYet");
-    bool itIsTime = (now >= mNextAction);
-    return itIsTime;
+    if ((now >= mNextAction) || mDoPost)
+        return true;
+
+    Str sensorValue;
+    getState(mActuator, &sensorValue);
+    
+    return !sensorValue.equals(mPrevSensorValue);
 }
 
 
@@ -52,42 +88,22 @@ bool LimitStepperMonitor::processResult(const HttpCouchConsumer &consumer, unsig
 }
 
 
+
 bool LimitStepperMonitor::loop(unsigned long now)
 {
     TF("LimitStepperMonitor::loop");
 
-    mNextAction = now + (mDoPost ? 10l : 200l);
-    setNextSampleTime(now + 1000000); // don't let the base class ever perform it's sample function
+    if (now > mNextAction || mNextAction > now +200l) {
+        mNextAction = now + 10000l;
+	setNextSampleTime(now + 1000000); // don't let the base class ever perform it's sample function
+    }
 
     if (!mDoPost) {
         Str sensorValue;
-	switch (mActuator.getState()) {
-	case LimitStepperActuator::Stopped: {
-	    static Str stopped("stopped");
-	    sensorValue = stopped;
-	}; break;
-	case LimitStepperActuator::MovingPositive: {
-	    StrBuf buf("moving+");
-	    buf.append(mActuator.getTarget());
-	    sensorValue = buf.c_str();
-	}; break;
-	case LimitStepperActuator::MovingNegative: {
-	    StrBuf buf("moving"); // '-' will be added automatically by virtue of the sign
-	    buf.append(mActuator.getTarget());
-	    sensorValue = buf.c_str();
-	}; break;
-	case LimitStepperActuator::AtPositiveLimit: {
-	    static Str posLimit("@pos-limit");
-	    sensorValue = posLimit;
-	}; break;
-	case LimitStepperActuator::AtNegativeLimit: {
-	    static Str negLimit("@neg-limit");
-	    sensorValue = negLimit;
-	}; break;
-	default: assert(0, "Invalid state");
-	}
+	getState(mActuator, &sensorValue);
 
 	if (!sensorValue.equals(mPrevSensorValue)) {
+PH4("Detected ", getName(), " : ", sensorValue.c_str());
 	    setSample(sensorValue);
 	    setNextPostTime(now);   // force immediate POST attempt to make the app as responsive as possible
 	    mDoPost = true;

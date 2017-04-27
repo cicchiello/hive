@@ -349,7 +349,7 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
     bool callMeBack = true;
     if (now > mNextAttempt && wifiMutex->own(this)) {
         unsigned long callMeBackIn_ms = 5l;
-        if (mGetter == NULL) {
+	if (mGetter == NULL) {
 	    mHavePayload = false;
 	    mStartTime = now;
 
@@ -376,10 +376,11 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 					   mConfig.getDbHost(), mConfig.getDbPort(), mConfig.isSSL(),
 					   *url, mConfig.getDbUser(), mConfig.getDbPswd());
 	} else {
-            HttpOp::EventResult er = mGetter->event(now, &callMeBackIn_ms);
+	    HttpOp::EventResult er = mGetter->event(now, &callMeBackIn_ms);
 	    if (!mGetter->processEventResult(er)) {
-		bool retry = false;
+	        bool retry = false;
 		callMeBackIn_ms = FREQ - ((now=millis())-mStartTime); // most cases should schedule a callback in FREQ
+		if (callMeBackIn_ms < 100) callMeBackIn_ms = 1000l;
 		bool isOnlineNow = false;
 		if (!*mTimeProvider && mGetter->hasTimestamp()) {
 		    TRACE("Starting the WDT");
