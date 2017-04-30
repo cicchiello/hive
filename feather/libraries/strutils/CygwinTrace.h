@@ -5,13 +5,15 @@
 #include <iostream>
 
 #ifndef HEADLESS
-#define P(args) std::cout << args
-#define PL(args) std::cout << args << std::endl
-#define _PWHERE(FILE,LINE) P("INFO; " ); P(FILE); P("; line: "); P(LINE); P("; ")
-#define PH(arg) _PWHERE(__FILE__,__LINE__); PL(arg);
-#define PH2(arg1,arg2) _PWHERE(__FILE__,__LINE__); P(arg1); PL(arg2);
-#define PH3(arg1,arg2,arg3) _PWHERE(__FILE__,__LINE__); P(arg1); P(arg2); PL(arg3);
-#define PH4(arg1,arg2,arg3,arg4) _PWHERE(__FILE__,__LINE__); P(arg1); P(arg2); P(arg3); PL(arg4);
+#define P(args) std::cout << (args)
+#define PL(args) std::cout << (args) << std::endl
+#define _PWHERE_FUNC(FUNC,LINE) P("INFO; " ); P(FUNC); P("; line: "); P(LINE); P("; ")
+#define _PWHERE_FILE(FILE,LINE) P("INFO; " ); P(FILE); P("; line: "); P(LINE); P("; ")
+#define _PWHERE(FUNC,FILE,LINE) if((FUNC)==0){_PWHERE_FILE(FILE,LINE);}else{_PWHERE_FUNC((FUNC),LINE);}
+#define PH(arg) _PWHERE(tscope.getFunc(),__FILE__,__LINE__); PL(arg);
+#define PH2(arg1,arg2) _PWHERE(tscope.getFunc(),__FILE__,__LINE__); P(arg1); PL(arg2);
+#define PH3(arg1,arg2,arg3) _PWHERE(tscope.getFunc(),__FILE__,__LINE__); P(arg1); P(arg2); PL(arg3);
+#define PH4(arg1,arg2,arg3,arg4) _PWHERE(tscope.getFunc(),__FILE__,__LINE__); P(arg1); P(arg2); P(arg3); PL(ar
 #else
 #ifndef NDEBUG
 #   define NDEBUG

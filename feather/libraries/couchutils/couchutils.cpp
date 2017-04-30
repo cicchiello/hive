@@ -1,19 +1,18 @@
 #include <couchutils.h>
 
-#include <Arduino.h>
-
 #define NDEBUG
-#include <strutils.h>
 
-#include <Trace.h>
+#ifdef ARDUINO
+#   include <Arduino.h>
+#   include <Trace.h>
+#else
+#   include <CygwinTrace.h>
+#endif
 
 #include <strbuf.h>
-
-#include <Arduino.h>
+#include <strutils.h>
 
 #include <cstring>
-
-#define NULL 0
 
 /* STATIC */
 int CouchUtils::Doc::s_instanceCnt = 0;
@@ -439,7 +438,7 @@ void printDocImp(const CouchUtils::Doc &doc, int indent)
 	if (i+1 < sz) {
 	    PL(",");
 	} else {
-	    PL();
+	    PL("");
 	}
     }
 }
