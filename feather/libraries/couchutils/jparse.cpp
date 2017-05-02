@@ -50,6 +50,13 @@ void JParse::pop()
   delete d;
 }
 
+void JParse::clear()
+{
+  while (mState)
+    pop();
+  mIsValid = true;
+}
+
 bool JParse::streamParseDoc(const char *chunk)
 {
   TF("JParse::streamParseDoc");

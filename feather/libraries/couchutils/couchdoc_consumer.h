@@ -25,21 +25,28 @@ private:
 
   State *state;
 
-  bool mIsDoc;
+  bool mIsDoc, mHaveSomething, mIsChunked;
   CouchUtils::Doc mResultDoc;
   CouchUtils::Arr mResultArr;
   
   void push(State *n);
   void pop();
-  
+
 public:
   static bool sVerbose;
   
-  CouchDocConsumer() : state(0),mIsDoc(false) {}
+  CouchDocConsumer()
+    : state(0),mIsDoc(false), mHaveSomething(false), mIsChunked(false) {}
   ~CouchDocConsumer() {}
 
+  void clear();
+
+  void setIsChunked(bool v) {mIsChunked = v;}
+  
   bool isValid() const {return state;}
 
+  bool haveDoc() const {return mHaveSomething && mIsDoc;}
+  bool haveArr() const {return mHaveSomething && !mIsDoc;}
   bool isDoc() const {return mIsDoc;}
   bool isArr() const {return !mIsDoc;}
   

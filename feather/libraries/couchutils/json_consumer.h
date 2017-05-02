@@ -6,6 +6,8 @@
 
 class JSONConsumer {
  public:
+  virtual ~JSONConsumer();
+  
   virtual void openDoc() = 0;
   virtual void openArr() = 0;
   virtual void closeDoc() = 0;

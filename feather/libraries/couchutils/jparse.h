@@ -48,6 +48,8 @@ class JParse {
 
   void push();
   void pop();
+
+  void clear();
   
   // streamParseDoc
   //    chunk : is the stream, and is assumed to be null-terminated of arbitrary length;

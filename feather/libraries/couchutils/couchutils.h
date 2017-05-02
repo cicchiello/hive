@@ -55,6 +55,8 @@ public:
 
     void append(const Item &item);
 
+    void clear() {delete [] _arr; _arr = 0; _sz = 0;}
+    
     int getSz() const {return _sz;}
 
     const Item &operator[](int i) const {return _arr[i];}

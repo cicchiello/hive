@@ -32,6 +32,14 @@ void CouchDocConsumer::pop() {
   delete d;
 }
 
+void CouchDocConsumer::clear() {
+  while (state)
+    pop();
+  mIsDoc = false;
+  mResultDoc.clear();
+  mResultArr.clear();
+}
+
 void CouchDocConsumer::openDoc() {
   TF("CouchDocConsumer::openDoc");
   push(new DocState());
@@ -52,6 +60,7 @@ void CouchDocConsumer::closeDoc() {
     }
   } else {
     mIsDoc = true;
+    mHaveSomething = true;
     mResultDoc = ds->doc;
   }
   pop();
@@ -78,6 +87,7 @@ void CouchDocConsumer::closeArr() {
   } else {
     PH("trace2");      
     mIsDoc = false;
+    mHaveSomething = true;
     mResultArr = as->arr;
   }
   pop();
@@ -94,7 +104,7 @@ void CouchDocConsumer::nv_valueString(const char *value) {
   TF("CouchDocConsumer::nv_valueString");
   if (sVerbose) {PH(value);}
   DocState *ds = (DocState*) state;
-  ds->doc.addNameValue(new CouchUtils::NameValuePair(ds->name.c_str(), value));
+  ds->doc.addNameValue(new CouchUtils::NameValuePair(ds->name.c_str(), Str(value)));
 }
 
 void CouchDocConsumer::nv_valueInteger(int value) {
@@ -103,7 +113,7 @@ void CouchDocConsumer::nv_valueInteger(int value) {
   DocState *ds = (DocState*) state;
   char buf[10];
   sprintf(buf, "%d", value);
-  ds->doc.addNameValue(new CouchUtils::NameValuePair(ds->name.c_str(), buf));
+  ds->doc.addNameValue(new CouchUtils::NameValuePair(ds->name.c_str(), Str(buf)));
 }
 
 void CouchDocConsumer::arr_string(const char *element) {
