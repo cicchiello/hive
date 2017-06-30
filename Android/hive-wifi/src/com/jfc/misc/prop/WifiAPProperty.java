@@ -162,6 +162,9 @@ public class WifiAPProperty implements IPropertyMgr {
 		builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
         	@Override
         	public void onClick(DialogInterface dialog, int which) {
+        		if (mAlert == null) 
+        			return;
+        		
         		final String newSsid = ((EditText) mAlert.findViewById(R.id.ssid_text)).getText().toString();
         		final String newPswd = ((EditText) mAlert.findViewById(R.id.pswd_text)).getText().toString();
 

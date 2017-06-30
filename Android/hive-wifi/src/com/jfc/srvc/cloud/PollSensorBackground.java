@@ -31,7 +31,7 @@ import java.net.UnknownHostException;
 public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
     private static final String TAG = PollSensorBackground.class.getName();
 
-    private String dbUrl, query;
+    private String dbUrl, query, sensor;
     private String docId, rev;
     private ResultCallback onCompletion;
 
@@ -41,9 +41,10 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
     	public void dbAccessibleError(String msg);
     };
     
-    public PollSensorBackground(String _dbUrl, String _query, ResultCallback _onCompletion) {
+    public PollSensorBackground(String _dbUrl, String _query, String _sensor, ResultCallback _onCompletion) {
     	dbUrl = _dbUrl;
         query = _query;
+        sensor = _sensor;
         onCompletion = _onCompletion;
     }
 
@@ -181,8 +182,9 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
 	            		String sensorStr = v.getString(1);
 	            		String timestampStr = v.getString(2);
 	            		String valueStr = v.getString(3);
-	            		if (onCompletion != null)
-	            			onCompletion.report(objId, sensorStr, timestampStr, valueStr);
+	            		if (sensorStr.equals(sensor)) // else bogus query response since it couldn't be a closed query
+	            			if (onCompletion != null)
+	            				onCompletion.report(objId, sensorStr, timestampStr, valueStr);
 	            	} else {
 	            		Log.e(TAG, "Unexpected response from couchDb: "+obj.toString());
 	            		Log.e(TAG, "Response resulted from query: "+query);

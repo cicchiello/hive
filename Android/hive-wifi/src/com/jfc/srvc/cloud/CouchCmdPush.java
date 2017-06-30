@@ -125,7 +125,6 @@ public class CouchCmdPush {
 			
 			@Override
 	    	public void failed(String query, String msg) {
-				// probably first time -- so create it
 				Log.i(TAG, "Channel Doc GET failed: "+msg);
 				ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
 			}

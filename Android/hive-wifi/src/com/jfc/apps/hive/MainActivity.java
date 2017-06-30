@@ -208,7 +208,7 @@ public class MainActivity extends Activity {
 										};
 										onCompletion = PollSensorBackground.getSensorOnCompletion(MainActivity.this, 
 												"cputemp", R.id.cpuTempText, mDbAlert, onSaveValue);
-							            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "cputemp"), onCompletion).execute();
+							            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "cputemp"), "cputemp", onCompletion).execute();
 									}
 									
 									onSaveValue = new PollSensorBackground.OnSaveValue() {
@@ -220,7 +220,7 @@ public class MainActivity extends Activity {
 									};
 									onCompletion = PollSensorBackground.getSensorOnCompletion(MainActivity.this, 
 											"temp", R.id.tempText, mDbAlert, onSaveValue);
-						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "temp"), onCompletion).execute();
+						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "temp"), "temp", onCompletion).execute();
 
 									onSaveValue = new PollSensorBackground.OnSaveValue() {
 										@Override
@@ -231,7 +231,7 @@ public class MainActivity extends Activity {
 									};
 									onCompletion = PollSensorBackground.getSensorOnCompletion(MainActivity.this, 
 											"humid", R.id.humidText, mDbAlert, onSaveValue);
-						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "humid"), onCompletion).execute();
+						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "humid"), "humid", onCompletion).execute();
 
 									onSaveValue = new PollSensorBackground.OnSaveValue() {
 										@Override
@@ -242,7 +242,7 @@ public class MainActivity extends Activity {
 									};
 									onCompletion = PollSensorBackground.getSensorOnCompletion(MainActivity.this, 
 											"beecnt", R.id.beecntText, mDbAlert, onSaveValue);
-						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "beecnt"), onCompletion).execute();
+						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "beecnt"), "beecnt", onCompletion).execute();
 						            
 									onSaveValue = new PollSensorBackground.OnSaveValue() {
 										@Override
@@ -253,7 +253,7 @@ public class MainActivity extends Activity {
 									};
 									onCompletion = PollSensorBackground.getSensorOnCompletion(MainActivity.this, 
 											"latch", R.id.latch_text, mDbAlert, onSaveValue);
-						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "latch"), onCompletion).execute();
+						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "latch"), "latch", onCompletion).execute();
 
 
 						            m0.pollCloud();
@@ -269,7 +269,7 @@ public class MainActivity extends Activity {
 									};
 									onCompletion = PollSensorBackground.getSensorOnCompletion(MainActivity.this, 
 											"heartbeat", R.id.hiveUptimeText, mDbAlert, onSaveValue);
-						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "heartbeat"), onCompletion).execute();
+						            new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(HiveId, "heartbeat"), "heartbeat", onCompletion).execute();
 						            
 						            audio.pollCloud();
 								}

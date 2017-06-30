@@ -133,7 +133,7 @@ public class AudioSampler {
 		String dbUrl = DbCredentialsProperty.getCouchLogDbUrl(mActivity);
 		PollSensorBackground.ResultCallback onCompletion = PollSensorBackground.getSensorOnCompletion(mActivity, 
 				"listener", 0 /*R.id.audioSampleText*/, mDbAlert, onSaveValue);
-        new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(mHiveId, "listener"), onCompletion).execute();
+        new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(mHiveId, "listener"), "listener", onCompletion).execute();
 	}
 	
 	static private String uniqueIdentifier(String base, String hiveId) {

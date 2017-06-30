@@ -161,7 +161,8 @@ public class MotorProperty extends PropertyBase {
                     display();
 				}
 			});
-		new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(mHiveId, "motor"+Integer.toString(mMotorIndex)), 
+		String motorSensor = "motor"+Integer.toString(mMotorIndex);
+		new PollSensorBackground(dbUrl, PollSensorBackground.createQuery(mHiveId, motorSensor), motorSensor,  
 				onCompletion).execute();
 	}
 
