@@ -7,8 +7,8 @@
 #include <string.h>
 #endif
 
-#define HEADLESS
-#define NDEBUG
+//#define HEADLESS
+//#define NDEBUG
 
 #ifdef ARDUINO
 #   include <Trace.h>
@@ -23,7 +23,7 @@ StrBuf::StrBuf(const char *s)
   : buf(0), cap(0), deleted(false)
 {
     if (s != NULL) {
-        int l = strlen(s);
+        int l = strlen(s)+1;
 	expand(l);
 	strcpy(buf, s);
     }
@@ -32,16 +32,36 @@ StrBuf::StrBuf(const char *s)
 StrBuf::StrBuf(const StrBuf &str)
   : buf(0), cap(0), deleted(false)
 {
-    int l = str.len();
+    int l = str.len()+1;
     expand(l);
     strcpy(buf, str.c_str());
 }
 
 StrBuf::~StrBuf()
 {
+    TF("StrBuf::~StrBuf");
     Str::sBytesConsumed -= cap;
+    if (buf) {
+        TRACE4("destructing buffer of size: ", cap, " containing: ", buf);
+    }
     delete [] buf;
     deleted = true;
+}
+
+void StrBuf::clear()
+{
+    TF("StrBuf::clear");
+    Str::sBytesConsumed -= cap;
+    if (cap) {
+        if (buf) {
+	    TRACE4("destructing buffer of size: ", cap, " containing: ", buf);
+	}
+	delete [] buf;
+	buf = 0;
+	cap = 0;
+	expand(1);
+	strcpy(buf, "");
+    }
 }
 
 int StrBuf::len() const

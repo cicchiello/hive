@@ -33,6 +33,10 @@ class BufferedWiFiClient : public WiFiClient {
   size_t write(const char *buf, size_t size) {return write((const uint8_t*)buf, size);}
 
   bool flushOut(int *remaining);
+  
+ private:
+  BufferedWiFiClient(const BufferedWiFiClient&); // intentionally unimplemented
+  BufferedWiFiClient& operator=(const BufferedWiFiClient&); // intentionally unimplemented
 };
 
 
@@ -40,6 +44,9 @@ class WifiUtils {
   public:
   
     class Context {
+    private:
+      BufferedWiFiClient mClient;
+      
     public:
       Context();
       ~Context();
@@ -48,6 +55,10 @@ class WifiUtils {
       
       Adafruit_WINC1500 &getWifi() const;
       BufferedWiFiClient &getClient() const;
+      
+    private:
+      Context(const Context&); // intentionally unimplemented
+      Context &operator=(const Context&); // intentionally unimplemented
     };
     
     // buf must be at least 18 chars long

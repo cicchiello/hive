@@ -14,14 +14,14 @@
 
 
 HttpGet::HttpGet(const Str &ssid, const Str &ssidPswd, 
-		 const Str &host, int port, const Str &page,
+		 const Str &host, int port, 
 		 const Str &dbUser, const Str &dbPswd,
-		 bool isSSL)
-  : HttpOp(ssid, ssidPswd, host, port, dbUser, dbPswd, isSSL), m_page(page)
+		 bool isSSL, const char *urlPieces[])
+  : HttpOp(ssid, ssidPswd, host, port, dbUser, dbPswd, isSSL), m_urlPieces(urlPieces)
 {
-  TF("HttpGet::HttpGet");
-PH2("entry; now: ", millis());  
+    TF("HttpGet::HttpGet");
 }
+
 
 HttpResponseConsumer &HttpGet::getResponseConsumer()
 {
@@ -55,7 +55,7 @@ bool HttpGet::processEventResult(HttpGet::EventResult r)
         TRACE("Failure: No response received for the HTTP GET");
 	break;
     case HttpGet::HTTPFailureResponse:
-        TRACE2("Received an HTTP failure response: ", getHeaderConsumer().getResponse().c_str());
+        TRACE2("Received an HTTP failure response: ", getHeaderConsumer().getHeader().c_str());
 	break;
     case HttpGet::HTTPSuccessResponse:
         TRACE("Received an HTTP success response");
@@ -77,10 +77,11 @@ bool HttpGet::processEventResult(HttpGet::EventResult r)
         TRACE("Disconnect FAILURE");
 	break;
     case HttpOp::UnknownFailure:
-        TRACE2("Received an HTTP UNKNOWN failure response: ", getHeaderConsumer().getResponse().c_str());
+        TRACE2("Received an HTTP UNKNOWN failure response: ", getHeaderConsumer().getHeader().c_str());
 	break;
     default: 
         TRACE2("Unexpected EventResult: ", r);
+	assert(false, "Unexpected EventResult");
     }
     return !done;
 }
@@ -116,8 +117,10 @@ void HttpGet::sendGET(Stream &client) const
 void HttpGet::sendPage(Stream &client) const
 {
     TF("HttpGet::sendPage");
-    P(m_page.c_str());
-    client.print(m_page.c_str());
+    for(int i = 0; m_urlPieces[i]; i++) {
+        P(m_urlPieces[i]);
+	client.print(m_urlPieces[i]);
+    }
 }
 
 

@@ -25,7 +25,7 @@ class ActuatorBase : public Actuator {
     public:
         Getter(const char *ssid, const char *pswd,
 	       const char *dbHost, int dbPort,
-	       const char *url, const char *dbUser, const char *dbPswd, bool isSSL);
+	       const char *dbUser, const char *dbPswd, bool isSSL, const char *urlPieces[]);
 	~Getter() {}
         virtual bool hasResult() const = 0;
 	virtual const char *className() const = 0;
@@ -50,8 +50,6 @@ class ActuatorBase : public Actuator {
     
     virtual void processResult(Getter *getter) = 0;
 
-    void buildStandardSensorEncodedUrl(const char *sensorName, StrBuf *encodedUrl) const;
-    
     unsigned long setNextActionTime(unsigned long t);
     
     // helper function

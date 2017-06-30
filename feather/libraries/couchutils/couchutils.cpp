@@ -27,6 +27,7 @@ static void printArrImp(const CouchUtils::Arr &arr, int indent = 0);
 
 
 void CouchUtils::Doc::addNameValue(CouchUtils::NameValuePair *nv) {
+    TF("CouchUtils::Doc::addNameValue");
     if (numNVs == arrSz) {
         NameValuePair **old = nvs;
 	nvs = new NameValuePair*[2*arrSz];
@@ -89,16 +90,24 @@ CouchUtils::Doc::~Doc()
     s_instanceCnt--;
 }
 
+CouchUtils::NameValuePair::NameValuePair(const NameValuePair &o)
+  : _name(o._name), _item(o._item)
+{
+    TF("CouchUtils::NameValuePair::NameValuePair");
+    s_instanceCnt++;
+}
 
 CouchUtils::Doc &CouchUtils::Doc::operator=(const CouchUtils::Doc &o)
 {
+    TF("CouchUtils::Doc::operator=");
     if (this == &o)
         return *this;
 
     clear();
     for (int i = 0; i < o.getSz(); i++) {
-        addNameValue(new NameValuePair(o[i].getName(), o[i].getValue()));
+        addNameValue(new NameValuePair(o[i]));
     }
+    return *this;
 }
 
 
@@ -137,6 +146,7 @@ void CouchUtils::Doc::clear()
 CouchUtils::Item::Item(const CouchUtils::Item &o)
   : _str(o._str), _arr(o._arr ? new Arr(*o._arr) : 0), _doc(o._doc ? new Doc(*o._doc) : 0)
 {
+    TF("CouchUtils::Item::Item");
 }
 
 
@@ -436,10 +446,11 @@ void printDocImp(const CouchUtils::Doc &doc, int indent)
         for (int j = 0; j < indent; j++)
 	    P(' ');
 	printNameValuePairImp(doc[i], indent);
-	if (i+1 < sz) 
+	if (i+1 < sz) {
 	    PL(",");
-	else
+	} else {
 	    PL();
+	}
     }
 }
 
@@ -546,8 +557,70 @@ const char *CouchUtils::toAttachmentGetURL(const char *db, const char *docid,
 
 
 
+void CouchUtils::print(const CouchUtils::Doc &doc, Print &s)
+{
+    s.print('{');
+    for (int i = 0; i < doc.getSz(); i++) {
+        const Str &name = doc[i].getName();
+	s.print("\"");
+	s.print(name.c_str());
+	s.print("\":");
+	if (doc[i].getValue().isDoc()) {
+	    print(doc[i].getValue().getDoc(), s);
+	} else if (doc[i].getValue().isArr()) {
+	    print(doc[i].getValue().getArr(), s);
+	} else {
+	    s.print("\"");
+	    s.print(doc[i].getValue().getStr().c_str());
+	    s.print("\"");
+	}
+	if (i+1 < doc.getSz())
+	    s.print(",");
+    }
+    s.print("}");
+}
+
+
+void CouchUtils::print(const CouchUtils::Arr &arr, Print &s)
+{
+    s.print("[");
+    for (int i = 0; i < arr.getSz(); i++) {
+        const Item &item = arr[i];
+	if (item.isDoc()) {
+	    print(item.getDoc(), s);
+	} else if (item.isArr()) {
+	    print(item.getArr(), s);
+	} else {
+	    s.print("\"");
+	    s.print(item.getStr().c_str());
+	    s.print("\"");
+	}
+	if (i+1 < arr.getSz()) 
+	    s.print(",");
+    }
+    s.print("]");
+}
+
+
+void CouchUtils::println(const CouchUtils::Arr &arr, Print &s, const char *prefix)
+{
+    s.print(prefix);
+    print(arr, s);
+    s.println("");
+}
+
+
+void CouchUtils::println(const CouchUtils::Doc &doc, Print &s, const char *prefix)
+{
+    s.print(prefix);
+    print(doc, s);
+    s.println("");
+}
+
+
 const char *CouchUtils::toString(const CouchUtils::Doc &doc, StrBuf *buf)
 {
+    TF("CouchUtils::toString");
     buf->add('{');
     for (int i = 0; i < doc.getSz(); i++) {
         const Str &name = doc[i].getName();
@@ -611,10 +684,10 @@ const char *CouchUtils::toString(const CouchUtils::Arr &arr, StrBuf *buf)
 	        strcat(nonConstBuf, ",");
 	} else {
 	    const Str &value = item.getStr();
-	    requiredLen += value.len()+2;
+	    requiredLen += value.len()+4;
 	    buf->expand(requiredLen);
 	    char *nonConstBuf = (char*) buf->c_str();
-	    strcat(nonConstBuf, value.c_str());
+	    strcat(strcat(strcat(nonConstBuf, "\""), value.c_str()), "\"");
 	    if (i+1 < arr.getSz()) 
 	        strcat(nonConstBuf, ",");
 	}

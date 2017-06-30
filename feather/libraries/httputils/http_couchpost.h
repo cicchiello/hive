@@ -6,30 +6,14 @@
 
 class HttpCouchPost : private HttpCouchGet {
  public:
-   HttpCouchPost(const char *ssid, const char *ssidPswd, 
-		 const char *host, int port, const char *page,
-		 const CouchUtils::Doc &content,
-		 const char *dbUser, const char *dbPswd, bool isSSL = false)
-     : HttpCouchGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
-       m_content(content)
-       {
-       }
    HttpCouchPost(const Str &ssid, const Str &ssidPswd, 
-		 const Str &host, int port, const char *page,
+		 const Str &host, int port, 
 		 const CouchUtils::Doc &content,
-		 const Str &dbUser, const Str &dbPswd, bool isSSL = false)
-     : HttpCouchGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
+		 const Str &dbUser, const Str &dbPswd, bool isSSL, const char *page[])
+     : HttpCouchGet(ssid, ssidPswd, host, port, dbUser, dbPswd, isSSL, page),
        m_content(content)
        {
        }
-   HttpCouchPost(const char *ssid, const char *ssidPswd, 
-		 const IPAddress &hostip, int port, const char *page,
-		 const CouchUtils::Doc &content,
-		 const char *dbUser, const char *dbPswd, bool isSSL = false)
-     : HttpCouchGet(ssid, ssidPswd, hostip, port, page, dbUser, dbPswd, isSSL),
-       m_content(content)
-      {
-      }
   
    ~HttpCouchPost() {}
 
@@ -43,6 +27,8 @@ class HttpCouchPost : private HttpCouchGet {
    using HttpCouchGet::isTimeout;
    using HttpCouchGet::isError;
    using HttpCouchGet::shutdownWifiOnDestruction;
+   using HttpCouchGet::hasNotFound;
+   using HttpCouchGet::getOpState;
 
    EventResult event(unsigned long now, unsigned long *callMeBackIn_ms);
    
@@ -51,11 +37,11 @@ class HttpCouchPost : private HttpCouchGet {
    HttpCouchPost(const HttpCouchPost &); //intentionally unimplemented
 
    void sendPOST(Stream &s, int contentLength) const;
-   void sendDoc(Stream &s, const char *doc) const;
+   void sendDoc(Stream &s, const CouchUtils::Doc &doc) const;
    
    bool testSuccess() const;
 
-   const CouchUtils::Doc m_content;
+   CouchUtils::Doc m_content;
 };
 
 

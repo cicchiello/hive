@@ -10,9 +10,8 @@
 #include <pulsegen_consumer.h>
 
 
-#define HEADLESS
-#define NDEBUG
-
+//#define HEADLESS
+//#define NDEBUG
 #include <Trace.h>
 #include <SdFat.h>
 

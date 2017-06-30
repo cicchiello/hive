@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+#define HEADLESS
 #define NDEBUG
 #include <strutils.h>
 
@@ -14,10 +15,12 @@
 
 #include <SdFat.h>
 
+#include <couchdoc_consumer.h>
+
 
 
 DocReader::DocReader(const char *filename)
-  : mDoc(), mErrMsg(new StrBuf("no error")), mFilename(new Str(filename)),
+  : mErrMsg(new StrBuf("no error")), mFilename(new Str(filename)),
     mHasDoc(false), mIsDone(false)
 {
     TF("DocReader::DocReader");
@@ -34,7 +37,8 @@ DocReader::~DocReader()
 
 const char *DocReader::errMsg() const {return mErrMsg->c_str();}
 
-static bool loadFile(const char *filename, StrBuf *contents, StrBuf *errMsg)
+
+static bool loadFile(const char *filename, JParse *parser, StrBuf *contents, StrBuf *errMsg)
 {
     TF("::loadFile");
     
@@ -45,11 +49,11 @@ static bool loadFile(const char *filename, StrBuf *contents, StrBuf *errMsg)
 	TRACE(errMsg->c_str());
 	return false;
     }
-
+ 
     int bufsz = 40;
     char *buf = new char[bufsz];
     SDUtils::ReadlineStatus stat;
-    while ((stat = SDUtils::readline(&f, buf, bufsz)) != SDUtils::ReadEOF) {
+    while (parser->streamIsValid() && ((stat = SDUtils::readline(&f, buf, bufsz)) != SDUtils::ReadEOF)) {
         while (stat == SDUtils::ReadBufOverflow) {
 	    char *newBuf = new char[bufsz*2];
 	    memcpy(newBuf, buf, bufsz);
@@ -59,18 +63,22 @@ static bool loadFile(const char *filename, StrBuf *contents, StrBuf *errMsg)
 	    stat = SDUtils::readline(&f, newBuf, bufsz);
 	    bufsz *= 2;
 	}
-	TRACE(buf);
-	contents->append(buf);
+	TRACE2("adding to the stream: ", buf);
+
+	parser->streamParseDoc(buf);
+    }
+    if (!parser->streamIsValid()) {
+        *errMsg = "Error during stream-based parsing";
     }
 
     delete [] buf;
-    return true;
+    return parser->streamIsValid();
 }
 
 
 bool DocReader::loop() {
     TF("DocReader::loop");
-
+ 
     if (!mIsDone) {
         mIsDone = true;
 	mHasDoc = false;
@@ -87,23 +95,16 @@ bool DocReader::loop() {
 	    return false;
 	}
 
+	CouchDocConsumer consumer(&mDoc);
+	JParse parser(&consumer);
 	StrBuf rawContents;
-	if (!loadFile(mFilename->c_str(), &rawContents, mErrMsg)) {
+	if (!loadFile(mFilename->c_str(), &parser, &rawContents, mErrMsg)) {
 	    // errMsg set within loadFile
 	    return false;
 	}
-	TRACE(rawContents.c_str());
 	
-	CouchUtils::Doc doc;
-	const char *remainder = CouchUtils::parseDoc(rawContents.c_str(), &doc);
-	if (remainder == NULL) {
-	    *mErrMsg = "Parsing error: ";
-	    mErrMsg->append(rawContents.c_str());
-	    return false;
-	}
-
-	mDoc = doc;
-	mHasDoc = true;
+	mHasDoc = consumer.haveDoc();
+	assert(mHasDoc, "error reading config from file");
     }
     
     return false;

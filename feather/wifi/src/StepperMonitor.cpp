@@ -62,7 +62,7 @@ bool StepperMonitor::isItTimeYet(unsigned long now)
 }
 
 
-bool StepperMonitor::processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms,
+bool StepperMonitor::processResult(const HttpJSONConsumer &consumer, unsigned long *callMeBackIn_ms,
 				   bool *keepMutex, bool *success)
 {
     TF("StepperMonitor::processResult");

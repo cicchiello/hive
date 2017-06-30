@@ -27,7 +27,7 @@ class AttachmentUpload : public SensorBase {
 
     virtual const char *logValue() const = 0;
     
-    virtual bool processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms,
+    virtual bool processResult(const HttpJSONConsumer &consumer, unsigned long *callMeBackIn_ms,
 			       bool *keepMutex, bool *success);
 
     bool isAttachmentUploadDone() const {return mIsDone;}

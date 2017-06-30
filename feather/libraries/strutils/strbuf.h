@@ -19,6 +19,7 @@ class StrBuf {
   void add(char c);
   void add(const char *str, int n);
   void set(char c, int i);
+  void clear();
   StrBuf tolower() const;
   
   int capacity() const;

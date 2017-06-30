@@ -8,17 +8,7 @@ class HttpHeaderConsumer;
 class HttpPut : public HttpOp {
  public:
     static const char *DefaultContentType;
-  
-    HttpPut(const char *ssid, const char *ssidPswd, 
-	    const char *host, int port, const char *page,
-	    const char *dbUser, const char *dbPswd, 
-	    const char *contentType = DefaultContentType,
-	    bool isSSL = false);
-    HttpPut(const char *ssid, const char *ssidPswd, 
-	    const IPAddress &hostip, int port, const char *page, 
-	    const char *dbUser, const char *dbPswd, 
-	    const char *contentType = DefaultContentType,
-	    bool isSSL = false);
+
     virtual ~HttpPut() {}
 
     virtual EventResult event(unsigned long now, unsigned long *callMeBackIn_ms);
@@ -34,11 +24,18 @@ class HttpPut : public HttpOp {
     void setDoc(const Str &doc);
     
  protected:
+    HttpPut(const char *ssid, const char *ssidPswd, 
+	    const char *host, int port, const char *urlPieces[],
+	    const char *dbUser, const char *dbPswd, 
+	    const char *contentType = DefaultContentType,
+	    bool isSSL = false);
+    
     void sendPUT(class Stream &) const;
     void sendDoc(class Stream &, const char *docStr) const;
 
     Str m_doc;
-    const Str m_contentType, m_page;
+    const Str m_contentType;
+    const char **m_urlPieces;
     
     HttpPut(const HttpPut &); //intentionally unimplemented
 };

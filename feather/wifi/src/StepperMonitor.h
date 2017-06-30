@@ -30,7 +30,7 @@ class StepperMonitor : public SensorBase {
     
     bool sensorSample(Str *value);
     
-    bool processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms,
+    bool processResult(const HttpJSONConsumer &consumer, unsigned long *callMeBackIn_ms,
 		       bool *keepMutex, bool *success);
 
  private:

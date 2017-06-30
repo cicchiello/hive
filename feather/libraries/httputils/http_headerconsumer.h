@@ -7,19 +7,15 @@
 
 class HttpHeaderConsumer : public HttpResponseConsumer {
 private:
-  bool m_gotCR, m_haveFirstCRLF, m_haveHeader, m_parsedDoc, m_firstConsume;
-  bool m_timedout, m_err, m_hasOk, m_hasNotFound;
-  bool mHasContentLength, mIsChunked;
-  int m_contentLength;
+  bool m_gotCR, m_haveFirstCRLF, m_haveHeader, m_firstConsume;
   unsigned long m_firstConsumeTime;
-
-protected:
-  void setResponse(const char *newResponse);
-  void appendToResponse(const char *str, int n);
-  void appendToResponse(const char *s);
   
+  bool m_timedOut, m_err, m_hasOk, m_hasNotFound, m_isChunked, m_hasContentLength;
+  int m_contentLength;
+
 private:
-  StrBuf m_response;
+  StrBuf m_line;
+  StrBuf m_errMsg;
   
 public:
   static const char *TAGContentLength;
@@ -31,28 +27,30 @@ public:
 
   HttpHeaderConsumer(const WifiUtils::Context &ctxt);
 
-  ~HttpHeaderConsumer();
+  ~HttpHeaderConsumer() {}
   
   bool consume(unsigned long now);
-  bool hasContentLength() const {return mHasContentLength;}
-  bool isChunked() const {return mIsChunked;}
+  
+  bool hasContentLength() const {return m_hasContentLength;}
+  bool isChunked() const {return m_isChunked;}
   int getContentLength() const {return m_contentLength;}
 
-  const StrBuf &getResponse() const {return m_response;}
-  
   bool isError() const {return m_err;}
-  const StrBuf &getErrmsg() const {return m_response;}
   
-  bool hasOk() const;
-  bool hasNotFound() const;
+  const StrBuf &getErrmsg() const {return m_errMsg;}
   
-  bool isTimeout() const {return m_timedout;}
+  bool hasOk() const {return m_hasOk;}
+  bool hasNotFound() const {return m_hasNotFound;}
+  bool isTimeout() const {return m_timedOut;}
 
   unsigned long consumeStart() const {return m_firstConsumeTime;}
 
   void reset();
 
-  void setTimedOut(bool v) {m_timedout = v;}
+  void setTimedOut(bool v) {m_timedOut = v;}
+
+ protected:
+  virtual void parseHeaderLine(const StrBuf &line);
   
  private:
   void init();

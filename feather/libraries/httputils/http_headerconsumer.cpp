@@ -21,6 +21,7 @@ const char *HttpHeaderConsumer::TAG201 = "HTTP/1.1 201 Created";
 const char *HttpHeaderConsumer::TAG404 = "HTTP/1.1 404 Object Not Found";
 
 
+
 HttpHeaderConsumer::HttpHeaderConsumer(const WifiUtils::Context &ctxt)
   : HttpResponseConsumer(ctxt)
 {
@@ -29,21 +30,15 @@ HttpHeaderConsumer::HttpHeaderConsumer(const WifiUtils::Context &ctxt)
 }
 
 
-HttpHeaderConsumer::~HttpHeaderConsumer()
-{
-    TF("HttpHeaderConsumer::~HttpHeaderConsumer");
-}
-
-
 void HttpHeaderConsumer::init()
 {
     TF("HttpHeaderConsumer::init");
-    m_hasOk = m_timedout = m_haveHeader = m_parsedDoc = m_haveFirstCRLF = m_gotCR = m_err = false;
-    mIsChunked = mHasContentLength = false;
-    m_firstConsume = true;
+    m_haveHeader = m_gotCR = m_haveFirstCRLF = false;
+    m_timedOut = m_err = m_hasOk = m_hasNotFound = m_isChunked = m_hasContentLength = false;
     m_contentLength = 0;
+    m_firstConsume = true;
     m_firstConsumeTime = 0;
-    m_response = "";
+    m_line.clear();
 }
 
 
@@ -54,62 +49,35 @@ void HttpHeaderConsumer::reset()
 }
 
 
-bool HttpHeaderConsumer::hasNotFound() const
+void HttpHeaderConsumer::parseHeaderLine(const StrBuf &line)
 {
-    TF("HttpHeaderConsumer::hasNotFound");
-    if (!m_parsedDoc)
-        hasOk();
-
-    return m_hasNotFound;
-}
-
-
-bool HttpHeaderConsumer::hasOk() const
-{
-    TF("HttpHeaderConsumer::hasOk");
-    if (m_parsedDoc) {
-        TRACE("already parsed");
-        return m_hasOk;
+    TF("HttpHeaderConsumer::parseHeaderLine");
+    if (!m_hasOk) {
+        m_hasOk = (strstr(line.c_str(), TAG200) != NULL) ||
+	          (strstr(line.c_str(), TAG201) != NULL);
     }
-    
-    if (!m_err) {
-        HttpHeaderConsumer *nonConstThis = (HttpHeaderConsumer*) this;
-        nonConstThis->m_parsedDoc = nonConstThis->m_err = true;
-	nonConstThis->m_hasOk = (strstr(m_response.c_str(), TAG200) != NULL) ||
-	                        (strstr(m_response.c_str(), TAG201) != NULL);
-	nonConstThis->m_hasNotFound = (strstr(m_response.c_str(), TAG404) != NULL);
-        if (m_hasOk || m_hasNotFound) {
-	    const char *cl = strstr(m_response.c_str(), TAGContentLength);
+    if (!m_hasNotFound) {
+        m_hasNotFound = (strstr(line.c_str(), TAG404) != NULL);
+    }
+    if (!m_hasContentLength && !m_isChunked) {
+        const char *cl = strstr(line.c_str(), TAGContentLength);
+	if (cl != NULL) {
+	    cl = StringUtils::eatWhitespace(cl + strlen(TAGContentLength));
 	    if (cl != NULL) {
-		cl = StringUtils::eatWhitespace(cl + strlen(TAGContentLength));
-		if (cl != NULL) {
-		    TRACE("found (ok || notFound) && Content-Length");
-		    HttpHeaderConsumer *nonConstThis = (HttpHeaderConsumer *) this;
-		    nonConstThis->m_contentLength = atoi(cl);
-		    nonConstThis->m_err = false;
-		    nonConstThis->mHasContentLength = true;
-		    return m_hasOk;
-		} else {
-		    TRACE("Couldn't parse the Content-Length from HTTP response");
-		}
-	    } else {
-	        const char *te = strstr(m_response.c_str(), TAGTransferEncoding);
-	        if ((te != NULL) && strstr(te, TAGChunked)) {
-		    TRACE("found ok and Chunked");
-		    nonConstThis->mIsChunked = true;
-		    nonConstThis->m_err = false;
-		    return m_hasOk;
-		} else {
-		    TRACE("Couldn't extract the Content-Length from HTTP response");
-		}
+	        TRACE("found (ok || notFound) && Content-Length");
+		m_contentLength = atoi(cl);
+		m_hasContentLength = true;
 	    }
 	} else {
-	    TRACE("HTTP failure response received: ");
+	    const char *te = strstr(line.c_str(), TAGTransferEncoding);
+	    if ((te != NULL) && strstr(te, TAGChunked)) {
+	        TRACE("found ok and Chunked");
+		m_isChunked = true;
+	    }
 	}
-	TRACE(m_response.c_str());
     }
-    return false;
 }
+
 
 #define BITESZ 40
 
@@ -122,15 +90,15 @@ bool HttpHeaderConsumer::consume(unsigned long now)
 	m_firstConsumeTime = now;
     }
     
-    Adafruit_WINC1500Client &client = m_ctxt.getClient();
+    WiFiClient &client = m_ctxt.getClient();
     if (now - consumeStart() > getTimeout()) {
         TRACE2("timeout!  now: ", now);
-	m_err = m_timedout = true;
+	m_err = m_timedOut = true;
 	client.stop();
 	return false;
     } else if (!m_haveHeader) {
         if (client.connected()) {
-	    static char buf[BITESZ+2];
+	    char buf[BITESZ+2];
 	    
 	    // if there are incoming bytes available
 	    // from the host, read them and process them
@@ -145,11 +113,11 @@ bool HttpHeaderConsumer::consume(unsigned long now)
 	        char c = client.read();
 		assert(c, "Unexpected NULL char found in http response stream");
 		buf[i++] = c;
+		buf[i] = 0;
 		if ((c == 0x0a) && m_gotCR && m_haveFirstCRLF) {
 		    //DHL("CRLFCRLF");
 		    // 2 CRLF marks end of HTTP response, with content (optionally) to follow
 		    m_haveHeader = true;
-		    m_response.add(buf, i);
 		    return false;
 		} else if ((c == 0x0a) && m_gotCR) {
 		    //DHL("CRLF");
@@ -159,36 +127,21 @@ bool HttpHeaderConsumer::consume(unsigned long now)
 		    //DHL("CRLFCR");
 		    m_gotCR = true;
 		} else {
-		    m_gotCR = c == 0x0d;
 		    m_haveFirstCRLF = false;
+		    if (m_gotCR = c == 0x0d) {
+			parseHeaderLine(m_line);
+			m_line = "";
+		    } else {
+		        m_line.add(c);
+		    }
 		}
 	    }
-	    if (i)
-	        m_response.add(buf, i);
 	    return true;
+	} else {
+	    PH("Not connected!?!?!");
 	}
     }
     
     return false;
-}
-
-
-void HttpHeaderConsumer::setResponse(const char *newResponse)
-{
-    TF("HttpHeaderConsumer::setResponse");
-    m_response = newResponse;
-}
-
-void HttpHeaderConsumer::appendToResponse(const char *str, int n)
-{
-    TF("HttpHeaderConsumer::appendToResponse (char)");
-    m_response.add(str, n);
-}
-
-
-void HttpHeaderConsumer::appendToResponse(const char *str)
-{
-    TF("HttpHeaderConsumer::appendToResponse(const char*)");
-    m_response.append(str);
 }
 

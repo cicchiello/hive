@@ -25,8 +25,10 @@ DocWriter::DocWriter(const char *filename, const CouchUtils::Doc &config, Mutex 
     mErrMsg = new StrBuf("no error");
     TRACE("trace");
     mFilename = new Str(filename);
-    TRACE("initializing DocWriter; doc: ");
-    //CouchUtils::printDoc(mDoc);
+
+#ifndef HEADLESS
+    CouchUtils::println(mDoc, Serial, "DocWriter::DocWriter; initializing with doc: ");
+#endif    
 }
 
 
@@ -124,7 +126,6 @@ bool DocWriter::loop() {
 	    return false;
 	}
 	
-	Str rawContents;
 	if (!writeFile(mFilename->c_str(), mDoc, mErrMsg)) {
 	    // errMsg set within writeFile
 	    mSdMutex->release(this);

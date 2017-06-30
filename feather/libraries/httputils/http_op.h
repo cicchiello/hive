@@ -64,34 +64,16 @@ class HttpOp {
    static YieldHandler registerYieldHandler(YieldHandler yieldHander);
    
    void yield() {sYieldHandler();}
-   
+
    void shutdownWifiOnDestruction(bool shutdown) {m_shutdown = shutdown;}
 
  protected:
    static YieldHandler sYieldHandler;
    
-   HttpOp(const char *ssid, const char *ssidPswd, const char *hostname, int port,
-	  const char *dbUser, const char *dbPswd,
-	  bool isSSL = false)
-     : m_ssid(ssid), m_pswd(ssidPswd), mSpecifiedHostname(hostname), m_port(port),
-       m_dbuser(dbUser), m_dbpswd(dbPswd), mSpecifiedHostIP(), m_isSSL(isSSL), m_shutdown(true)
-   {
-     init();
-   }
-   
    HttpOp(const Str &ssid, const Str &ssidPswd, const Str &hostname, int port,
 	  const Str &dbUser, const Str &dbPswd,
 	  bool isSSL = false);
    
-   HttpOp(const char *ssid, const char *ssidPswd, const IPAddress &hostip, int port,
-	  const char *dbUser, const char *dbPswd,
-	  bool isSSL = false)
-     : m_ssid(ssid), m_pswd(ssidPswd), mSpecifiedHostname((char*)0), m_port(port),
-       m_dbuser(dbUser), m_dbpswd(dbPswd), mSpecifiedHostIP(hostip), m_isSSL(isSSL), m_shutdown(true)
-   {
-     init();
-   }
-
    HttpOp(const HttpOp &); //intentionally unimplemented
 
    enum ConnectStat {FAILED, WORKING, CONNECTED};
@@ -126,6 +108,8 @@ class HttpOp {
    EventResult m_finalResult;
 
    static Str sCachedEncodedAuth, sCachedDbUser, sCachedDbPswd;
+   static int sHttpOpCnt;
+   static bool sShutdownWiFi;
 };
 
 inline

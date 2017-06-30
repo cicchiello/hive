@@ -63,14 +63,22 @@ bool HttpStreamTest::createPutter(const CouchUtils::Doc &originalDoc)
     if (i >= 0) {
         Str revision = originalDoc[i].getValue().getStr();
 
-	StrBuf url;
-	CouchUtils::toAttachmentPutURL(defaultDbName, getDocid(), ATTACHMENT_NAME, revision.c_str(), &url);
-
+	static const char *urlPieces[9];
+	urlPieces[0] = "/";
+	urlPieces[1] = defaultDbName;
+	urlPieces[2] = urlPieces[0];
+	urlPieces[3] = getDocid();
+	urlPieces[4] = urlPieces[0];
+	urlPieces[5] = ATTACHMENT_NAME;
+	urlPieces[6] = "?rev=";
+	urlPieces[7] = revision.c_str();
+	urlPieces[8] = 0;
+	
 	m_provider = new ADCDataProvider(SAMPLING_DURATION_MS);
 	m_putter = new HttpBinaryPut(ssid, pass,
 				     getDbHost(), getDbPort(),
-				     url.c_str(), getDbUser(), getDbPswd(), getIsSSL(),
-				     m_provider, CONTENT_TYPE);
+				     getDbUser(), getDbPswd(), getIsSSL(),
+				     m_provider, CONTENT_TYPE, urlPieces);
 	m_putter->setRetryCnt(HttpOp::MaxRetries); // so no retries
 	mTransferStart = mNow;
 	mTransferTime = 0;

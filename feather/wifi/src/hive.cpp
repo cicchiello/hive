@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
-#define HEADLESS
-#define NDEBUG
+//#define HEADLESS
+//#define NDEBUG
 
 #include <Trace.h>
 
@@ -28,7 +28,7 @@
 #include <beecnt.h>
 #include <Indicator.h>
 #include <Heartbeat.h>
-#include <AppChannel.h>
+#include <SeqListener.h>
 #include <http_op.h>
 #include <ListenSensor.h>
 #include <ListenActuator.h>
@@ -38,6 +38,7 @@
 #include <str.h>
 #include <strbuf.h>
 
+#include <sdutils.h>
 #include <wifiutils.h>
 
 #define CONFIG_FILENAME         "/CONFIG.CFG"
@@ -55,6 +56,12 @@
 #define POSLIMITSWITCH_PIN       5
 #define NEGLIMITSWITCH_PIN       6
 
+#define SCHEDULE_STOP
+#ifdef SCHEDULE_STOP
+#   define STOP_AFTER (10*60*1000l)
+#endif
+
+
 static const char *ResetCause = "unknown";
 static int s_mainState = INIT_SENSORS;
 static bool s_isOnline = false;
@@ -67,14 +74,13 @@ static Provision *s_provisioner = NULL;
 static ConfigUploader *s_configUploader = NULL;
 static ConfigPersister *s_configPersister = NULL;
 static Indicator *s_indicator = NULL;
-static AppChannel *s_appChannel = NULL;
+static SeqListener *s_appChannel = NULL;
 static int s_currSensor = 0;
 static class Sensor *s_sensors[MAX_SENSORS];
 static class Actuator *s_actuators[Actuator::MAX_ACTUATORS];
 static BeeCounter *s_beecnt = NULL;
 
 #define CNF s_provisioner->getConfig()
-
 
 
 class HiveConfigFunctor : public HiveConfig::UpdateFunctor {
@@ -99,8 +105,12 @@ public:
 
 void HiveConfigPersister::onUpdate(const HiveConfig &c) {
     TF("HiveConfigPersister::onUpdate");
-    if (s_configUploader && s_provisioner && (&c == &CNF)) {
+    if (s_configPersister && s_provisioner && (&c == &CNF)) {
+        PH("Persisting the config change");
         s_configPersister->persist();
+    }
+    if (s_configUploader && s_provisioner && (&c == &CNF)) {
+        PH("Uploading the config change");
         s_configUploader->upload();
     }
 
@@ -108,7 +118,7 @@ void HiveConfigPersister::onUpdate(const HiveConfig &c) {
 }
 
 
-static TimeProvider *s_timeProvider = NULL;
+static const TimeProvider *s_timeProvider = NULL;
 
 const TimeProvider *GetTimeProvider()
 {
@@ -127,7 +137,7 @@ void GlobalYield()
         sPrevYieldHandler();
 }
 
-  
+
 /**************************************************************************/
 /*!
     @brief  Sets up the HW (this function is called automatically on startup)
@@ -146,6 +156,9 @@ void setup(void)
     while (!Serial);  // required for Flora & Micro
     delay(500);
     Serial.begin(115200);
+
+    TraceScope::sSerialIsAvailable = true;
+    PH("setting TraceScope::sSerialIsAvailable to true");
 #endif
 
     PH2("ResetCause: ", ResetCause);
@@ -157,7 +170,7 @@ void setup(void)
     PL("Hive Controller debug console");
     PL("---------------------------------------");
 
-    s_provisioner = new Provision(ResetCause, VERSION, CONFIG_FILENAME, millis(), &sWifiMutex);
+    s_provisioner = new Provision(ResetCause, VERSION, CONFIG_FILENAME, &s_timeProvider, millis(), &sWifiMutex);
     
     // setup callback to persist and upload all hive config changes (including whatever
     // one gets chosen by provisioner)
@@ -171,7 +184,7 @@ void setup(void)
     
     PH("Setup done...");
 
-    pinMode(10, OUTPUT);  // set the SPI_CS pin as output
+    pinMode(SDUtils::SPI_CS, OUTPUT);  // set the SPI_CS pin as output
 }
 
 
@@ -199,6 +212,12 @@ void loop(void)
         return;
 
     now = millis();
+
+#ifdef SCHEDULE_STOP    
+    if (now > STOP_AFTER) {
+        assert(false, "Stopped at scheduled time");
+    }
+#endif
     
     assert(s_isOnline, "s_isOnline");
     assert(s_appChannel, "s_appChannel");
@@ -371,6 +390,24 @@ void processMsg(const char *msg, unsigned long now)
 }
 
 
+void createAppChannel(unsigned long now)
+{
+    TF("::createAppChannel");
+    
+    bool watchDogStarted = s_timeProvider;
+    StrBuf channelObjId = CNF.getHiveId().c_str();
+    channelObjId.append("-app");
+    s_isOnline = false;
+    s_hasBeenOnline = false;
+    s_offlineTime = now;
+    s_appChannel = new SeqListener(&CNF, now, &s_timeProvider, channelObjId.c_str());
+    if (s_timeProvider && !watchDogStarted) {
+        PH2("WDT started; now: ", now);
+        HivePlatform::nonConstSingleton()->startWDT();
+    }
+}
+
+
 /* STATIC */
 void rxLoop(unsigned long now)
 {
@@ -394,16 +431,13 @@ void rxLoop(unsigned long now)
 		GlobalYield();
 	    }
 	} else if (s_provisioner->hasConfig() && !s_provisioner->isStarted()) {
-	    TRACE("Has a valid config and provisioner is stopped; starting AppChannel");
-	    TRACE("If AppChannel cannot connect within 120s, will revert to Provisioning");
-	    s_indicator->setFlashMode(Indicator::TryingToConnect);
-	    s_appChannel = new AppChannel(CNF, now, &s_timeProvider, &sWifiMutex, &sSdMutex);
-	    PH2("s_isOnline: ", (s_isOnline ? "true" : "false"));
-	    if (!s_isOnline) {
-	        s_hasBeenOnline = false;
-	        s_offlineTime = now;
-		PH2("AppChannel went offline at: ", s_offlineTime);
+	    if (s_indicator->getFlashMode() != Indicator::TryingToConnect) {
+	        TRACE("Has a valid config and provisioner is stopped; starting AppChannel");
+		TRACE("If AppChannel cannot connect within 120s, will revert to Provisioning");
+		s_indicator->setFlashMode(Indicator::TryingToConnect);
 	    }
+
+	    createAppChannel(now);
 	} else if (!s_provisioner->isStarted()) {
 	    TRACE("No valid config; starting the Provisioner");
 	    s_indicator->setFlashMode(Indicator::Provisioning);
@@ -419,55 +453,50 @@ void rxLoop(unsigned long now)
 	    }
 	    if (s_provisioner->hasConfig()) {
 	        s_indicator->setFlashMode(Indicator::TryingToConnect);
-		s_appChannel = new AppChannel(CNF, now, &s_timeProvider, &sWifiMutex, &sSdMutex);
-		PH2("s_isOnline: ", (s_isOnline ? "true" : "false"));
-		if (!s_isOnline) {
-		    s_hasBeenOnline = false;
-		    s_offlineTime = now;
-		    PH2("AppChannel went offline at: ", s_offlineTime);
-		}
+
+		createAppChannel(now);
 	    }
 	}
     } else {
-        if (s_appChannel->loop(now)) {
-	    if (s_appChannel->haveMessage() && sSdMutex.isAvailable() && sSdMutex.own(s_appChannel)) {
-	        assert(sSdMutex.whoOwns() == s_appChannel, "sSdMutex.whoOwns() == s_appChannel");
-		StrBuf payload;
-		s_appChannel->consumePayload(&payload, &sSdMutex);
-		assert(sSdMutex.whoOwns() == s_appChannel, "sSdMutex.whoOwns() == s_appChannel");
-		processMsg(payload.c_str(), now);
-		sSdMutex.release(s_appChannel);
+        if (s_appChannel->isItTimeYet(now)) {
+	    bool watchDogStarted = s_timeProvider;
+            if (s_appChannel->loop(now)) {
+	        if (s_timeProvider && !watchDogStarted) {
+		    PH2("WDT started; now: ", now);
+		    HivePlatform::nonConstSingleton()->startWDT();
+		}
+		assert(s_timeProvider || !s_appChannel->isOnline(), "invalid state");
+	        if (s_appChannel->hasPayload()) {
+	            processMsg(s_appChannel->getPayload().c_str(), now);
+		    s_appChannel->restartListening();
+	        }
 	    }
-	}
-	if (!s_isOnline && s_appChannel->isOnline()) {
-	    if (!s_hasBeenOnline) {
-	        PH2("Detected AppChannel online at: ", now);
-	    }
-	    s_indicator->setFlashMode(Indicator::Normal);
-	    s_isOnline = true;
-	    s_hasBeenOnline = true;
-	} else if (s_isOnline && !s_appChannel->isOnline()) {
-	    assert(sWifiMutex.isAvailable(), "sWifiMutex.isAvailable()");
-	    s_isOnline = false;
-	    s_hasBeenOnline = false;
-	    s_offlineTime = now;
-	    s_indicator->setFlashMode(Indicator::TryingToConnect);
-	    PH2("Detected AppChannel offline at: ", now);
-	} else {
-	    if (!s_isOnline && (now > s_offlineTime + 120*1000l)) {
-	        PH2("Was offline for more than 2 minutes; time to try going back online: ", now);
-		if (sWifiMutex.isAvailable()) {
-		    PH2("Detected AppChannel offline for more than 120s; initiating forced Provision mode at: ", now);
-		    TRACE("Detected AppChannel offline; initiating forced Provision mode");
-		    s_isOnline = false;
-		    s_hasBeenOnline = false;
+
+	    bool isOnline = s_appChannel->isOnline();
+	    if (isOnline && !s_hasBeenOnline) {
+	        if (s_indicator->getFlashMode() != Indicator::Normal) {
+		    PH2("Detected AppChannel online at: ", now);
+		    s_indicator->setFlashMode(Indicator::Normal);
+		}
+		s_isOnline = true;
+		s_hasBeenOnline = true;
+	    } else if (isOnline && s_hasBeenOnline) {
+	    } else if (!isOnline && s_hasBeenOnline) {
+	        s_hasBeenOnline = false;
+		s_offlineTime = now;
+	    } else if (!isOnline && !s_hasBeenOnline) {
+	        if (now > s_offlineTime + 120*1000l) {
+		    PH2("Detected AppChannel offline for more than 2 minutes; initiating forced Provision mode at: ", now);
 		    s_indicator->setFlashMode(Indicator::Provisioning);
 		    s_provisioner->forcedStart(now);
 		    delete s_appChannel;
 		    s_appChannel = NULL;
-		    s_indicator->setFlashMode(Indicator::Provisioning);
-		} else {
-		    PH("Could not acquire Mutex.");
+		} else if (now > s_offlineTime + 1000l) {
+  		    s_isOnline = false;
+		    if (s_indicator->getFlashMode() != Indicator::TryingToConnect) {
+		        PH2("Detected AppChannel offline at: ", now);
+			s_indicator->setFlashMode(Indicator::TryingToConnect);
+		    }
 		}
 	    }
 	}
@@ -475,10 +504,9 @@ void rxLoop(unsigned long now)
 
     if (s_provisioner->isStarted()) {
         if (!s_provisioner->loop(now)) {
-	    StrBuf dump;
-	    PH2("Using Config: ", CouchUtils::toString(CNF.getDoc(), &dump));
+#ifndef HEADLESS
+	    CouchUtils::println(CNF.getDoc(), Serial, "::main; Using Config: ");
+#endif	    
 	}
     }
 }
-
-

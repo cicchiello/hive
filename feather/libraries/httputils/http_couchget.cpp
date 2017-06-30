@@ -7,16 +7,18 @@
 #include <Trace.h>
 
 
+static const char *DateTag = "Date: ";
+static const char *ETag = "ETag: \"";
+
 
 HttpCouchGet::HttpCouchGet(const Str &ssid, const Str &ssidPswd, 
-			   const Str &host, int port, const Str &page,
+			   const Str &host, int port, 
 			   const Str &dbUser, const Str &dbPswd, 
-			   bool isSSL)
-  : HttpGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
+			   bool isSSL, const char *urlPieces[])
+  : HttpGet(ssid, ssidPswd, host, port, dbUser, dbPswd, isSSL, urlPieces),
     m_consumer(getContext())
 {
   TF("HttpCouchGet::HttpCouchGet");
-//PH2("entry; now: ", millis());  
   init();
 }
 
@@ -24,7 +26,6 @@ HttpCouchGet::HttpCouchGet(const Str &ssid, const Str &ssidPswd,
 void HttpCouchGet::init()
 {
     TF("HttpCouchGet::init");
-//PH2("entry; now: ", millis());  
     m_consumer.reset();
     m_doc.clear();
     m_haveDoc = m_parsedDoc = false;
@@ -43,7 +44,6 @@ void HttpCouchGet::resetForRetry()
 bool HttpCouchGet::haveDoc() const
 {
     TF("HttpCouchGet::haveDoc");
-    TRACE("entry");
     if (!m_parsedDoc) {
 
         if (m_consumer.hasOk()) {
@@ -51,6 +51,7 @@ bool HttpCouchGet::haveDoc() const
 	    nonConstThis->m_parsedDoc = true;
 	    
 	    nonConstThis->m_haveDoc = nonConstThis->m_consumer.parseDoc(&nonConstThis->m_doc) != 0;
+	    nonConstThis->m_consumer.reset();
 	    TRACE("parsed");
 	}
     }
@@ -64,4 +65,21 @@ bool HttpCouchGet::testSuccess() const
     bool r = getHeaderConsumer().hasOk() || getHeaderConsumer().hasNotFound();
     TRACE(r ? "looks good" : "failed");
     return r;
+}
+
+
+const StrBuf &HttpCouchGet::getETag() const {
+    return m_consumer.getETag();
+}
+
+
+bool HttpCouchGet::getTimestamp(StrBuf *date) const {
+    *date = m_consumer.getTimestamp();
+    return true;
+}
+
+
+bool HttpCouchGet::hasTimestamp() const {
+    TF("HttpCouchGet::hasTimestamp");
+    return m_consumer.getTimestamp().len() > 0;
 }

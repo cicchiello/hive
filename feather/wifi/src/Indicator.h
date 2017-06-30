@@ -21,6 +21,7 @@ class Indicator {
     enum FlashMode {TryingToConnect, Provisioning, Normal, Error};
 
     FlashMode setFlashMode(FlashMode m);
+    FlashMode getFlashMode() const {return mFlashMode;}
     
     bool loop(unsigned long now);
 

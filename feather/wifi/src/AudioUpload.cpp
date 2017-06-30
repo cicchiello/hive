@@ -23,6 +23,7 @@
 
 #include <couchutils.h>
 #include <http_couchpost.h>
+#include <http_jsonconsumer.h>
 
 
 class MyDataProvider : public HttpDataProvider {
@@ -31,7 +32,6 @@ public:
   
 private:
     unsigned char buf[BUFSZ];
-    Str mFilename;
     SdFat mSd;
     SdFile mF;
     bool mIsDone;
@@ -39,21 +39,21 @@ private:
   
 public:
     MyDataProvider(const char *filename)
-      : mIsDone(false), mFilename(filename)
+      : mIsDone(false)
     {
         TF("MyDataProvider::MyDataProvider");
-        init();
+        init(filename);
     }
 
     ~MyDataProvider();
 
-    void init()
+    void init(const char *filename)
     {
         TF("MyDataProvider::init");
 	TRACE("entry");
         SDUtils::initSd(mSd);
-	bool stat = mF.open(mFilename.c_str(), O_READ);
-	assert2(stat,"Couldn't open file",mFilename.c_str());
+	bool stat = mF.open(filename, O_READ);
+	assert2(stat,"Couldn't open file",filename.c_str());
 	mSz = mF.fileSize();
     }
   
@@ -62,7 +62,7 @@ public:
     int takeIfAvailable(unsigned char **_buf) {
         TF("MyDataProvider::takeIfAvailable");
 	int avail = mSz - mF.curPosition();
-	if (avail > 1024) avail = 1024;
+	if (avail > BUFSZ) avail = BUFSZ;
 	int n = mF.read(buf, avail);
 	if (n > 0) {
 	    TRACE(n == avail ? "providing full buffer" : "providing partially full buffer");
@@ -93,7 +93,7 @@ public:
 
     void reset() {
         TF("MyDataProvider::reset");
-        init();
+	assert(0, "unimplemented");
     }
 
     void giveBack(unsigned char *b) {
@@ -113,35 +113,29 @@ MyDataProvider::~MyDataProvider()
 
 AudioUpload::AudioUpload(const HiveConfig &config,
 			 const char *sensorName,
-			 const char *attachmentDescription,
-			 const char *attachmentName,
-			 const char *contentType,
-			 const char *filename, 
+			 const Str &attachmentDescription,
+			 const Str &attachmentName,
+			 const Str &contentType,
+			 const Str &filename, 
 			 const class RateProvider &rateProvider,
 			 unsigned long now,
 			 Mutex *wifiMutex, Mutex *sdMutex)
   : SensorBase(config, sensorName, rateProvider, now, wifiMutex),
     mSdMutex(sdMutex),
     mBinaryPutter(NULL), mDataProvider(NULL),
-    mAttachmentName(new Str(attachmentName)), mDocId(new Str()), mRevision(new Str()),
-    mContentType(new Str(contentType)), mFilename(new Str(filename)),
-    mAttDesc(new Str(attachmentDescription)),
+    mAttachmentName(attachmentName), mDocId(), mRevision(),
+    mContentType(contentType), mFilename(filename),
+    mAttDesc(attachmentDescription),
     mIsDone(false), mHaveDocId(false)
 {
     TF("AudioUpload::AudioUpload");
     setNextPostTime(now+100l);
-    setSample(*mAttDesc);
+    setSample(mAttDesc);
 }
 
 
 AudioUpload::~AudioUpload()
 {
-    delete mDocId;
-    delete mRevision;
-    delete mAttachmentName;
-    delete mAttDesc;
-    delete mContentType;
-    delete mFilename;
     delete mBinaryPutter;
     delete mDataProvider;
 }
@@ -155,7 +149,7 @@ bool AudioUpload::isItTimeYet(unsigned long now)
 
 bool AudioUpload::sensorSample(Str *valueStr)
 {
-    *valueStr = *mAttDesc;
+    *valueStr = mAttDesc;
     return true;
 }
 
@@ -174,46 +168,52 @@ bool AudioUpload::loop(unsigned long now)
         TF("AudioUpload::loop; my processing");
 	unsigned long callMeBackIn_ms = 10l;
         const char *objName = getName();
-	bool muticesOwned = (getWifiMutex()->whoOwns() == this) && (mSdMutex->whoOwns() == this);
+	bool wifiMutexIsOwned = getWifiMutex()->whoOwns() == this;
+	bool sdMutexIsOwned = mSdMutex->whoOwns() == this;
+	bool muticesOwned = wifiMutexIsOwned && sdMutexIsOwned;
 	if (!muticesOwned) {
-	    bool muticesAvailable = getWifiMutex()->isAvailable() && mSdMutex->isAvailable();
-	    if (muticesAvailable) {
-	        TRACE("Both Mutexes aquired");
+	    bool wifiMutexIsOwnedOrAvailable = wifiMutexIsOwned || getWifiMutex()->isAvailable();
+	    bool sdMutexIsOwnedOrAvailable = sdMutexIsOwned || mSdMutex->isAvailable();
+	    if (wifiMutexIsOwnedOrAvailable && sdMutexIsOwnedOrAvailable) {
 		bool ownWifi = getWifiMutex()->own(this);
 		bool ownSd = mSdMutex->own(this);
 		assert(ownWifi && ownSd, "ownWifi && ownSd");
+	        TRACE("Both Mutexes aquired");
 		muticesOwned = true;
 	    }
 	}
         if (muticesOwned) {
 	    bool done = false;
 	    if (mBinaryPutter == 0) {
+	        TF("AudioUpload::loop; creating putter");
 		PH2("Starting attachment upload; now: ", millis());
-	        const char *docId = mDocId->c_str();
-		const char *attName = mAttachmentName->c_str();
-		const char *rev = mRevision->c_str();
-		StrBuf url;
-		CouchUtils::toAttachmentPutURL(getConfig().getLogDbName().c_str(),
-					       docId, attName, rev, 
-					       &url);
-	    
+		
+		static const char *urlPieces[9];
+		urlPieces[0] = "/";
+		urlPieces[1] = getConfig().getLogDbName().c_str();
+		urlPieces[2] = urlPieces[0];
+		urlPieces[3] = mDocId.c_str();
+		urlPieces[4] = urlPieces[0];
+		urlPieces[5] = mAttachmentName.c_str();
+		urlPieces[6] = "?rev=";
+		urlPieces[7] = mRevision.c_str();
+		urlPieces[8] = 0;
+    
 		//TRACE2("creating binary attachment PUT with url: ", url.c_str());
-		//TRACE2("thru wifi: ", getConfig().getSSID());
-		//TRACE2("with pswd: ", getConfig().getPSWD());
-		//TRACE2("to host: ", getConfig().getDbHost());
+		//TRACE2("thru wifi: ", getConfig().getSSID().c_str());
+		//TRACE2("with pswd: ", getConfig().getPSWD().c_str());
+		//TRACE2("to host: ", getConfig().getDbHost().c_str());
 		//TRACE2("port: ", getConfig().getDbPort());
 		//TRACE2("using ssl? ", (getConfig().isSSL() ? "yes" : "no"));
-		//TRACE2("with dbuser: ", getConfig().getDbUser());
-		//TRACE2("with dbpswd: ", getConfig().getDbPswd());
-		PH2("uploading attachment to doc: ", url.c_str());
+		//TRACE2("with dbuser: ", getConfig().getDbUser().c_str());
+		//TRACE2("with dbpswd: ", getConfig().getDbPswd().c_str());
 
-		mDataProvider = new MyDataProvider(mFilename->c_str());
+		mDataProvider = new MyDataProvider(mFilename.c_str());
 		mBinaryPutter = new HttpBinaryPut(getConfig().getSSID(), getConfig().getPSWD(),
 						  getConfig().getDbHost(), getConfig().getDbPort(),
-						  url.c_str(),
 						  getConfig().getDbUser(), getConfig().getDbPswd(),
 						  getConfig().isSSL(),
-						  mDataProvider, mContentType->c_str());
+						  mDataProvider, mContentType, urlPieces);
 	    } else {
 	        TF("AudioUpload::loop; processing HttpBinaryPut event");
 	        HttpBinaryPut::EventResult r = mBinaryPutter->event(now, &callMeBackIn_ms);
@@ -239,7 +239,7 @@ bool AudioUpload::loop(unsigned long now)
 				mBinaryPutter->getHeaderConsumer().getResponse().c_str());
 			}
 		    }  else {
-		        PH("unknown failure");
+		        PH2("Unexpected failure; mBinaryPutter->getFinalResult(): ", mBinaryPutter->getFinalResult());
 		    }
 		    mBinaryPutter->shutdownWifiOnDestruction(retry);
 		    delete mBinaryPutter;
@@ -261,34 +261,27 @@ bool AudioUpload::loop(unsigned long now)
 }
 
 
-bool AudioUpload::processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms,
+bool AudioUpload::processResult(const HttpJSONConsumer &consumer, unsigned long *callMeBackIn_ms,
 				bool *keepMutex, bool *success)
 {
     TF("AudioUpload::processResult");
 
     bool callMeBack = true;
     mIsDone = true; // only one path is *not* done, so handle other cases
-    CouchUtils::Doc resultDoc;
-    const char *remainder = consumer.parseDoc(&resultDoc);
-    if (remainder != NULL) {
-        int idIndex = resultDoc.lookup("id");
-	int revIndex = resultDoc.lookup("rev");
-	if (idIndex >= 0 && resultDoc[idIndex].getValue().isStr() &&
-	    revIndex >= 0 && resultDoc[revIndex].getValue().isStr()) {
-	    const Str &id = resultDoc[idIndex].getValue().getStr();
-	    const Str &rev = resultDoc[revIndex].getValue().getStr();
-	    *mDocId = id;
-	    *mRevision = rev;
-	    mHaveDocId = true;
-	    mIsDone = false;
-	    *keepMutex = true;
-	    *success = true;
-	    TRACE4("saved doc to id/rev: ", id.c_str(), "/", rev.c_str());
-	} else {
-	    PH("Unexpected problem with the result");
-	}
+    const CouchUtils::Doc &resultDoc = consumer.getDoc();
+    int idIndex = resultDoc.lookup("id");
+    int revIndex = resultDoc.lookup("rev");
+    if (idIndex >= 0 && resultDoc[idIndex].getValue().isStr() &&
+	revIndex >= 0 && resultDoc[revIndex].getValue().isStr()) {
+        mDocId = resultDoc[idIndex].getValue().getStr();
+	mRevision = resultDoc[revIndex].getValue().getStr();
+	mHaveDocId = true;
+	mIsDone = false;
+	*keepMutex = true;
+	*success = true;
+	TRACE4("saved doc to id/rev: ", mDocId.c_str(), "/", mRevision.c_str());
     } else {
-        PH("Unexpected problem with the result");
+        PH2("Unexpected problem with the result: ", consumer.getResponse().c_str());
     }
 
     TRACE2("returning: ", (callMeBack?"true":"false"));

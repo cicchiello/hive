@@ -55,6 +55,8 @@ public:
 
     void append(const Item &item);
 
+    void clear() {delete [] _arr; _arr = 0; _sz = 0;}
+    
     int getSz() const {return _sz;}
 
     const Item &operator[](int i) const {return _arr[i];}
@@ -75,7 +77,7 @@ public:
     
     NameValuePair(const char *n, const Item &v) : _name(n), _item(v) {s_instanceCnt++;}
     NameValuePair(const Str &n, const Item &v) : _name(n), _item(v) {s_instanceCnt++;}
-    NameValuePair(const NameValuePair &o) : _name(o._name), _item(o._item) {s_instanceCnt++;}
+    NameValuePair(const NameValuePair &o);
     ~NameValuePair() {s_instanceCnt--;}
 
     const Str &getName() const {return _name;}
@@ -132,6 +134,12 @@ public:
   static const char *toString(const Doc &doc, StrBuf *buf);
   static const char *toString(const Arr &arr, StrBuf *buf);
 
+  static void println(const Doc &doc, class Print &s, const char *prefix = "");
+  static void println(const Arr &arr, class Print &s, const char *prefix = "");
+  static void print(const Doc &doc, class Print &s);
+  static void print(const Arr &arr, class Print &s);
+  
+  
  private:
   static const char *parseArr(const char *rawtext, Arr *arr);
 };

@@ -27,16 +27,11 @@
 static MyWiFi myWiFi;
 WiFiClass &WiFi = myWiFi;
 
-BufferedWiFiClient client;
 
 
 // Or just use hardware SPI (SCK/MOSI/MISO) and defaults, SS -> #10, INT -> #7, RST -> #5, EN -> 3-5V
 //Adafruit_WINC1500 WiFi;
 
-
-// there can only be one WifiUtils::Context at a time in order to ensure proper connect/disconnect
-// sequencing -- so assert it with code
-static WifiUtils::Context *theSingleContext = NULL;
 
 
 BufferedWiFiClient::BufferedWiFiClient()
@@ -55,10 +50,11 @@ size_t BufferedWiFiClient::write(const uint8_t *buf, size_t size)
 
 bool BufferedWiFiClient::flushOut(int *remaining)
 {
+    TF("BufferedWiFiClient::flushOut");
     bool r = flushNoBlock((const uint8_t*) mBuf, mLoc, remaining);
-    if (r) {
+    if (r && !*remaining) {
+        TRACE("buffer flushed");
         mLoc = 0;
-	memset(mBuf, 0, mLoc);
     }
     return r;
 }
@@ -68,10 +64,7 @@ bool BufferedWiFiClient::flushOut(int *remaining)
 WifiUtils::Context::Context()
 {
     TF("WifiUtils::Context::Context");
-    TRACE("entry");
 
-    assert(theSingleContext == NULL, "There can only be one WifiUtils::Context object at a time");
-    
     static bool s_first = true;
     if (s_first) {
         myWiFi.setPins(WINC_CS, WINC_IRQ, WINC_RST, WINC_EN);
@@ -86,21 +79,11 @@ WifiUtils::Context::Context()
     }
     
     digitalWrite(WINC_EN, HIGH);
-
-    theSingleContext = this;
-
-    TRACE("exit");
 }
 
 WifiUtils::Context::~Context()
 {
     TF("WifiUtils::Context::~Context");
-    
-    if (theSingleContext == this) {
-        theSingleContext = NULL;
-    } else {
-        PH("Found a case where theSingleContext isn't this!?!?");
-    }
 }
 
 
@@ -120,10 +103,10 @@ Adafruit_WINC1500 & WifiUtils::Context::getWifi() const
 }
 
 
-/* STATIC */
 BufferedWiFiClient &WifiUtils::Context::getClient() const
 {
-    return client;
+    WifiUtils::Context *nonConstThis = (WifiUtils::Context*) this;
+    return nonConstThis->mClient;
 }
 
 
@@ -206,27 +189,46 @@ WifiUtils::ConnectorStatus WifiUtils::connector(const WifiUtils::Context &ctxt,
 						int *connectorState, unsigned long *callMeBackIn_ms)
 {
     TF("WifiUtils::connector");
-    TRACE("entry");
 
     uint8_t r;
-    if (*connectorState >= 30) {
+    if (*connectorState >= 60) {
         TRACE("connect attempt failed; timeout");
         // couldn't connect
 	ctxt.getWifi().connectionFailed();
         return ConnectTimeout;
     } else if (*connectorState == 0) {
-        StrBuf b;
-        TRACE2("Attempting to connect to SSID/PWD: ",
-	       b.append(ssid).append("/").append(pswd == NULL ? "<null>" : pswd).c_str());
+        uint8_t stat = ctxt.getWifi().status();
+        switch (stat) {
+	case WL_CONNECTED: {
+	    StrBuf b;
+	    TRACE2("Already connected to SSID/PWD: ",
+		   b.append(ssid).append("/").append(pswd == NULL ? "<null>" : pswd).c_str());
+	    r = WL_CONNECTED;
+	    *callMeBackIn_ms = 10l;
+	}; break;
+	case WL_CONNECT_FAILED: 
+	case WL_SCAN_COMPLETED:
+	case WL_NO_SSID_AVAIL:
+	case WL_NO_SHIELD:
+	case WL_CONNECTION_LOST:
+	case WL_IDLE_STATUS:
+	case WL_DISCONNECTED: 
+        default: {
+	    StrBuf b;
+	    TRACE2("Attempting to connect to SSID/PWD: ",
+		   b.append(ssid).append("/").append(pswd == NULL ? "<null>" : pswd).c_str());
 
-        // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
-	r = pswd == NULL ? ctxt.getWifi().begin(ssid) : ctxt.getWifi().beginNoWait(ssid, pswd);
+	    // Connect to WPA/WPA2 network. Change this line if using open or WEP network:
+	    r = pswd == NULL ? ctxt.getWifi().begin(ssid) : ctxt.getWifi().beginNoWait(ssid, pswd);
+	    *callMeBackIn_ms = 50l;
+	}
+	}
     } else {
         r = ctxt.getWifi().connectCheck();
+	*callMeBackIn_ms = 125l;
     }
     
     (*connectorState)++;
-    *callMeBackIn_ms = 500l;
 	
     // re-check status for ~10s
     switch (r) {

@@ -23,6 +23,7 @@
 
 #include <couchutils.h>
 #include <http_couchpost.h>
+#include <http_jsonconsumer.h>
 
 #include <strbuf.h>
 
@@ -140,7 +141,7 @@ AttachmentUpload::AttachmentUpload(const HiveConfig &config,
 
 AttachmentUpload::~AttachmentUpload()
 {
-    assert(mBinaryPutter == null, "mBinaryPutter == null");
+    assert(mBinaryPutter == NULL, "mBinaryPutter == null");
     delete mBinaryPutter;
     delete mDataProvider;
 }
@@ -185,14 +186,18 @@ bool AttachmentUpload::loop(unsigned long now)
 	    bool done = false;
 	    if (mBinaryPutter == 0) {
 	        TF("AttachmentUpload::loop; creating HttpBinaryPut");
-	        const char *docId = mDocId.c_str();
-		const char *attName = mAttachmentName.c_str();
-		const char *rev = mRevision.c_str();
-		StrBuf url;
-		CouchUtils::toAttachmentPutURL(getConfig().getLogDbName().c_str(),
-					       docId, attName, rev, 
-					       &url);
 	    
+		static const char *urlPieces[9];
+		urlPieces[0] = "/";
+		urlPieces[1] = getConfig().getLogDbName().c_str();
+		urlPieces[2] = urlPieces[0];
+		urlPieces[3] = mDocId.c_str();
+		urlPieces[4] = urlPieces[0];
+		urlPieces[5] = mAttachmentName.c_str();
+		urlPieces[6] = "?rev=";
+		urlPieces[7] = mRevision.c_str();
+		urlPieces[8] = 0;
+		
 		TRACE2("creating binary attachment PUT with url: ", url.c_str());
 		TRACE2("thru wifi: ", getConfig().getSSID().c_str());
 		TRACE2("with pswd: ", getConfig().getPSWD().c_str());
@@ -205,10 +210,9 @@ bool AttachmentUpload::loop(unsigned long now)
 		mDataProvider = new AttachmentDataProvider(mFilename.c_str());
 		mBinaryPutter = new HttpBinaryPut(getConfig().getSSID(), getConfig().getPSWD(),
 						  getConfig().getDbHost(), getConfig().getDbPort(),
-						  url.c_str(),
 						  getConfig().getDbUser(), getConfig().getDbPswd(),
 						  getConfig().isSSL(),
-						  mDataProvider, mContentType.c_str());
+						  mDataProvider, mContentType.c_str(), urlPieces);
 		mTransferStart = now;
 	    } else {
 	        TF("AttachmentUpload::loop; processing HttpBinaryPut event");
@@ -257,30 +261,25 @@ bool AttachmentUpload::loop(unsigned long now)
 }
 
 
-bool AttachmentUpload::processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms,
+bool AttachmentUpload::processResult(const HttpJSONConsumer &consumer, unsigned long *callMeBackIn_ms,
 				     bool *keepMutex, bool *success)
 {
     TF("AttachmentUpload::processResult");
 
     bool callMeBack = true;
     mIsDone = true; // only one path is *not* done, so handle other cases
-    CouchUtils::Doc resultDoc;
-    const char *remainder = consumer.parseDoc(&resultDoc);
-    if (remainder != NULL) {
-        int idIndex = resultDoc.lookup("id");
-	int revIndex = resultDoc.lookup("rev");
-	if (idIndex >= 0 && resultDoc[idIndex].getValue().isStr() &&
-	    revIndex >= 0 && resultDoc[revIndex].getValue().isStr()) {
-	    const Str &id = resultDoc[idIndex].getValue().getStr();
-	    const Str &rev = resultDoc[revIndex].getValue().getStr();
-	    mDocId = id;
-	    mRevision = rev;
-	    mHaveDocId = true;
-	    mIsDone = false;
-	    PH2("saved doc to id/rev: ", StrBuf(id.c_str()).append("/").append(rev.c_str()).c_str());
-	} else {
-	    PH("Unexpected problem with the result");
-	}
+    const CouchUtils::Doc &resultDoc = consumer.getDoc();
+    int idIndex = resultDoc.lookup("id");
+    int revIndex = resultDoc.lookup("rev");
+    if (idIndex >= 0 && resultDoc[idIndex].getValue().isStr() &&
+	revIndex >= 0 && resultDoc[revIndex].getValue().isStr()) {
+        const Str &id = resultDoc[idIndex].getValue().getStr();
+	const Str &rev = resultDoc[revIndex].getValue().getStr();
+	mDocId = id;
+	mRevision = rev;
+	mHaveDocId = true;
+	mIsDone = false;
+	PH2("saved doc to id/rev: ", StrBuf(id.c_str()).append("/").append(rev.c_str()).c_str());
     } else {
         PH("Unexpected problem with the result");
     }

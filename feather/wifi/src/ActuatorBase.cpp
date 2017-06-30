@@ -11,7 +11,6 @@
 #include <Mutex.h>
 
 #include <hiveconfig.h>
-#include <RateProvider.h>
 
 #include <str.h>
 #include <strbuf.h>
@@ -84,8 +83,9 @@ bool ActuatorBase::loop(unsigned long now, Mutex *wifi)
 
 ActuatorBase::Getter::Getter(const char *ssid, const char *pswd,
 			     const char *dbHost, int dbPort,
-			     const char *url, const char *dbUser, const char *dbPswd, bool isSSL)
-  : HttpCouchGet(ssid, pswd, dbHost, dbPort, url, dbUser, dbPswd, isSSL),
+			     const char *dbUser, const char *dbPswd, bool isSSL,
+			     const char *urlPieces[])
+  : HttpCouchGet(ssid, pswd, dbHost, dbPort, dbUser, dbPswd, isSSL, urlPieces),
     mIsParsed(false), mIsError(false), mRecord(0), mIsValueParsed(false), mValue(0)
 {
     TF("ActuatorBase::Getter::Getter");
@@ -111,12 +111,10 @@ const CouchUtils::Doc *ActuatorBase::Getter::getSingleRecord() const
     nonConstThis->mIsParsed = true;
     nonConstThis->mIsError = true;
     if (m_consumer.hasOk()) {
-        TRACE(m_consumer.getResponse().c_str());
-
-	const char *jsonStr = strstr(m_consumer.getResponse().c_str(), "total_rows");
+	const char *jsonStr = strstr(m_consumer.getContent().c_str(), "total_rows");
 	if (jsonStr != NULL) {
 	    // work back to the beginning of the doc... then some ugly parsing!
-	    while ((jsonStr > m_consumer.getResponse().c_str()) && (*jsonStr != '{'))
+	    while ((jsonStr > m_consumer.getContent().c_str()) && (*jsonStr != '{'))
 	        --jsonStr;
 
 	    CouchUtils::Doc doc;
@@ -172,20 +170,3 @@ const Str *ActuatorBase::Getter::getSingleValue() const
 }
 
 
-void ActuatorBase::buildStandardSensorEncodedUrl(const char *sensorName, StrBuf *encodedUrl) const
-{
-    StrBuf url;
-    url.append(getConfig().getDesignDocId().c_str());
-    url.append("/_view/");
-    url.append(getConfig().getSensorByHiveViewName().c_str());
-    url.append("?limit=1&start_key=[\"");
-    url.append(getConfig().getHiveId().c_str());
-    url.append("\",\"");
-    url.append(sensorName);
-    url.append("\",\"9999999999\"]&end_key=[\"");
-    url.append(getConfig().getHiveId().c_str());
-    url.append("\",\"");
-    url.append(sensorName);
-    url.append("\",\"1470000000\"]&descending=true");
-    CouchUtils::urlEncode(url.c_str(), encodedUrl);
-}

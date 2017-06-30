@@ -7,30 +7,15 @@ class HttpDataProvider;
 
 class HttpBinaryPut : public HttpCouchGet {
  public:
-    HttpBinaryPut(const char *ssid, const char *ssidPswd, 
-		  const char *host, int port, const char *page,
-		  const char *dbUser, const char *dbPswd, 
-		  bool isSSL, HttpDataProvider *provider, const char *contentType)
-      : HttpCouchGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
-        m_provider(provider), m_contentType(contentType), m_writtenCnt(0), mRetryFlush(false)
-    {
-    }
     HttpBinaryPut(const Str &ssid, const Str &ssidPswd, 
-		  const Str &host, int port, const char *page,
+		  const Str &host, int port, 
 		  const Str &dbUser, const Str &dbPswd, 
-		  bool isSSL, HttpDataProvider *provider, const char *contentType)
-      : HttpCouchGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
+		  bool isSSL, HttpDataProvider *provider, const Str &contentType,
+		  const char *urlPieces[])
+      : HttpCouchGet(ssid, ssidPswd, host, port, dbUser, dbPswd, isSSL, urlPieces),
         m_provider(provider), m_contentType(contentType), m_writtenCnt(0), mRetryFlush(false)
     {
     }
-    HttpBinaryPut(const char *ssid, const char *ssidPswd, 
-		  const IPAddress &hostip, int port, const char *page,
-		  const char *dbUser, const char *dbPswd, 
-		  bool isSSL, HttpDataProvider *provider, const char *contentType)
-      : HttpCouchGet(ssid, ssidPswd, hostip, port, page, dbUser, dbPswd, isSSL),
-        m_provider(provider), m_contentType(contentType), m_writtenCnt(0)
-      {
-      }
     virtual ~HttpBinaryPut() {}
 
     virtual EventResult event(unsigned long now, unsigned long *callMeBackIn_ms);

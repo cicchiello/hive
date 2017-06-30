@@ -41,8 +41,8 @@ bool SDCardRm::loop() {
 	if (success) {
 	    PL("Found file to exist on first try; removing it now");
 	    success = sd.remove(FILENAME);
-	    if (success) PL("SdFat::remove reported true");
-	    else PL("SdFat::remove reported false");
+	    if (success) {PL("SdFat::remove reported true");}
+	    else {PL("SdFat::remove reported false");}
 	} else {
 	    P("Found file didn't exist; creating ");
 	    PL(FILENAME);
@@ -52,8 +52,8 @@ bool SDCardRm::loop() {
 	    if (success) {
 	        PL("Found file to exist on second try; removing it now");
 	        success = sd.remove(FILENAME);
-		if (success) PL("SdFat::remove reported true");
-		else PL("SdFat::remove reported false");
+		if (success) {PL("SdFat::remove reported true");}
+		else {PL("SdFat::remove reported false");}
 	    } else {
 	        PL("Couldn't create file to test removal");
 	    }

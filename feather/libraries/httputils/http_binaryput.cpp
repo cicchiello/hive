@@ -75,7 +75,7 @@ void HttpBinaryPut::sendPUT(Stream &s, int contentLength) const
     PL(contentLength);
     s.print("Content-Length: ");
     s.println(contentLength);
-    PL("Conection: close");
+    PL("Connection: close");
     s.println("Connection: close");
     PL("");
     s.println();
@@ -113,10 +113,12 @@ HttpBinaryPut::EventResult HttpBinaryPut::event(unsigned long now, unsigned long
       
     case CHUNKING: {
         TF("HttpBinaryPut::event; CHUNKING");
+	*callMeBackIn_ms = 1l; // start optimistically
         if (mRetryFlush) {
 	    int remaining;
 	    getContext().getClient().flushOut(&remaining);
 	    mRetryFlush = remaining > 0;
+	    *callMeBackIn_ms = 15l;
 	} else {
 	    if (m_provider->isDone()) {
 	        TRACE3("Done writing; wrote: ", m_writtenCnt, " bytes");
@@ -144,6 +146,7 @@ HttpBinaryPut::EventResult HttpBinaryPut::event(unsigned long now, unsigned long
 
 		    if (mRetryFlush) {
 		        TRACE2("a retry is necessary: ", remaining);
+			*callMeBackIn_ms = 15l;
 		    }
 
 #ifndef HEADLESS
@@ -170,7 +173,6 @@ HttpBinaryPut::EventResult HttpBinaryPut::event(unsigned long now, unsigned long
 	    }
 	}
 
-	*callMeBackIn_ms = 1l;
 	return CallMeBack;
     }
       break;

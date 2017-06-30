@@ -10,6 +10,9 @@ public:
   ~HttpRawConsumer() {}
 
   bool consume(unsigned long now);
+
+private:
+  StrBuf m_content;
 };
 
 #endif

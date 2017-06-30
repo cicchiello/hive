@@ -5,18 +5,16 @@
 
 class HttpSSLPut : public HttpPut {
  public:
-   HttpSSLPut(const char *ssid, const char *ssidPswd, 
-	      const char *host, int port, const char *page,
-	      const char *dbUser, const char *dbPswd)
-     : HttpPut(ssid, ssidPswd, host, port, page, dbUser, dbPswd) {}
-   HttpSSLPut(const char *ssid, const char *ssidPswd, 
-	      const IPAddress &hostip, int port, const char *page,
-	      const char *dbUser, const char *dbPswd)
-     : HttpPut(ssid, ssidPswd, hostip, port, page, dbUser, dbPswd) {}
    virtual ~HttpSSLPut();
 
  protected:
    HttpSSLPut(const HttpSSLPut &); //intentionally unimplemented
+
+ private:
+   HttpSSLPut(const char *ssid, const char *ssidPswd, 
+	      const char *host, int port, const char *urlPieces[],
+	      const char *dbUser, const char *dbPswd)
+     : HttpPut(ssid, ssidPswd, host, port, urlPieces, dbUser, dbPswd) {}
 };
 
 #endif

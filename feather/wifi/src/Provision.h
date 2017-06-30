@@ -3,10 +3,12 @@
 
 class HiveConfig;
 class Mutex;
+class TimeProvider;
+
 
 class Provision {
  public:
-    Provision(const char *resetCause, const char *version, const char *configFile,
+    Provision(const char *resetCause, const char *version, const char *configFile, const TimeProvider **timeProvider,
 	      unsigned long now, Mutex *wifiMutex);
     ~Provision();
 

@@ -48,6 +48,47 @@ int base64_encode(StrBuf *output, const char *input, int inputLen) {
 	return encLen;
 }
 
+int base64_encode(StrBuf *output, const char *inputs[]) {
+	int i = 0, j = 0;
+	int encLen = 0;
+	unsigned char a3[3];
+	unsigned char a4[4];
+
+	for (int input = 0; inputs[input]; input++) {
+	    int ic = 0;
+	    const char *instr = inputs[input];
+	    for (int ic = 0; instr[ic]; ic++) {
+	        a3[i++] = instr[ic];
+		if(i == 3) {
+		    a3_to_a4(a4, a3);
+
+		    for(i = 0; i < 4; i++) {
+		        output->add(b64_alphabet[a4[i]]);
+		    }
+
+		    i = 0;
+		}
+	    }
+	}
+
+	if(i) {
+		for(j = i; j < 3; j++) {
+			a3[j] = '\0';
+		}
+
+		a3_to_a4(a4, a3);
+
+		for(j = 0; j < i + 1; j++) {
+		    output->add(b64_alphabet[a4[j]]);
+		}
+
+		while((i++ < 3)) {
+		    output->add('=');
+		}
+	}
+	return encLen;
+}
+
 int base64_decode(char * output, char * input, int inputLen) {
 	int i = 0, j = 0;
 	int decLen = 0;

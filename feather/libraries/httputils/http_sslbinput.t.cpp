@@ -85,11 +85,17 @@ bool HttpSSLBinaryPutTest::createPutter(const CouchUtils::Doc &originalDoc)
 
     int i = originalDoc.lookup("_rev");
     if (i >= 0) {
-        Str revision = originalDoc[i].getValue().getStr();
-
-	StrBuf url;
-	CouchUtils::toAttachmentPutURL(defaultDbName, getDocid(), ATTACHMENT_NAME, revision.c_str(), &url);
-
+	static const char *urlPieces[9];
+	urlPieces[0] = "/";
+	urlPieces[1] = defaultDbName;
+	urlPieces[2] = urlPieces[0];
+	urlPieces[3] = getDocid();
+	urlPieces[4] = urlPieces[0];
+	urlPieces[5] = ATTACHMENT_NAME;
+	urlPieces[6] = "?rev=";
+	urlPieces[7] = originalDoc[i].getValue().getStr().c_str();
+	urlPieces[8] = 0;
+	
 	int bytes = 44000*2;
 	int bytesPerChunk = 128;
 	int chunks = bytes/bytesPerChunk;
@@ -97,8 +103,8 @@ bool HttpSSLBinaryPutTest::createPutter(const CouchUtils::Doc &originalDoc)
 	m_provider = new MyOtherDataProvider(chunks, bytesPerChunk);
 	m_putter = new HttpSSLBinaryPut(ssid, pass,
 					getDbHost(), getDbPort(),
-					url.c_str(), getDbUser(), getDbPswd(), 
-					m_provider, CONTENT_TYPE);
+					getDbUser(), getDbPswd(), 
+					m_provider, CONTENT_TYPE, urlPieces);
 	mTransferStart = mNow;
 	mTransferTime = 0;
 	return m_putter != NULL;

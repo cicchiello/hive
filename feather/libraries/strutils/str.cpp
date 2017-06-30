@@ -7,14 +7,15 @@
 #include <string.h>
 #endif
 
-#define HEADLESS
-#define NDEBUG
+//#define HEADLESS
+//#define NDEBUG
 
 #ifdef ARDUINO
 #   include <Trace.h>
 #else
 #   include <CygwinTrace.h>
 #endif
+
 
 int Str::sBytesConsumed = 0;
 
@@ -29,20 +30,21 @@ Str::Item::Item(const char *_s)
   : buf(0), cap(0), refs(0)
 {
     TF("Str::Item::Item (1)");
+    assert(!TraceScope::sSerialIsAvailable || sizeof(Item) == 8, "sizeof(Item) changed");
     if (_s) {
-        expand((len = strlen(_s)) + 1);
+        expand(strlen(_s) + 1);
 	strcpy(buf, _s);
     }
 }
 
 
 Str::Item::Item(int sz)
-  : buf(0), cap(0), len(sz)
+  : buf(0), cap(0), refs(0)
 {
     TF("Str::Item::Item (2)");
+    assert(!TraceScope::sSerialIsAvailable || sizeof(Item) == 12, "sizeof(Item) changed");
     expand(sz+1);
     buf[0] = 0;
-    refs = 0;
 }
 
 
@@ -53,67 +55,91 @@ Str::Item *Str::Item::lookupOrCreate(const char *s)
     return new Item(s);
 }
 
-Str::Str(const char *s)
-  : item(Item::lookupOrCreate(s)), deleted(false)
+void Str::Item::setCapacity(unsigned short c)
 {
-  item->refs++;
+    TF("Str::Item::setCapacity");
+    assert(c < 0xFFF, "Str::Item capcity exceeded");
+    assert((c & 0xF) == 0, "Invalid capacity");
+    cap = c >> 4;
+}
+
+int Str::Item::getLen() const
+{
+    return strlen(buf);
+}
+
+
+Str::Str(const char *s)
+  : deleted(false)
+{
+    TF("Str::Str(const char*)");
+    item = Item::lookupOrCreate(s);
+    assert(!TraceScope::sSerialIsAvailable || sizeof(Str) == 8, "sizeof(Str) changed");
+    item->inc();
 }
 
 Str::Str(Item *_item)
-  : item(_item), deleted(false)
+  : deleted(false)
 {
-  item->refs++;
+    TF("Str::Str(Item*)");
+    item = _item;
+    item->inc();
 }
 
-Str::Item::~Item()
+Str::Str(const Str &str)
+  : deleted(false)
 {
-  assert(refs == 0, "refs == 0");
-  sBytesConsumed -= cap;
-  delete [] buf;
+    item = str.item;
+    item->inc();
 }
 
-int Str::len() const
-{
-    assert(!deleted, "!deleted");
-    if (item->len == -1)
-      return item->len = (item->cap > 0 ? strlen(item->buf) : 0);
-    else
-      return item->len;
+Str::~Str() {
+    TF("Str::~Str");
+    if (item->dec() == 0) {
+        delete item;
+	sBytesConsumed -= sizeof(Item);
+    }
+    item = 0;
+    deleted = true;
 }
 
-void Str::Item::expand(int required)
+const char *Str::c_str() const
 {
-    Str::expand(required, &cap, &buf);
+    return item->buf;
 }
 
-bool Str::Item::equals(const Str::Item &other) const
+bool Str::equals(const Str &other) const
 {
-    if (this == &other)
+    if (this->item == other.item)
         return true;
-  
-    return strcmp(buf, other.buf) == 0;
+
+    return this->item->equals(*other.item);
 }
 
 Str &Str::operator=(const Str &o)
 {
+    TF("Str::operator=");
     assert(!deleted, "!deleted");
     
     if (this == &o)
         return *this;
 
-    if (--item->refs == 0) {
+    if (item->dec() == 0) {
         delete item;
 	sBytesConsumed -= sizeof(Item);
+	item = 0;
     }
-    
+
     item = o.item;
-    item->refs++;
+    item->inc();
   
     return *this;
 }
   
 Str &Str::operator=(const char *o)
 {
+    TF("Str::operator=(const char*)");
+    if (deleted) {PH("accessing a deleted Str");}
     assert(!deleted, "!deleted");
     
     if (c_str() == o) // trivial case
@@ -139,11 +165,47 @@ bool Str::lessThan(const Str &o) const
 }
 
 
-/* STATIC */
-int Str::cacheSz()
+Str::Item::~Item()
 {
-  return 0;
+    TF("Str::Item::~Item");
+    assert(refs == 0, "refs == 0");
+    TRACE4("destructing buf of capacity: ", getCapacity(), " containing: ", (buf ? buf : "<null>"));
+    sBytesConsumed -= getCapacity();
+    delete [] buf;
 }
+
+int Str::len() const
+{
+    TF("Str::len");
+    assert(!deleted, "!deleted");
+    return item->getLen();
+}
+
+void Str::Item::expand(int required)
+{
+    unsigned short c = getCapacity();
+    Str::expand(required, &c, &buf);
+    setCapacity(c);
+}
+
+
+int Str::Item::inc()
+{
+    TF("Str::Item::inc");
+    assert(refs < 8193, "refcnt limit exceeded");
+    return ++refs;
+}
+
+
+bool Str::Item::equals(const Str::Item &other) const
+{
+    if (this == &other)
+        return true;
+  
+    return strcmp(buf, other.buf) == 0;
+}
+
+
 
 
 #define A 54059 /* a prime */
@@ -200,16 +262,19 @@ void Str::expand(int required, unsigned short *cap, char **buf)
     if (required > *cap) {
         TF("Str::expand; creating new buf");
 	TRACE2("required: ", required);
-        char *newBuf = new char[required];
-	assert(newBuf, "newBuf");
+
+	char *newBuf = new char[required];
+	assert(newBuf, "allocation failed");
+	
 	sBytesConsumed += required;
 	if (sBytesConsumed > 2*sMaxReported) {
-	    P("Str malloc report: "); PL(sBytesConsumed);
+	    if (TraceScope::sSerialIsAvailable) {P("Str malloc report: "); PL(sBytesConsumed);}
 	    sMaxReported = sBytesConsumed;
 	}
         if (*cap > 0) {
 	    TF("Str::expand; copying old buf");
 	    strcpy(newBuf, *buf);
+	    TRACE4("deleting buffer of size: ", *cap, "; buf: ", *buf);
 	    delete [] *buf;
 	    sBytesConsumed -= *cap;
 	} else {

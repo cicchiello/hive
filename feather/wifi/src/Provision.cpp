@@ -56,8 +56,8 @@ class ProvisionImp {
     class WiFiClient *mClient;
     const WifiUtils::Context *mCtxt;
 
-  ProvisionImp(const char *resetCause, const char *versionId, const char *configFilename)
-    : mConfig(resetCause, versionId), mConfigFilename(configFilename), 
+  ProvisionImp(const char *resetCause, const char *versionId, const char *configFilename, const TimeProvider **timeProvider)
+    : mConfig(resetCause, versionId, timeProvider), mConfigFilename(configFilename), 
       mServer(0), mClient(0), mConfigReader(0),
       mCtxt(0), 
       mNextActionTime(0), mMajorState(NOOP), mMinorState(0), mInvalidInput(false),
@@ -138,7 +138,6 @@ static Provision *s_singleton = NULL;
 bool ProvisionImp::loadLoop(unsigned long now)
 {
     TF("ProvisionImp::loadLoop");
-    
     bool shouldReturn = true; // very few cases shouldn't return, so make true the default
     switch (mMinorState) {
     case INIT: {
@@ -213,9 +212,9 @@ bool ProvisionImp::loop(unsigned long now, Mutex *wifiMutex)
 
 
 
-Provision::Provision(const char *resetCause, const char *versionId, const char *configFilename,
+Provision::Provision(const char *resetCause, const char *versionId, const char *configFilename, const TimeProvider **timeProvider,
 		     unsigned long now, Mutex *wifiMutex)
-  : mImp(new ProvisionImp(resetCause, versionId, configFilename)), mWifiMutex(wifiMutex)
+  : mImp(new ProvisionImp(resetCause, versionId, configFilename, timeProvider)), mWifiMutex(wifiMutex)
 {
     TF("Provision::Provision");
     
@@ -328,7 +327,7 @@ bool ProvisionImp::apLoop(unsigned long now, Mutex *wifiMutex)
 	    //TRACE("DELAY");
 	    mDelayCnt++;
 	    mNextActionTime = now + 200l;
-	    if (mDelayCnt > 20) {
+	    if (mDelayCnt > 10) {
 	        TRACE("Done delay");
 	        // 10*200ms == 2s -- done delay
 	        mMinorState = mPostDelayMinorState;

@@ -43,15 +43,20 @@ bool HttpGetTest::loop() {
     unsigned long now = millis();
     if (now > m_timeToAct && !m_didIt) {
 	if (m_getter == NULL) {
-	    StrBuf url;
-	    CouchUtils::toURL(defaultDbName, defaultDocid, &url);
+	    static const char *urlPieces[5];
+	    urlPieces[0] = "/";
+	    urlPieces[1] = defaultDbName;
+	    urlPieces[2] = urlPieces[0];
+	    urlPieces[3] = defaultDocid;
+	    urlPieces[4] = 0;
+	    
 	    m_getter = new HttpCouchGet(ssid, pass, getDbHost(), getDbPort(),
-					url.c_str(), getDbUser(), getDbPswd(), getIsSSL());
+					getDbUser(), getDbPswd(), getIsSSL(), urlPieces);
 	} else {
 	    unsigned long callMeBackIn_ms = 0;
 	    if (!m_getter->processEventResult(m_getter->event(now, &callMeBackIn_ms))) {
 		if (m_getter->haveDoc()) {
-		    m_success = (strstr(m_getter->getHeaderConsumer().getResponse().c_str(),
+		    m_success = (strstr(m_getter->getCouchConsumer().getContent().c_str(),
 					expectedContent()) != NULL);
 		    if (m_success) {
 		        PL("HttpGetTest::loop; Successfully retrieved the expected doc!");

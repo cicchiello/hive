@@ -60,12 +60,12 @@ bool ConfigPersister::loop(unsigned long now)
         TRACE("doing persist");
 	unsigned long callMeBackIn_ms = 10l;
 	if (mWriter == NULL) {
-	    TRACE("creating DocWriter");
+	    PH("creating DocWriter");
 	    mWriter = new DocWriter(mConfigFilename, mConfig.getDoc(), mSdMutex);
 	} else {
 	    callMeBack = mWriter->loop();
 	    if (!callMeBack) {
-	        TRACE("Done persisting config");
+	        PH("Done persisting config");
 		mDoPersist = false;
 		delete mWriter;
 		mWriter = NULL;

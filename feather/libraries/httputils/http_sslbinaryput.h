@@ -6,15 +6,10 @@
 class HttpSSLBinaryPut : public HttpBinaryPut {
  public:
    HttpSSLBinaryPut(const char *ssid, const char *ssidPswd, 
-		    const char *host, int port, const char *page, 
+		    const char *host, int port,
 		    const char *dbUser, const char *dbPswd, 
-		    HttpDataProvider *provider, const char *contentType)
-     : HttpBinaryPut(ssid, ssidPswd, host, port, page, dbUser, dbPswd, true, provider, contentType) {}
-   HttpSSLBinaryPut(const char *ssid, const char *ssidPswd, 
-		    const IPAddress &hostip, int port, const char *page,
-		    const char *dbUser, const char *dbPswd, 
-		    HttpDataProvider *provider, const char *contentType)
-     : HttpBinaryPut(ssid, ssidPswd, hostip, port, page, dbUser, dbPswd, true, provider, contentType) {}
+		    HttpDataProvider *provider, const char *contentType, const char *urlPieces[])
+     : HttpBinaryPut(ssid, ssidPswd, host, port, dbUser, dbPswd, true, provider, contentType, urlPieces) {}
    virtual ~HttpSSLBinaryPut();
 
  protected:

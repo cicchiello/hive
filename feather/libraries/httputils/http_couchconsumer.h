@@ -13,12 +13,23 @@ class HttpCouchConsumer : public HttpHeaderConsumer {
   
    bool consume(unsigned long now);
 
+   const StrBuf &getETag() const {return mEtag;}
+   const StrBuf &getTimestamp() const {return mTimestamp;}
+
+   const StrBuf &getContent() const {return m_content;}
+   
    void reset();
 
+ protected:
+   void parseHeaderLine(const StrBuf &line);
+  
  private:
-   void init() {}
+   void init();
 
-   void cleanChunkedResult(const char *terminationMarker);
+   void cleanChunkedResultInPlace(const char *terminationMarker);
+   
+   StrBuf mEtag, mTimestamp;
+   StrBuf m_content;
 };
 
 #endif

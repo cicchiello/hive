@@ -11,16 +11,19 @@
 
 #include <MyWiFi.h>
 
+#include <str.h>
+
 #include <SPI.h>
 #include <SdFat.h>
 
 #include <platformutils.h>
 
 HttpFilePut::HttpFilePut(const char *ssid, const char *ssidPswd, 
-			 const char *host, int port, const char *page, 
+			 const char *host, int port, 
 			 const char *dbUser, const char *dbPswd,
-			 bool isSSL, const char *filename, const char *contentType)
-  : HttpCouchGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
+			 bool isSSL, const char *filename, const char *contentType,
+			 const char *urlPieces[])
+  : HttpCouchGet(ssid, ssidPswd, host, port, dbUser, dbPswd, isSSL, urlPieces),
     m_filename(filename), m_contentType(contentType), mRetryFlush(false)
 {
     TF("HttpBinaryPut::HttpBinaryPut");
@@ -33,25 +36,6 @@ HttpFilePut::HttpFilePut(const char *ssid, const char *ssidPswd,
     TRACE2("Using page: ",page);
     TRACE2("Using dbUser: ", (dbUser?dbUser:"<null>"));
     TRACE2("Using dbPswd: ", (dbPswd?dbPswd:"<null>"));
-    TRACE2("Using contentType: ", contentType);
-}
-
-HttpFilePut::HttpFilePut(const char *ssid, const char *ssidPswd, 
-			 const IPAddress &hostip, int port, const char *page,
-			 const char *dbUser, const char *dbPswd,
-			 bool isSSL, const char *filename, const char *contentType)
-  : HttpCouchGet(ssid, ssidPswd, hostip, port, page, dbUser, dbPswd, isSSL),
-    m_filename(filename), m_contentType(contentType)
-{
-    TF("HttpBinaryPut::HttpBinaryPut");
-    
-    init();
-    
-    TRACE2("Using ssid: ",ssid);
-    uint32_t a = hostip;
-    TRACE2("Using host: ",a);
-    TRACE2("Using port: ",port);
-    TRACE2("Using page: ",page);
     TRACE2("Using contentType: ", contentType);
 }
 
@@ -158,7 +142,7 @@ HttpFilePut::EventResult HttpFilePut::event(unsigned long now, unsigned long *ca
 	    int remaining;
 	    getContext().getClient().flushOut(&remaining);
 	    
-	    setOpState(DISCONNECTING);
+	    setOpState(DISCONNECTED);
 	    setFinalResult(IssueOpFailed);
 	    
 	    delete m_f;
@@ -166,6 +150,7 @@ HttpFilePut::EventResult HttpFilePut::event(unsigned long now, unsigned long *ca
 	    
 	    m_f = NULL;
 	    m_sd = NULL;
+	    return getFinalResult();
 	}
 	return CallMeBack;
     }

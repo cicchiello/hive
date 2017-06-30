@@ -31,10 +31,16 @@ bool HttpPutBaseTest::loop() {
     if (now > m_timeToAct && !m_didIt) {
         if (m_getter == NULL) {
 	    TRACE("creating getter");
-	    StrBuf url;
-	    CouchUtils::toURL(defaultDbName, getDocid(), &url);
+	    
+	    static const char *urlPieces[5];
+	    urlPieces[0] = "/";
+	    urlPieces[1] = defaultDbName;
+	    urlPieces[2] = urlPieces[0];
+	    urlPieces[3] = defaultDocid;
+	    urlPieces[4] = 0;
+	    
 	    m_getter = new HttpCouchGet(ssid, pass, getDbHost(), getDbPort(),
-					url.c_str(), getDbUser(), getDbPswd(), getIsSSL());
+					getDbUser(), getDbPswd(), getIsSSL(), urlPieces);
 	} else {
 	    unsigned long callMeBackIn_ms = 0;
 	    HttpCouchGet::EventResult r = m_getter->event(now, &callMeBackIn_ms);

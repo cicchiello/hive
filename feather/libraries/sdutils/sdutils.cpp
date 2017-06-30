@@ -46,6 +46,7 @@ bool SDUtils::initSd(SdFat &sd)
 	PL("* is a card inserted?");
 	PL("* is your wiring correct?");
 	PL("* did you change the chipSelect pin to match your shield or module?");
+	PL("* was chip select low while there was unrelated traffic on the SPI interface?");
 	return false;
     } else {
         TRACE("SDUtils::initSd; Wiring is correct and a card is present.");

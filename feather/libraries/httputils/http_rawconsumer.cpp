@@ -27,7 +27,7 @@ bool HttpRawConsumer::consume(unsigned long now)
 		    return false;
 		}
 		s[avail] = 0;
-		appendToResponse(something.c_str());
+		m_content.add(something.c_str(), avail);
 	    }
 	    return true;
 	} else {

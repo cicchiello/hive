@@ -9,6 +9,7 @@
 #define NDEBUG
 #include <strutils.h>
 #include <str.h>
+#include <strbuf.h>
 
 #include <Trace.h>
 
@@ -30,28 +31,14 @@ private:
 
 public:
     RTCTestGetter(RTCTest *test,
-		  const char *url, const char *dbUser, const char *dbPswd)
+		  const char *dbUser, const char *dbPswd,
+		  const char *urlPieces[])
       : HttpCouchGet(test->ssid, test->pass, HttpOpTest::sslDbHost, HttpOpTest::sslDbPort,
-		     url, dbUser, dbPswd, true),
+		     dbUser, dbPswd, true, urlPieces),
 	m_test(test)
     {
         TF("RTCTestGetter::RTCTestGetter");
 	TRACE("entry");
-    }
- 
-    Str getTimestamp() const {
-        TF("RTCTestGetter; getTimestamp");
-	TRACE("entry");
-        const char *dateStr = strstr(m_consumer.getResponse().c_str(), DateTag);
-	if (dateStr != NULL) {
-	    dateStr += strlen(DateTag);
-	    StrBuf date;
-	    while (*dateStr != 13) date.add(*dateStr++);
-	    TRACE("Received timestamp: "); PL(date.c_str());
-	    return date.c_str();
-	} else {
-	    return Str("unknown");
-	}
     }
 };
 
@@ -75,16 +62,24 @@ bool RTCTest::loop()
 	    testTimestampConversions();
 	    
 	    TRACE("creating getter");
-	    StrBuf url;
-	    CouchUtils::toURL(TimestampDb, TimestampDocId, &url);
-	    m_getter = m_rtcGetter = new RTCTestGetter(this, url.c_str(),
-						       HttpOpTest::sslDbUser, HttpOpTest::sslDbPswd);
+	    
+	    static const char *urlPieces[5];
+	    urlPieces[0] = "/";
+	    urlPieces[1] = TimestampDb;
+	    urlPieces[2] = urlPieces[0];
+	    urlPieces[3] = TimestampDocId;
+	    urlPieces[4] = 0;
+	    
+	    m_getter = m_rtcGetter = new RTCTestGetter(this, 
+						       HttpOpTest::sslDbUser, HttpOpTest::sslDbPswd,
+						       urlPieces);
 	} else {
 	    TRACE("processing event");
 	    unsigned long callMeBackIn_ms = 0;
 	    if (!m_getter->processEventResult(m_getter->event(now, &callMeBackIn_ms))) {
 	        TRACE("done");
-		Str timestampStr = m_rtcGetter->getTimestamp();
+		StrBuf timestampStr;
+		m_rtcGetter->getTimestamp(&timestampStr);
 		TRACE2("TimestampStr: ", timestampStr.c_str());
 		Timestamp_t ts;
 		bool stat = RTCConversions::cvtToTimestamp(timestampStr.c_str(), &ts);

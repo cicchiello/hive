@@ -24,6 +24,7 @@
 #include <map>
 #include <utility>
 
+
 /* STATIC */
 const char *HttpOp::TAGHTTP11 = "HTTP/1.1";
 const int HttpOp::MaxRetries = 5;
@@ -61,6 +62,10 @@ public:
 typedef MyMap MapType;
 static MapType sDnsResolutions;
 
+/* STATIC */
+int HttpOp::sHttpOpCnt = 0;
+bool HttpOp::sShutdownWiFi = false;
+
 
 HttpOp::HttpOp(const Str &ssid, const Str &ssidPswd, const Str &hostname, int port,
 	       const Str &dbUser, const Str &dbPswd,
@@ -70,16 +75,27 @@ HttpOp::HttpOp(const Str &ssid, const Str &ssidPswd, const Str &hostname, int po
 {
   TF("HttpOp::HttpOp");
   init();
+  sHttpOpCnt++;
 }
    
 HttpOp::~HttpOp()
 {
     TF("HttpOp::~HttpOp");
 
+    assert(sHttpOpCnt > 0, "sHttpOpCnt invalid");
+    
+    sHttpOpCnt--;
+
     if (m_shutdown) {
+        PH("operation ended with instructions to shutdown wifi");
+        sShutdownWiFi = true;
+    }
+
+    if (sShutdownWiFi && (sHttpOpCnt == 0)) {
         PH("calling WiFi.end()");
 	getContext().getWifi().end();
 	getContext().reset();
+	sShutdownWiFi = false;
     }
 }
 
@@ -87,7 +103,6 @@ HttpOp::~HttpOp()
 void HttpOp::init()
 {
     TF("HttpOp::init");
-    TRACE("entry");
 
     // check for the presence of the shield:
     if (getContext().getWifi().status() == WL_NO_SHIELD) {
@@ -97,7 +112,7 @@ void HttpOp::init()
 
     // make sure that I'm not already connected
     if (getContext().getWifi().status() == WL_CONNECTED) {
-        TRACE("WiFi shield is already connected!?!?");
+        TRACE("WiFi shield is already connected");
 	//FAIL();
     }
 
@@ -131,7 +146,6 @@ static StrBuf IPtoString(const IPAddress &ip)
 HttpOp::ConnectStat HttpOp::httpConnectInit(const IPAddress &host, const char *hostname)
 {
     TF("HttpOp::httpConnectInit");
-    TRACE("entry");
 
     TRACE2("m_port: ", m_port);
     TRACE2("m_isSSL: ", (m_isSSL ? "true" : "false"));
@@ -154,7 +168,6 @@ HttpOp::ConnectStat HttpOp::httpConnectInit(const IPAddress &host, const char *h
 HttpOp::ConnectStat HttpOp::httpConnectCheck()
 {
     TF("HttpOp::httpConnectCheck");
-    //TRACE("entry");
     
     WiFiClient::ConnectStat s = m_ctxt.getClient().checkConnectNoWait();
     switch (s) {
@@ -170,7 +183,6 @@ HttpOp::ConnectStat HttpOp::httpConnectCheck()
 void HttpOp::httpConnectCancel()
 {
     TF("HttpOp::connectFailed");
-    TRACE("entry");
     m_ctxt.getClient().connectionFailed();
 }
 
@@ -197,11 +209,10 @@ void HttpOp::sendHost(class Stream &s) const
     s.println(m_port);
     if (m_dbuser.len() > 0) {
         if (!m_dbuser.equals(sCachedDbUser) || !m_dbpswd.equals(sCachedDbPswd)) {
-	    StrBuf creds;
-	    creds.append(m_dbuser.c_str()).append(":").append(m_dbpswd.c_str());
-	
+
+	    const char *inputs[4] = {m_dbuser.c_str(), ":", m_dbpswd.c_str(), 0};
 	    StrBuf encoded;
-	    base64_encode(&encoded, creds.c_str(), creds.len());
+	    base64_encode(&encoded, inputs);
 
 	    sCachedEncodedAuth = encoded.c_str();
 	    sCachedDbUser = m_dbuser;
@@ -221,7 +232,7 @@ void HttpOp::sendHost(class Stream &s) const
 HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn_ms)
 {
     TF("HttpOp::event");
-    
+
     switch (m_opState) {
     case WIFI_INIT:
     case WIFI_WAITING: {
@@ -322,7 +333,8 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 	        TRACE2("DNS_WAITING timeout after (ms) ", (now-mDnsWaitStart));
 		w.dnsFailed();
 		setFinalResult(IssueOpFailed);
-		setOpState(DISCONNECTING);
+		setOpState(DISCONNECTED);
+		return m_finalResult;
 	    } else *callMeBackIn_ms = 500l;
 	}
 	  break;
@@ -331,7 +343,8 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 	    TRACE2("DNS_FAILED after (ms) ", (now-mDnsWaitStart));
 	    w.dnsFailed();
 	    setFinalResult(IssueOpFailed);
-	    setOpState(DISCONNECTING);
+	    setOpState(DISCONNECTED);
+	    return m_finalResult;
 	}
 	}
 	
@@ -344,7 +357,7 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
         ConnectStat stat;
         if (m_opState == HTTP_INIT) {
 	    TRACE("HTTP_INIT");
-	    mHttpConnectCnt = 100; //100*100ms == 10s
+	    mHttpConnectCnt = 200; //200*50ms == 10s
 	    stat = httpConnectInit(mResolvedHostIP, mSpecifiedHostname.c_str());
 	    mHttpWaitStart = now;
 	    setOpState(HTTP_WAITING);
@@ -358,14 +371,15 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 	    TF("HttpOp::event; HTTP_INIT; WORKING");
 	    TRACE("WORKING");
 	    yield();
-	    *callMeBackIn_ms = 100l;
+	    *callMeBackIn_ms = 50l;
 	    if (--mHttpConnectCnt == 0) {
 	        TRACE2("HTTP_WAITING timeout after (ms) ", (now-mHttpWaitStart));
 	        TRACE("disconnecting");
 		httpConnectCancel();
 		setFinalResult(IssueOpFailed);
-		setOpState(DISCONNECTING);
+		setOpState(DISCONNECTED);
 		*callMeBackIn_ms = 10l;
+		return m_finalResult;
 	    }
 	}
 	    break;
@@ -382,8 +396,9 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 	    TRACE("connect failed");
 	    httpConnectCancel();
 	    setFinalResult(IssueOpFailed);
-	    setOpState(DISCONNECTING);
+	    setOpState(DISCONNECTED);
 	    *callMeBackIn_ms = 10l;
+	    return m_finalResult;
 	}
 	}
 	return CallMeBack;
@@ -395,8 +410,10 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
         TRACE("ERROR: derived class should handle the ISSUE_OP and CHUNKING states");
 	return UnknownFailure;
     case ISSUE_OP_FLUSH: {
+        TF("HttpOp::event; ISSUE_OP_FLUSH");
         int remaining;
 	yield();
+	*callMeBackIn_ms = 10l;
         if (getContext().getClient().flushOut(&remaining) && (remaining == 0)) {
 	    setOpState(CONSUME_RESPONSE);
 	}
@@ -407,7 +424,8 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
         TF("HttpOp::event; CONSUME_RESPONSE");
 	unsigned long mark = micros();
 	yield();
-	TRACE2("CONSUME_RESPONSE; yield took (us): ", (micros()-mark));
+	unsigned long mark2 = micros();
+	TRACE2("CONSUME_RESPONSE; yield took (us): ", (mark2-mark));
         if (!getResponseConsumer().consume(now)) {
 	    m_finalResult = HTTPSuccessResponse; // start optimistically
 	    if (!getResponseConsumer().isError()) {
@@ -427,11 +445,15 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 		    TRACE("MaxRetries exceeded; giving up");
 		}
 	    }
-	    setOpState(DISCONNECTING);
+	    setOpState(DISCONNECTED);
+	    *callMeBackIn_ms = 10l;
+	    return m_finalResult;
 	}
 	*callMeBackIn_ms = 50l;
 	return CallMeBack;
     }
+      
+#ifdef KEEP_BUT_DONT_USE
     case DISCONNECTING: {
         TF("HttpOp::event; DISCONNECTING");
         TRACE("DISCONNECTING");
@@ -467,6 +489,8 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 	}
     }
 	break;
+#endif
+	
     case DISCONNECTED: {
         TF("HttpOp::event; CONSUME_RESPONSE");
         // no-op
@@ -482,8 +506,10 @@ HttpOp::EventResult HttpOp::event(unsigned long now, unsigned long *callMeBackIn
 }
 
 
+static void NoOpYieldHandler() {}
+
 /* STATIC */
-HttpOp::YieldHandler HttpOp::sYieldHandler = NULL;
+HttpOp::YieldHandler HttpOp::sYieldHandler = NoOpYieldHandler;
 
 /* STATIC */
 HttpOp::YieldHandler HttpOp::registerYieldHandler(HttpOp::YieldHandler yieldHandler)

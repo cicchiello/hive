@@ -3,10 +3,12 @@
 
 #include <couchutils.h>
 
+class TimeProvider;
+
 class HiveConfig {
  public:
     // constucts a default config
-    HiveConfig(const char *resetCause, const char *versionId);
+    HiveConfig(const char *resetCause, const char *versionId, const TimeProvider **timeProvider);
     ~HiveConfig();
     
     void setDefault();
@@ -72,6 +74,7 @@ class HiveConfig {
     
     CouchUtils::Doc mDoc;
     Str mRCause, mVersionId;
+    const TimeProvider **mTimeProvider;
 
     static UpdateFunctor *mUpdateFunctor;
 };

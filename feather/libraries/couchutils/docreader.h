@@ -25,6 +25,7 @@ class DocReader {
     
  private:
     CouchUtils::Doc mDoc;
+    
     StrBuf *mErrMsg;
     Str *mFilename;
     bool mHasDoc, mIsDone;

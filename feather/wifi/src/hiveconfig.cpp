@@ -9,6 +9,8 @@
 
 #include <platformutils.h>
 
+#include <TimeProvider.h>
+
 #include <strutils.h>
 #include <couchutils.h>
 
@@ -20,8 +22,8 @@ HiveConfig::UpdateFunctor *HiveConfig::mUpdateFunctor = NULL;
 
 static Str sEmpty;
 
-HiveConfig::HiveConfig(const char *resetCause, const char *versionId)
-  : mDoc(), mRCause(resetCause), mVersionId(versionId)
+HiveConfig::HiveConfig(const char *resetCause, const char *versionId, const TimeProvider **timeProvider)
+  : mDoc(), mRCause(resetCause), mVersionId(versionId), mTimeProvider(timeProvider)
 {
     TF("HiveConfig::HiveConfig");
     setDefault();
@@ -48,6 +50,14 @@ bool HiveConfig::setDoc(const CouchUtils::Doc &doc)
 		    cleanedDoc.addNameValue(new CouchUtils::NameValuePair(HiveFirmwareProperty, mVersionId));
 		} else if (mDoc[j].getName().equals(HiveIdProperty)) {
 		    cleanedDoc.addNameValue(new CouchUtils::NameValuePair(HiveIdProperty, getHiveId()));
+		} else if (mDoc[j].getName().equals(TimestampProperty)) {
+		    Str propStr;
+		    if (mTimeProvider && *mTimeProvider) {
+		        (*mTimeProvider)->toString(millis(), &propStr);
+			cleanedDoc.addNameValue(new CouchUtils::NameValuePair(TimestampProperty, propStr));
+		    } else {
+		        cleanedDoc.addNameValue(new CouchUtils::NameValuePair(mDoc[j]));
+		    }
 		} else {
 		    if (mDoc[j].getValue().isStr() && doc[i].getValue().isStr() &&
 			mDoc[j].getValue().getStr().equals(doc[i].getValue().getStr())) {
@@ -77,6 +87,18 @@ bool HiveConfig::setDoc(const CouchUtils::Doc &doc)
 }
 
 
+const Str True("true");
+const Str False("false");
+
+const Str DEFAULT_MyWifi("<MyWifi>");
+const Str DEFAULT_Timestamp("1400000000");
+const Str DEFAULT_Passcode("<MyPasscode>");
+const Str DEFAULT_DbHost("jfcenterprises.cloudant.com");
+const Str DEFAULT_Port("443");
+const Str DEFAULT_IsSSL(True);
+const Str DEFAULT_DbUser("afteptsecumbehisomorther");
+const Str DEFAULT_DbPswd("e4f286be1eef534f1cddd6240ed0133b968b1c9a");
+
 
 const Str HiveConfig::HiveIdProperty("hive-id");
 const Str HiveConfig::HiveFirmwareProperty("hive-version");
@@ -89,23 +111,20 @@ const Str HiveConfig::IsSslProperty("is-ssl");
 const Str HiveConfig::DbUserProperty("db-user");
 const Str HiveConfig::DbPswdProperty("db-pswd");
 
-
 void HiveConfig::setDefault()
 {
     TF("HiveConfig::setDefault");
-    TRACE("entry");
     mDoc.clear();
     mDoc.addNameValue(new CouchUtils::NameValuePair(HiveIdProperty, CouchUtils::Item(getHiveId())));
     mDoc.addNameValue(new CouchUtils::NameValuePair(HiveFirmwareProperty, CouchUtils::Item(mVersionId)));
-    mDoc.addNameValue(new CouchUtils::NameValuePair(TimestampProperty, CouchUtils::Item("1400000000")));
-    mDoc.addNameValue(new CouchUtils::NameValuePair(SsidProperty, CouchUtils::Item("<MyWifi>")));
-    mDoc.addNameValue(new CouchUtils::NameValuePair(SsidPswdProperty, CouchUtils::Item("<MyPasscode>")));
-    mDoc.addNameValue(new CouchUtils::NameValuePair(DbHostProperty, CouchUtils::Item("jfcenterprises.cloudant.com")));
-    mDoc.addNameValue(new CouchUtils::NameValuePair(DbPortProperty, CouchUtils::Item("443")));
-    mDoc.addNameValue(new CouchUtils::NameValuePair(IsSslProperty, CouchUtils::Item("true")));
-    mDoc.addNameValue(new CouchUtils::NameValuePair(DbUserProperty, CouchUtils::Item("afteptsecumbehisomorther")));
-    mDoc.addNameValue(new CouchUtils::NameValuePair(DbPswdProperty, CouchUtils::Item("e4f286be1eef534f1cddd6240ed0133b968b1c9a")));
-    TRACE("exit");
+    mDoc.addNameValue(new CouchUtils::NameValuePair(TimestampProperty, CouchUtils::Item(DEFAULT_Timestamp)));
+    mDoc.addNameValue(new CouchUtils::NameValuePair(SsidProperty, CouchUtils::Item(DEFAULT_MyWifi)));
+    mDoc.addNameValue(new CouchUtils::NameValuePair(SsidPswdProperty, CouchUtils::Item(DEFAULT_Passcode)));
+    mDoc.addNameValue(new CouchUtils::NameValuePair(DbHostProperty, CouchUtils::Item(DEFAULT_DbHost)));
+    mDoc.addNameValue(new CouchUtils::NameValuePair(DbPortProperty, CouchUtils::Item(DEFAULT_Port)));
+    mDoc.addNameValue(new CouchUtils::NameValuePair(IsSslProperty, CouchUtils::Item(DEFAULT_IsSSL)));
+    mDoc.addNameValue(new CouchUtils::NameValuePair(DbUserProperty, CouchUtils::Item(DEFAULT_DbUser)));
+    mDoc.addNameValue(new CouchUtils::NameValuePair(DbPswdProperty, CouchUtils::Item(DEFAULT_DbPswd)));
 }
 
 
@@ -145,8 +164,8 @@ bool HiveConfig::docIsValidForConfig(const CouchUtils::Doc &d)
     T(d[d.lookup(DbPortProperty)].getValue().isStr());
     T(StringUtils::isNumber(d[d.lookup(DbPortProperty)].getValue().getStr().c_str()));
     T(d[d.lookup(IsSslProperty)].getValue().isStr());
-    T((strcmp(d[d.lookup(IsSslProperty)].getValue().getStr().c_str(),"true") == 0) ||
-	  (strcmp(d[d.lookup(IsSslProperty)].getValue().getStr().c_str(),"false") == 0));
+    T(d[d.lookup(IsSslProperty)].getValue().getStr().equals(True) ||
+      d[d.lookup(IsSslProperty)].getValue().getStr().equals(False));
     
     return d.lookup(HiveIdProperty) >= 0 &&
       d.lookup(HiveFirmwareProperty) >= 0 && 
@@ -162,52 +181,42 @@ bool HiveConfig::docIsValidForConfig(const CouchUtils::Doc &d)
       d[d.lookup(HiveFirmwareProperty)].getValue().isStr() &&
       d[d.lookup(TimestampProperty)].getValue().isStr() &&
       d[d.lookup(SsidProperty)].getValue().isStr() &&
-      !d[d.lookup(SsidProperty)].getValue().getStr().equals("<MyWifi>") &&
+      !d[d.lookup(SsidProperty)].getValue().getStr().equals(DEFAULT_MyWifi) &&
       d[d.lookup(SsidPswdProperty)].getValue().isStr() &&
-      !d[d.lookup(SsidPswdProperty)].getValue().getStr().equals("<MyPasscode>") &&
+      !d[d.lookup(SsidPswdProperty)].getValue().getStr().equals(DEFAULT_Passcode) &&
       d[d.lookup(DbHostProperty)].getValue().isStr() &&
       d[d.lookup(DbPortProperty)].getValue().isStr() &&
       StringUtils::isNumber(d[d.lookup(DbPortProperty)].getValue().getStr().c_str()) &&
       d[d.lookup(DbUserProperty)].getValue().isStr() &&
       d[d.lookup(DbPswdProperty)].getValue().isStr() &&
       d[d.lookup(IsSslProperty)].getValue().isStr() &&
-      ((strcmp(d[d.lookup(IsSslProperty)].getValue().getStr().c_str(),"true") == 0) ||
-       (strcmp(d[d.lookup(IsSslProperty)].getValue().getStr().c_str(),"false") == 0));
+      (d[d.lookup(IsSslProperty)].getValue().getStr().equals(True) ||
+       d[d.lookup(IsSslProperty)].getValue().getStr().equals(False));
 }
 
 
 bool HiveConfig::isValid() const
 {
     TF("HiveConfig::isValid");
-    T(mDoc[mDoc.lookup("hive-id")].getValue().getStr().equals(getHiveId()));
+    T(mDoc[mDoc.lookup(HiveIdProperty)].getValue().getStr().equals(getHiveId()));
 
     return docIsValidForConfig(mDoc) && 
       mDoc[mDoc.lookup(HiveIdProperty)].getValue().getStr().equals(getHiveId());
 }
 
 
-//const char *HiveConfig::getSSID() const {return mDoc[mDoc.lookup(SsidProperty)].getValue().getStr().c_str();}
 const Str &HiveConfig::getSSID() const {return mDoc[mDoc.lookup(SsidProperty)].getValue().getStr();}
-//const char *HiveConfig::getPSWD() const {return mDoc[mDoc.lookup(SsidPswdProperty)].getValue().getStr().c_str();}
 const Str &HiveConfig::getPSWD() const {return mDoc[mDoc.lookup(SsidPswdProperty)].getValue().getStr();}
-//const char *HiveConfig::getDbHost() const {return mDoc[mDoc.lookup(DbHostProperty)].getValue().getStr().c_str();}
 const Str &HiveConfig::getDbHost() const {return mDoc[mDoc.lookup(DbHostProperty)].getValue().getStr();}
-//const char *HiveConfig::getDbUser() const {return mDoc[mDoc.lookup(DbUserProperty)].getValue().getStr().c_str();}
 const Str &HiveConfig::getDbUser() const {return mDoc[mDoc.lookup(DbUserProperty)].getValue().getStr();}
-//const char *HiveConfig::getDbPswd() const {return mDoc[mDoc.lookup(DbPswdProperty)].getValue().getStr().c_str();}
 const Str &HiveConfig::getDbPswd() const {return mDoc[mDoc.lookup(DbPswdProperty)].getValue().getStr();}
 const int HiveConfig::getDbPort() const {return atoi(mDoc[mDoc.lookup(DbPortProperty)].getValue().getStr().c_str());}
-const int HiveConfig::isSSL() const {return strcmp(mDoc[mDoc.lookup(IsSslProperty)].getValue().getStr().c_str(),"true")==0;}
+const int HiveConfig::isSSL() const {return mDoc[mDoc.lookup(IsSslProperty)].getValue().getStr().equals(True);}
 
-//const char *HiveConfig::getLogDbName() const {return "hive-sensor-log";}
 const Str &HiveConfig::getLogDbName() const {static Str n("hive-sensor-log"); return n;}      // couchdb name
-//const char *HiveConfig::getConfigDbName() const {return "hive-config";}
 const Str &HiveConfig::getConfigDbName() const {static Str n("hive-config"); return n;}      // couchdb name
-//const char *HiveConfig::getChannelDbName() const {return "hive-channel";}
 const Str &HiveConfig::getChannelDbName() const {static Str c("hive-channel"); return c;}    // couchdb name
-//const char *HiveConfig::getDesignDocId() const {return "_design/SensorLog";} // couchdb design document
 const Str &HiveConfig::getDesignDocId() const {static Str d("_design/SensorLog"); return d;} // couchdb designt
-//const char *HiveConfig::getSensorByHiveViewName() const {return "by-hive-sensor";}
 const Str &HiveConfig::getSensorByHiveViewName() const {static Str v("by-hive-sensor"); return v;}
 
 
@@ -223,8 +232,9 @@ bool HiveConfig::addProperty(const Str &name, const char *value)
     TF("HiveConfig::addProperty");
     int index = mDoc.lookup(name);
     if (index >= 0) {
-        if (mDoc[index].getValue().equals(value))
+        if (mDoc[index].getValue().equals(value)) {
 	    return false;
+	}
 	
 	CouchUtils::Doc newDoc;
 	for (int i = 0; i < mDoc.getSz(); i++) {

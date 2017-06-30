@@ -9,7 +9,6 @@
 #include <hiveconfig.h>
 #include <hive_platform.h>
 #include <RateProvider.h>
-#include <Timestamp.h>
 #include <Mutex.h>
 #include <beecnt.h>
 #include <str.h>
@@ -26,7 +25,6 @@ static Mutex sWifiMutex;
 static HiveConfig *s_config = NULL;
 static RateProvider *s_rateProvider = NULL;
 static BeeCounter *s_beeCounter = NULL;
-static Timestamp *s_timestamp = NULL;
 
 
 #define BEECNT_PLOAD_PIN        10
@@ -87,11 +85,8 @@ void loop(void)
     unsigned long now = millis();
     switch (s_mainState) {
     case INIT: {
-	s_timestamp = new Timestamp(s_config->getSSID(), s_config->getPSWD(),
-				    s_config->getDbHost(), s_config->getDbPort(),
-				    s_config->isSSL(), s_config->getDbCredentials());
         s_rateProvider = new MyRateProvider();
-	s_beeCounter = new BeeCounter(*s_config, "bee", *s_rateProvider, *s_timestamp, now,
+	s_beeCounter = new BeeCounter(*s_config, "bee", *s_rateProvider, now,
 				      BEECNT_PLOAD_PIN, BEECNT_CLOCK_PIN, BEECNT_DATA_PIN);
 
 	HivePlatform::nonConstSingleton()->registerPulseGenConsumer_10K(s_beeCounter->getPulseGenConsumer());

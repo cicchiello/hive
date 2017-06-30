@@ -12,7 +12,7 @@
 
 #include <hiveconfig.h>
 #include <hive_platform.h>
-#include <http_couchpost.h>
+#include <http_jsonpost.h>
 #include <RateProvider.h>
 #include <TimeProvider.h>
 
@@ -48,7 +48,7 @@ SensorBase::~SensorBase()
 }
 
 
-bool SensorBase::processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms,
+bool SensorBase::processResult(const HttpJSONConsumer &consumer, unsigned long *callMeBackIn_ms,
 			       bool *keepMutex, bool *success)
 {
     TF("SensorBase::processResult");
@@ -56,7 +56,8 @@ bool SensorBase::processResult(const HttpCouchConsumer &consumer, unsigned long 
         TRACE("POST succeeded");
         *success = true;
     } else {
-        PH2("fail POST; response: ", consumer.getResponse().c_str());
+        PH2("fail POST; response header: ", consumer.getHeader().c_str());
+        PH2("response content: ", consumer.getContent().c_str());
     }
     *callMeBackIn_ms = DELTA;
     return false;
@@ -70,29 +71,41 @@ bool SensorBase::postImplementation(unsigned long now, Mutex *wifi, bool *succes
     unsigned long callMeBackIn_ms = 10l;
     if (wifi->own(this)) {
 	if (mPoster == NULL) {
+	    static Str HiveId("hiveid");
+	    static Str Sensor("sensor");
+	    static Str Timestamp("timestamp");
+	    static Str Value("value");
+	    
+	    TF("SensorBase::postImplementation; creating poster");
 	    TRACE("creating poster");
 
 	    // curl -v -H "Content-Type: application/json" -X POST "https://afteptsecumbehisomorther:e4f286be1eef534f1cddd6240ed0133b968b1c9a@jfcenterprises.cloudant.com:443/hive-sensor-log" -d '{"hiveid":"F0-17-66-FC-5E-A1","sensor":"heartbeat","timestamp":"1485894682","value":"0.9.104"}'
   
-	    Str timestampStr;
-	    GetTimeProvider()->toString(now, &timestampStr);
-
 	    CouchUtils::Doc doc;
-	    doc.addNameValue(new CouchUtils::NameValuePair("hiveid",
-							   CouchUtils::Item(mConfig.getHiveId())));
-	    doc.addNameValue(new CouchUtils::NameValuePair("sensor",
-							   CouchUtils::Item(Str(getName()))));
-	    doc.addNameValue(new CouchUtils::NameValuePair("timestamp",
-							   CouchUtils::Item(timestampStr)));
-	    doc.addNameValue(new CouchUtils::NameValuePair("value",
-							   CouchUtils::Item(*mValueStr)));
-	    StrBuf dump;
-	    CouchUtils::toString(doc, &dump);
+	    {
+	        Str timestampStr;
+		GetTimeProvider()->toString(now, &timestampStr);
 
-	    StrBuf url("/");
-	    url.append(mConfig.getLogDbName().c_str());
-	    
-	    TRACE2("creating POST with url: ", url.c_str());
+		doc.addNameValue(new CouchUtils::NameValuePair(HiveId,
+							       CouchUtils::Item(mConfig.getHiveId())));
+		doc.addNameValue(new CouchUtils::NameValuePair(Sensor,
+							       CouchUtils::Item(getName())));
+		doc.addNameValue(new CouchUtils::NameValuePair(Timestamp,
+							       CouchUtils::Item(timestampStr)));
+		doc.addNameValue(new CouchUtils::NameValuePair(Value,
+							       CouchUtils::Item(*mValueStr)));
+
+#ifndef HEADLESS
+		PH("here's the doc that will be posted");
+		CouchUtils::println(doc, Serial, "Posting doc: ");
+#endif
+	    }
+
+	    static const char *urlPieces[3];
+	    urlPieces[0] = "/";
+	    urlPieces[1] = mConfig.getLogDbName().c_str();
+	    urlPieces[2] = 0;
+    
 	    TRACE2("thru wifi: ", mConfig.getSSID().c_str());
 	    TRACE2("with pswd: ", mConfig.getPSWD().c_str());
 	    TRACE2("to host: ", mConfig.getDbHost().c_str());
@@ -100,21 +113,27 @@ bool SensorBase::postImplementation(unsigned long now, Mutex *wifi, bool *succes
 	    TRACE2("using ssl? ", (mConfig.isSSL() ? "yes" : "no"));
 	    TRACE2("with dbuser: ", mConfig.getDbUser().c_str());
 	    TRACE2("with dbpswd: ", mConfig.getDbPswd().c_str());
-	    PH2("POSTing doc: ", dump.c_str());
+
+#ifndef HEADLESS
+	    PH("URL: ");
+	    for (int ii = 0; urlPieces[ii]; ii++) {P(urlPieces[ii]);}
+	    PL("");
+#endif	    
 	    
-	    mPoster = new HttpCouchPost(mConfig.getSSID(), mConfig.getPSWD(),
-					mConfig.getDbHost(), mConfig.getDbPort(),
-					url.c_str(), doc,
-					mConfig.getDbUser(), mConfig.getDbPswd(), 
-					mConfig.isSSL());
+	    mPoster = new HttpJSONPost(mConfig.getSSID(), mConfig.getPSWD(),
+				       mConfig.getDbHost(), mConfig.getDbPort(),
+				       doc,
+				       mConfig.getDbUser(), mConfig.getDbPswd(), 
+				       mConfig.isSSL(), urlPieces);
 	} else {
-	    HttpCouchPost::EventResult er = mPoster->event(now, &callMeBackIn_ms);
+	    TF("SensorBase::postImplementation; processing events");
+	    HttpJSONPost::EventResult er = mPoster->event(now, &callMeBackIn_ms);
 	    if (!mPoster->processEventResult(er)) {
 	        bool retry = true, keepMutex = false;
 		callMeBackIn_ms = 5000l;
 		if (mPoster->getHeaderConsumer().hasOk()) {
 		    TRACE2("Calling processResult for: ", getName());
-		    callMeBack = processResult(mPoster->getCouchConsumer(), &callMeBackIn_ms, &keepMutex, success);
+		    callMeBack = processResult(mPoster->getJSONConsumer(), &callMeBackIn_ms, &keepMutex, success);
 		    retry = false;
 		} else if (mPoster->isTimeout()) {
 		    PH("timeout; POST failed");

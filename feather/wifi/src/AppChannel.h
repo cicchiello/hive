@@ -5,15 +5,13 @@
 #include <strbuf.h>
 #include <couchutils.h>
 
-#include <TimeProvider.h>
-
 class HiveConfig;
 class Mutex;
-
+class TimeProvider;
 
 class AppChannel {
  public:
-    AppChannel(const HiveConfig &config, unsigned long now, TimeProvider **timeProvider, Mutex *wifiMutex, Mutex *sdMutex);
+    AppChannel(HiveConfig *config, unsigned long now, TimeProvider **timeProvider, Mutex *wifiMutex, Mutex *sdMutex);
     ~AppChannel();
 
     // returns true when it has the time; false to be called back later
@@ -26,17 +24,20 @@ class AppChannel {
     
     bool haveMessage() const {return mHavePayload;}
 
-    void consumePayload(StrBuf *payload, Mutex *alreadyOwnedSdMutex);
+    void getPayload(StrBuf *payload);
+    void consumePayload(StrBuf *payload);
 
  private:
     bool loadPrevMsgId();
     bool getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHeader);
     bool processDoc(const CouchUtils::Doc &doc, bool gettingHeader, unsigned long now, unsigned long *callMeBackIn_ms);
 
+    void setPrevMsgId(const char *prevMsgId);
+    
     unsigned long mNextAttempt, mStartTime;
     int mState, mRetryCnt;
 
-    const HiveConfig &mConfig;
+    HiveConfig *mConfig;
     bool mInitialMsg, mHavePayload, mWasOnline;
     StrBuf mPrevMsgId, mNewMsgId, mPayload, mPrevETag;
     Str mChannelUrl;

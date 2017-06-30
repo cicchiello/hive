@@ -11,6 +11,8 @@
 
 #include <Mutex.h>
 
+#include <TimeProvider.h>
+
 #include <hive_platform.h>
 #include <hiveconfig.h>
 
@@ -29,15 +31,14 @@
 
 extern "C" {void GlobalYield();};
 
+static Str APP_CHANNEL_MSGID_PROPNAME("app-channel-msgid");
+
 
 #define LOAD_PREV_MSG_ID 1
 #define READ_HEADER      2
 #define READ_MSG         3
 #define HAVE_PAYLOAD     4
 #define DONE             5
-
-static const char *DateTag = "Date: ";
-static const char *ETag = "ETag: \"";
 
 #define RETRY_WAIT 2000l
 #define FREQ       2500l
@@ -59,17 +60,18 @@ public:
 };
 
 
-AppChannel::AppChannel(const HiveConfig &config, unsigned long now, TimeProvider **timeProvider, Mutex *wifiMutex, Mutex *sdMutex)
+AppChannel::AppChannel(HiveConfig *config, unsigned long now, TimeProvider **timeProvider, Mutex *wifiMutex, Mutex *sdMutex)
   : mNextAttempt(0), mState(LOAD_PREV_MSG_ID), mConfig(config),
     mInitialMsg(false), mHavePayload(false), mWasOnline(false), 
     mPrevMsgId("undefined"), mPrevETag("undefined"), mNewMsgId(), mPayload(),
     mGetter(NULL), mWifiMutex(wifiMutex), mSdMutex(sdMutex), mTimeProvider(timeProvider)
 {
     TF("AppChannel::AppChannel");
-    StrBuf channelId(config.getHiveId().c_str()), encodedId, channelUrl;
+
+    StrBuf channelId(config->getHiveId().c_str()), encodedId, channelUrl;
     channelId.append("-app");
     CouchUtils::urlEncode(channelId.c_str(), &encodedId);
-    CouchUtils::toURL(config.getChannelDbName().c_str(), encodedId.c_str(), &channelUrl);
+    CouchUtils::toURL(config->getChannelDbName().c_str(), encodedId.c_str(), &channelUrl);
     mChannelUrl = channelUrl.c_str();
 }
 
@@ -83,6 +85,12 @@ AppChannel::~AppChannel()
     }
 }
 
+
+void AppChannel::setPrevMsgId(const char *prevMsgId)
+{
+    mPrevMsgId = prevMsgId;
+    mConfig->addProperty(APP_CHANNEL_MSGID_PROPNAME, prevMsgId);
+}
 
 
 #define NEW_FILENAME  "/NEWMSGID.DAT"
@@ -153,7 +161,10 @@ bool AppChannel::loadPrevMsgId()
 
         // the file is there!  so try to read it, 'cause it's probably the right one
         // since NEW_FILENAME exists, it means the previous run crashed mid-stream
-        if (readMsgIdFile(sd, NEW_FILENAME, &mPrevMsgId)) {
+	StrBuf prevMsgId;
+        if (readMsgIdFile(sd, NEW_FILENAME, &prevMsgId)) {
+	    setPrevMsgId(prevMsgId.c_str());
+	    
 	    // was able to read from NEW_FILENAME; now cleanup the file system by removing NEW_FILENAME
 	    // and ensuring that FILENAME is correct
 	    sd.remove(FILENAME);
@@ -177,7 +188,9 @@ bool AppChannel::loadPrevMsgId()
     } else if (sd.exists(FILENAME)) {
         // the normal file exists; looks like everything is in order
         // read it and continue
-        if (readMsgIdFile(sd, FILENAME, &mPrevMsgId)) {
+        StrBuf prevMsgId;
+        if (readMsgIdFile(sd, FILENAME, &prevMsgId)) {
+	    setPrevMsgId(prevMsgId.c_str());
 	    mState = READ_HEADER;
 	    mInitialMsg = false;
 	} else {
@@ -238,7 +251,7 @@ bool AppChannel::processDoc(const CouchUtils::Doc &doc,
 			mState = HAVE_PAYLOAD;
 			mInitialMsg = false;
 			mNewMsgId = msgId.c_str();
-			mPrevMsgId = prevMsgId.c_str();
+			setPrevMsgId(prevMsgId.c_str());
 		    } else {
 		        // then I should look further back in the history;
 		        mNewMsgId = prevMsgId.c_str();
@@ -300,47 +313,7 @@ public:
         TF("AppChannelGetter::resetForRetry");
 	HttpCouchGet::resetForRetry();
     }
-
-    const StrBuf &getETag() const {
-        static StrBuf buf;
-        TF("AppChannelGetter::getETag");
-        const char *ETagStr = strstr(m_consumer.getResponse().c_str(), ETag);
-	if (ETagStr != NULL) {
-	    buf = "";
-	    ETagStr += strlen(ETag);
-	    const char *start = ETagStr;
-	    while (ETagStr && *ETagStr && (*ETagStr != '"'))
-	        ETagStr++;
-	    buf.add(start, ETagStr-start);
-	    TRACE2("Received ETag: ", buf.c_str());
-	} else {
-	    buf = "unknown";
-	}
-	return buf;
-    }
-  
-    StrBuf getTimestamp() const {
-        TF("AppChannelGetter::getTimestamp");
-        const char *dateStr = strstr(m_consumer.getResponse().c_str(), DateTag);
-	if (dateStr != NULL) {
-	    dateStr += strlen(DateTag);
-	    StrBuf date;
-	    while (*dateStr != 13) date.add(*dateStr++);
-	    PH2("Received timestamp: ", date.c_str());
-	    return date;
-	} else {
-	    return StrBuf("unknown");
-	}
-    }
-
-    bool hasTimestamp() const {
-        TF("AppChannelGetter::hasTimestamp");
-	TRACE2("consumer response: ", m_consumer.getResponse().c_str());
-        const char *dateStr = strstr(m_consumer.getResponse().c_str(), DateTag);
-	return dateStr != NULL;
-    }
 };
-
 
 
 bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHeader)
@@ -359,33 +332,34 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 	        url = &mChannelUrl;
 	    } else {
 	        StrBuf msgUrlBuf;
-		CouchUtils::toURL(mConfig.getChannelDbName().c_str(), mNewMsgId.c_str(), &msgUrlBuf);
+		CouchUtils::toURL(mConfig->getChannelDbName().c_str(), mNewMsgId.c_str(), &msgUrlBuf);
 		msgUrl = msgUrlBuf.c_str();
 		url = &msgUrl;
 	    }
 	    
 	    TRACE2("creating getter with url: ", url->c_str());
-	    TRACE2("thru wifi: ", mConfig.getSSID().c_str());
-	    TRACE2("with pswd: ", mConfig.getPSWD().c_str());
-	    TRACE2("to host: ", mConfig.getDbHost().c_str());
-	    TRACE2("port: ", mConfig.getDbPort());
-	    TRACE2("using ssl? ", (mConfig.isSSL() ? "yes" : "no"));
-	    TRACE2("with db-user: ", mConfig.getDbUser().c_str());
-	    TRACE2("with db-pswd: ", mConfig.getDbPswd().c_str());
-	    mGetter = new AppChannelGetter(mConfig.getSSID(), mConfig.getPSWD(),
-					   mConfig.getDbHost(), mConfig.getDbPort(), mConfig.isSSL(),
-					   *url, mConfig.getDbUser(), mConfig.getDbPswd());
+	    TRACE2("thru wifi: ", mConfig->getSSID().c_str());
+	    TRACE2("with pswd: ", mConfig->getPSWD().c_str());
+	    TRACE2("to host: ", mConfig->getDbHost().c_str());
+	    TRACE2("port: ", mConfig->getDbPort());
+	    TRACE2("using ssl? ", (mConfig->isSSL() ? "yes" : "no"));
+	    TRACE2("with db-user: ", mConfig->getDbUser().c_str());
+	    TRACE2("with db-pswd: ", mConfig->getDbPswd().c_str());
+	    mGetter = new AppChannelGetter(mConfig->getSSID(), mConfig->getPSWD(),
+					   mConfig->getDbHost(), mConfig->getDbPort(), mConfig->isSSL(),
+					   *url, mConfig->getDbUser(), mConfig->getDbPswd());
 	} else {
             HttpOp::EventResult er = mGetter->event(now, &callMeBackIn_ms);
 	    if (!mGetter->processEventResult(er)) {
 		bool retry = false;
 		callMeBackIn_ms = FREQ - ((now=millis())-mStartTime); // most cases should schedule a callback in FREQ
 		bool isOnlineNow = false;
-		if (!*mTimeProvider && mGetter->hasTimestamp()) {
+		if (mTimeProvider && !*mTimeProvider && mGetter->hasTimestamp()) {
 		    TRACE("Starting the WDT");
 		    HivePlatform::nonConstSingleton()->startWDT();
 		    TF("hasTimestamp");
-		    StrBuf timestampStr = mGetter->getTimestamp();
+		    StrBuf timestampStr;
+		    mGetter->getTimestamp(&timestampStr);
 		    TRACE2("timestampStr: ", timestampStr.c_str());
 		    unsigned long timestampAtMark;
 		    bool stat = RTCConversions::cvtToTimestamp(timestampStr.c_str(), &timestampAtMark);
@@ -420,9 +394,9 @@ bool AppChannel::getterLoop(unsigned long now, Mutex *wifiMutex, bool gettingHea
 		        const StrBuf &etag = mGetter->getETag();
 			if (strcmp(etag.c_str(), mPrevETag.c_str()) != 0) {
 			    if (mGetter->haveDoc()) {
-			        bool isValid = processDoc(mGetter->getDoc(), gettingHeader, now, 
+			        bool isValid = processDoc(mGetter->getDoc(), gettingHeader, now,
 							  &callMeBackIn_ms);
-				if (gettingHeader) 
+				if (gettingHeader)
 				    mPrevETag = etag;
 				isOnlineNow = true;
 				if (!isValid) {
@@ -477,13 +451,21 @@ bool AppChannel::loop(unsigned long now)
     TF("AppChannel::loop");
     switch (mState) {
     case LOAD_PREV_MSG_ID: {
-        mNextAttempt = now + 50l;
-	bool stat = true;
-	if (mSdMutex->own(this)) {
-	    stat = loadPrevMsgId();
-	    mSdMutex->release(this);
-	} 
-	return stat;
+        bool hasProperty = mConfig->hasProperty(APP_CHANNEL_MSGID_PROPNAME);
+	if (hasProperty) {
+	    const Str &prop = mConfig->getProperty(APP_CHANNEL_MSGID_PROPNAME);
+	    mPrevMsgId = prop.c_str();
+	    mState = READ_HEADER;
+	    mInitialMsg = false;
+	} else {
+	    mNextAttempt = now + 50l;
+	    bool stat = true;
+	    if (mSdMutex->own(this)) {
+	        stat = loadPrevMsgId();
+		mSdMutex->release(this);
+	    }
+	    return stat;
+	}
     }
     case READ_HEADER:
         return getterLoop(now, mWifiMutex, true);
@@ -501,69 +483,23 @@ bool AppChannel::loop(unsigned long now)
 }
 
 
-void AppChannel::consumePayload(StrBuf *result, Mutex *alreadyOwnedSdMutex)
+void AppChannel::consumePayload(StrBuf *result)
 {
     TF("AppChannel::consumePayload");
 
-    assert(alreadyOwnedSdMutex->whoOwns() == this, "mutex problem");
-    
-    // now it's safe to write the msg id out to file to complete the atomic operation of aquiring a message
-    SdFat sd;
-    SDUtils::initSd(sd);
+    getPayload(result);
 
-    GlobalYield();
-    if (sd.exists(FILENAME)) {
-        // the following ugliness exists to ensure that the operation is transactional.
-        // Specifically, I want to leave the old file there until I'm certain that I've been able
-        // to write a temporary file with the new id.  After successfully putting the temp file there,
-        // I'll go back and attempt to delete FILENAME, write to it, then delete the temp file.
-        //
-        // If there is any kind of failure after writing the temp file but before deleting it, a subsequent
-        // run can figure out the correct state
-      
-        if (sd.exists(NEW_FILENAME)) {
-	    PL("Unexpectedly found NEW_FILENAME present; deleting it");
-	    if (sd.remove(NEW_FILENAME)) {
-	        PL("deleted.");
-	    } else {
-	        PL("Couldn't delete NEW_FILENAME");
-	    }
-	}
-    
-	GlobalYield();
-	
-	bool wrote = writeMsgIdFile(sd, NEW_FILENAME, mNewMsgId.c_str(), mNewMsgId.len());
-	assert(wrote, "Couldn't create or write to NEW_FILENAME");
-
-	GlobalYield();
-	
-	if (sd.remove(FILENAME)) {
-	    if (!writeMsgIdFile(sd, FILENAME, mNewMsgId.c_str(), mNewMsgId.len())) {
-	        // not quite fatal... but things probably won't proceed well!
-	        TRACE2("Couldn't write to: ", FILENAME);
-	    } else {
-	        // if we get here, it means we've just written the latest id to both files, so no need for the
-	        // transitional file any longer
-	        sd.remove(NEW_FILENAME);
-	    }
-	} else {
-	    // not quite fatal, but pretty bad... the id has been written to the NEW_FILENAME, but I cannot cleanup
-	    TRACE("The id has been written to NEW_FILENAME, but cannot cleanup FILENAME");
-	}
-
-	GlobalYield();
-	
-    } else {
-        bool wrote = writeMsgIdFile(sd, FILENAME, mNewMsgId.c_str(), mNewMsgId.len());
-	assert(wrote, "Couldn't write to FILENAME");
-    }
-
-    GlobalYield();
-	
-    *result = mPayload;
-    mPrevMsgId = mNewMsgId;
+    setPrevMsgId(mNewMsgId.c_str());
     mHavePayload = false;
     mPayload = "";
+}
+
+
+void AppChannel::getPayload(StrBuf *result)
+{
+    TF("AppChannel::getPayload");
+
+    *result = mPayload;
 }
 
 

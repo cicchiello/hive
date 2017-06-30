@@ -15,7 +15,7 @@
 
 #include <TimeProvider.h>
 
-#include <http_couchget.h>
+#include <http_jsonget.h>
 #include <http_couchput.h>
 
 #include <strbuf.h>
@@ -40,50 +40,28 @@ ConfigUploader::~ConfigUploader()
 }
 
 
-class ConfigGetter : public HttpCouchGet {
+class ConfigGetter : public HttpJSONGet {
 private:
     bool mHasConfig, mParsed;
     CouchUtils::Doc mConfigDoc;
   
 public:
     ConfigGetter(const Str &ssid, const Str &pswd, const Str &dbHost, int dbPort, bool isSSL,
-		 const char *url, const Str &dbUser, const Str &dbPswd)
-      : HttpCouchGet(ssid, pswd, dbHost, dbPort, url, dbUser, dbPswd, isSSL),
+		 const Str &dbUser, const Str &dbPswd, const char *urlPieces[])
+      : HttpJSONGet(ssid, pswd, dbHost, dbPort, dbUser, dbPswd, isSSL, urlPieces),
 	mHasConfig(false), mParsed(false)
     {
         TF("ConfigGetter::ConfigGetter");
     }
 
-    const CouchUtils::Doc getConfig() const {return mConfigDoc;}
+    const CouchUtils::Doc &getConfig() const {return getJSONConsumer().getDoc();}
 
-    bool isError() const {return m_consumer.isError();}
-    bool hasNotFound() const {return m_consumer.hasNotFound();}
-    bool isTimeout() const {return m_consumer.isTimeout();}
+    bool isError() const {return getJSONConsumer().isError();}
+    bool hasNotFound() const {return getJSONConsumer().hasNotFound();}
+    bool isTimeout() const {return getJSONConsumer().isTimeout();}
 
-    const StrBuf &getFullResponse() const {return m_consumer.getResponse();}
-  
     bool hasConfig() const {
-        TF("ConfigGetter::hasConfig");
-	
-	if (mParsed)
-	    return mHasConfig;
-	
-	ConfigGetter *nonConstThis = (ConfigGetter*)this;
-	if (m_consumer.hasOk()) {
-	    nonConstThis->mParsed = true;
-	    const char *jsonStr = strstr(m_consumer.getResponse().c_str(), "\"_id\"");
-	    if (jsonStr != NULL) {
-		// work back to the beginning of the doc... then parse as a couch json doc!
-		while ((jsonStr > m_consumer.getResponse().c_str()) && (*jsonStr != '{'))
-		    --jsonStr;
-
-                CouchUtils::parseDoc(jsonStr, &nonConstThis->mConfigDoc);
-		nonConstThis->mHasConfig = true;
-		return true;
-	    }
-	}
-
-	return false;
+        return getJSONConsumer().hasOk() && getJSONConsumer().hasDoc();
     }
 };
 
@@ -110,16 +88,16 @@ ConfigGetter *ConfigUploader::createGetter(const HiveConfig &config)
     
     // curl -X GET 'http://jfcenterprises.cloudant.com/hive-config/<serial#>'
 	  
-    StrBuf encodedUrl;
-    CouchUtils::urlEncode(config.getHiveId().c_str(), &encodedUrl);
-
-    StrBuf url2;
-    CouchUtils::toURL(config.getConfigDbName().c_str(), encodedUrl.c_str(), &url2);
-    TRACE2("URL: ", url2.c_str());
-	
+    static const char *urlPieces[5];
+    urlPieces[0] = "/";
+    urlPieces[1] = config.getConfigDbName().c_str();
+    urlPieces[2] = urlPieces[0];
+    urlPieces[3] = config.getHiveId().c_str();
+    urlPieces[4] = 0;
+    
     ConfigGetter *g = new ConfigGetter(config.getSSID(), config.getPSWD(),
 				       config.getDbHost(), config.getDbPort(), config.isSSL(),
-				       url2.c_str(), config.getDbUser(), config.getDbPswd());
+				       config.getDbUser(), config.getDbPswd(), urlPieces);
     return g;
 }
 
@@ -128,20 +106,23 @@ HttpCouchPut *ConfigUploader::createPutter(const HiveConfig &config, CouchUtils:
 {
     TF("ConfigUploader::createPutter");
     TRACE("creating putter");
-    
-    StrBuf url("/");
-    url.append(config.getConfigDbName().c_str()).append("/").append(id);
 
-    TRACE2("url: ", url.c_str());
-
-    StrBuf dump;
-    PH2("doc to upload: ", CouchUtils::toString(*docToUpload, &dump));
+    static const char *urlPieces[5];
+    urlPieces[0] = "/";
+    urlPieces[1] = config.getConfigDbName().c_str();
+    urlPieces[2] = urlPieces[0];
+    urlPieces[3] = id;
+    urlPieces[4] = 0;
     
+#ifndef HEADLESS    
+    CouchUtils::println(*docToUpload, Serial, "ConfigUploader::createPutter; doc to upload: ");
+#endif
+      
     return new HttpCouchPut(config.getSSID(), config.getPSWD(),
 			    config.getDbHost(), config.getDbPort(),
-			    url.c_str(), docToUpload, 
+			    docToUpload, 
 			    config.getDbUser(), config.getDbPswd(), 
-			    config.isSSL());
+			    config.isSSL(), urlPieces);
 }
 
 
@@ -203,7 +184,7 @@ bool ConfigUploader::processGetter(const HiveConfig &config, unsigned long now, 
 	    prepareDocToUpload(mGetter->getConfig(), mDocToUpload, now, NULL);
 	    retry = false;
 	} else if (mGetter->isError()) {
-	    PH2("doc not found in the response: ", mGetter->getFullResponse().c_str());
+	    PH2("doc not found in the response; header: ", mGetter->getHeaderConsumer().getHeader().c_str());
 	}
     }
     if (retry) {
@@ -212,6 +193,7 @@ bool ConfigUploader::processGetter(const HiveConfig &config, unsigned long now, 
     } else {
 	*callMeBackIn_ms = 10l;
     }
+
     mGetter->shutdownWifiOnDestruction(retry);
     delete mGetter;
     mGetter = NULL;
@@ -228,7 +210,8 @@ bool ConfigUploader::processPutter(unsigned long now, unsigned long *callMeBackI
     if (mPutter->processEventResult(er))
         return true; // not done yet
 
-    TRACE2("putter response: ", mPutter->getHeaderConsumer().getResponse().c_str());
+    TRACE2("putter response header: ", mPutter->getHeaderConsumer().getHeader().c_str());
+    TRACE2("putter response content: ", mPutter->getCouchConsumer().getContent().c_str());
 
     bool retry = true;
     *callMeBackIn_ms = 5000l;
@@ -255,7 +238,6 @@ bool ConfigUploader::processPutter(unsigned long now, unsigned long *callMeBackI
 bool ConfigUploader::loop(unsigned long now)
 {
     TF("ConfigUploader::loop");
-
     bool callMeBack = true;
     if (mDoUpload && (now > mNextActionTime) && mWifiMutex->own(this)) {
         //TRACE("doing upload");

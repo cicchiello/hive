@@ -69,11 +69,15 @@ bool HttpPutTest::createPutter(const CouchUtils::Doc &originalDoc)
 	CouchUtils::printDoc(*updateDoc);
 #endif
 
-	StrBuf url;
-	CouchUtils::toURL(defaultDbName, getDocid(), &url);
+	static const char *urlPieces[3];
+	urlPieces[0] = "/";
+	urlPieces[1] = defaultDbName;
+	urlPieces[2] = urlPieces[0];
+	urlPieces[3] = getDocid();
+	urlPieces[4] = 0;
 
 	m_putter = new HttpCouchPut(ssid, pass, getDbHost(), getDbPort(),
-				    url.c_str(), updateDoc, getDbUser(), getDbPswd(), getIsSSL());
+				    updateDoc, getDbUser(), getDbPswd(), getIsSSL(), urlPieces);
 
 	return m_putter != NULL;
     } else {

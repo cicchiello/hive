@@ -8,30 +8,10 @@
 
 class HttpCouchGet : public HttpGet {
  public:
-   HttpCouchGet(const char *ssid, const char *ssidPswd, 
-		const char *host, int port, const char *page,
-		const char *dbUser, const char *dbPswd, 
-		bool isSSL = false)
-     : HttpGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
-       m_consumer(getContext())
-       {
-	 init();
-       }
-  
    HttpCouchGet(const Str &ssid, const Str &ssidPswd, 
-		const Str &host, int port, const Str &page,
+		const Str &host, int port, 
 		const Str &dbUser, const Str &dbPswd, 
-		bool isSSL = false);
-  
-   HttpCouchGet(const char *ssid, const char *ssidPswd, 
-		const IPAddress &hostip, int port, const char *page,
-		const char *dbUser, const char *dbPswd, 
-		bool isSSL = false)
-     : HttpGet(ssid, ssidPswd, hostip, port, page, dbUser, dbPswd, isSSL),
-       m_consumer(getContext())
-       {
-	 init();
-       }
+		bool isSSL, const char *urlPieces[]);
   
    ~HttpCouchGet() {}
    
@@ -47,6 +27,10 @@ class HttpCouchGet : public HttpGet {
    bool isError() const {return m_consumer.isError();}
    bool hasNotFound() const {return m_consumer.hasNotFound();}
    bool isTimeout() const {return m_consumer.isTimeout();}
+   
+   const StrBuf &getETag() const;
+   bool getTimestamp(StrBuf *date) const;
+   bool hasTimestamp() const;
    
  protected:
    HttpCouchGet(const HttpCouchGet &); //intentionally unimplemented

@@ -38,12 +38,26 @@ void HttpCouchPost::sendPOST(Stream &s, int contentLength) const
 }
 
 
-void HttpCouchPost::sendDoc(Stream &s, const char *doc) const
+void HttpCouchPost::sendDoc(Stream &s, const CouchUtils::Doc &doc) const
 {
     TF("HttpCouchPost::sendDoc");
-    PL(doc);
-    s.print(doc);
+#ifndef HEADLESS    
+    CouchUtils::println(doc, Serial);
+#endif
+    CouchUtils::print(doc, s);
 }
+
+
+class NullStream : public Print {
+private:
+  int cnt;
+public:
+  NullStream() : cnt(0) {}
+  
+  int getLen() const {return cnt;}
+
+  size_t write(uint8_t) {cnt++; return 1;}
+};
 
 
 HttpOp::EventResult HttpCouchPost::event(unsigned long now, unsigned long *callMeBackIn_ms)
@@ -55,13 +69,15 @@ HttpOp::EventResult HttpCouchPost::event(unsigned long now, unsigned long *callM
     case ISSUE_OP: {
         TRACE("ISSUE_OP");
 	
-	StrBuf str;
-	CouchUtils::toString(m_content, &str);
+	NullStream nullStream;
+	CouchUtils::print(m_content, nullStream);
 	    
-	sendPOST(getContext().getClient(), str.len());
-	if (str.len() > 0) {
-	    sendDoc(getContext().getClient(), str.c_str());
+	sendPOST(getContext().getClient(), nullStream.getLen());
+	if (nullStream.getLen() > 0) {
+	    sendDoc(getContext().getClient(), m_content);
 	}
+
+	m_content.clear();
 	    
 	setOpState(ISSUE_OP_FLUSH);
 	

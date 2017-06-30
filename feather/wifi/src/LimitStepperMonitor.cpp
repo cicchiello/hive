@@ -43,7 +43,7 @@ bool LimitStepperMonitor::isItTimeYet(unsigned long now)
 }
 
 
-bool LimitStepperMonitor::processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms,
+bool LimitStepperMonitor::processResult(const HttpJSONConsumer &consumer, unsigned long *callMeBackIn_ms,
 					bool *keepMutex, bool *success)
 {
     TF("LimitStepperMonitor::processResult");

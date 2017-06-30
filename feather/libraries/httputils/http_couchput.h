@@ -6,27 +6,11 @@
 
 class HttpCouchPut : private HttpCouchGet {
  public:
-   HttpCouchPut(const char *ssid, const char *ssidPswd, 
-		const char *host, int port, const char *page,
-		CouchUtils::Doc *content, // passing ownership
-		const char *dbUser, const char *dbPswd, bool isSSL = false)
-     : HttpCouchGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
-       m_content(content)
-       {
-       }
    HttpCouchPut(const Str &ssid, const Str &ssidPswd, 
-		const Str &host, int port, const char *page,
+		const Str &host, int port, 
 		CouchUtils::Doc *content, // passing ownership
-		const Str &dbUser, const Str &dbPswd, bool isSSL = false)
-     : HttpCouchGet(ssid, ssidPswd, host, port, page, dbUser, dbPswd, isSSL),
-       m_content(content)
-       {
-       }
-   HttpCouchPut(const char *ssid, const char *ssidPswd, 
-		const IPAddress &hostip, int port, const char *page,
-		CouchUtils::Doc *content, // passing ownership
-		const char *dbUser, const char *dbPswd, bool isSSL = false)
-     : HttpCouchGet(ssid, ssidPswd, hostip, port, page, dbUser, dbPswd, isSSL),
+		const Str &dbUser, const Str &dbPswd, bool isSSL, const char *page[])
+     : HttpCouchGet(ssid, ssidPswd, host, port, dbUser, dbPswd, isSSL, page),
        m_content(content)
        {
        }
@@ -35,6 +19,7 @@ class HttpCouchPut : private HttpCouchGet {
    using HttpCouchGet::EventResult;
    
    using HttpCouchGet::getHeaderConsumer;
+   using HttpCouchGet::getCouchConsumer;
    using HttpCouchGet::getDoc;
    using HttpCouchGet::haveDoc;
    using HttpCouchGet::processEventResult;
@@ -49,7 +34,7 @@ class HttpCouchPut : private HttpCouchGet {
    HttpCouchPut(const HttpCouchPut &); //intentionally unimplemented
 
    void sendPUT(Stream &s, int contentLength) const;
-   void sendDoc(Stream &s, const char *doc) const;
+   void sendDoc(Stream &s, const CouchUtils::Doc &doc) const;
    
    bool testSuccess() const;
 

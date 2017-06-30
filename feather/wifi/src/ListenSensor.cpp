@@ -22,8 +22,9 @@
 
 
 #define DEFAULT_ATTACHMENT_NAME  "listen.wav"
-#define ATTACHMENT_CONTENT_TYPE  "audio/wav"
-#define CONTENT_FILENAME         "/LISTEN.WAV"
+static Str CONTENT_FILENAME("/LISTEN.WAV");
+static Str ATTACHMENT_CONTENT_TYPE("audio/wav");
+
 
 ListenSensor::ListenSensor(const HiveConfig &config,
 			   const char *name, 
@@ -64,8 +65,9 @@ bool ListenSensor::isItTimeYet(unsigned long now)
     switch (mState) {
     case NOOP: return mStart;
       
-    case RECORDING: 
-    case UPLOADING: return now > getNextPostTime();
+    case RECORDING: return now > getNextPostTime();
+      
+    case UPLOADING: return mUploader->isItTimeYet(now);
       
     default: assert(false, "Invalid state");
     }
@@ -134,7 +136,7 @@ bool ListenSensor::loop(unsigned long now)
 		attachmentDescription.append((int)(mMillisecondsToRecord/1000)).append("s-audio-clip");
 		mState = UPLOADING;
 		mUploader = new AudioUpload(getConfig(), getName(), attachmentDescription.c_str(),
-					    mAttName->c_str(), ATTACHMENT_CONTENT_TYPE,
+					    *mAttName, ATTACHMENT_CONTENT_TYPE,
 					    CONTENT_FILENAME, getRateProvider(), 
 					    now, getWifiMutex(), getSdMutex());
 		
@@ -144,6 +146,7 @@ bool ListenSensor::loop(unsigned long now)
 		bool uploaderOwnsSdMutex = getSdMutex()->own(mUploader);
 		bool uploaderOwnsWifiMutex = getWifiMutex()->own(mUploader);
 		assert(uploaderOwnsSdMutex && uploaderOwnsWifiMutex, "Mutices *not* passed to AudioUpload object");
+		callMeBackIn_ms = 10l;
 	    }
 
 	    delete mListener;

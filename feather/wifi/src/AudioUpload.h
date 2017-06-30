@@ -3,16 +3,17 @@
 
 
 #include <SensorBase.h>
+#include <str.h>
 
 class AudioUpload : public SensorBase {
  public:
 
     AudioUpload(const HiveConfig &config,
 		const char *sensorName,
-		const char *attachmentDescription,
-		const char *attachmentName,
-		const char *contentType,
-		const char *filename,
+		const Str &attachmentDescription,
+		const Str &attachmentName,
+		const Str &contentType,
+		const Str &filename, 
 		const class RateProvider &rateProvider,
 		unsigned long now,
 		Mutex *wifiMutex, Mutex *sdMutex);
@@ -26,7 +27,7 @@ class AudioUpload : public SensorBase {
 
     Mutex *getSdMutex() const {return mSdMutex;}
     
-    virtual bool processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms,
+    virtual bool processResult(const HttpJSONConsumer &consumer, unsigned long *callMeBackIn_ms,
 			       bool *keepMutex, bool *success);
 
  private:
@@ -39,7 +40,7 @@ class AudioUpload : public SensorBase {
     class MyDataProvider *mDataProvider;
     class HttpBinaryPut *mBinaryPutter;
     bool mHaveDocId, mIsDone;
-    Str *mDocId, *mRevision, *mAttachmentName, *mContentType, *mFilename, *mAttDesc;
+    Str mDocId, mRevision, mAttachmentName, mContentType, mFilename, mAttDesc;
     Mutex *mSdMutex;
 };
 

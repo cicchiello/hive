@@ -11,7 +11,6 @@ class Str {
   Str &operator=(const Str &);
   Str &operator=(const char *);
 
-  int capacity() const;
   int len() const;
 
   bool equals(const Str &other) const;
@@ -25,34 +24,43 @@ class Str {
   
   static int sBytesConsumed;
   static unsigned int hash_str(const char* s);
-  static int cacheSz();
-  
- private:
-  
+
+
   class Item {
   private:
     Item(const char *s);
     
+    unsigned char cap;
+    unsigned short refs;
+    
   public:
     static Item *lookupOrCreate(const char *s);
-  
+
+    Item() : buf(0), cap(0), refs(0) {}
     Item(int sz);
     ~Item();
 
     bool equals(const Item &other) const;
     
     void expand(int capacity);
+    int inc();
+    int dec() {return --refs;}
+    int refcnt() const {return refs;}
+
+    int getLen() const;
+
+    unsigned short getCapacity() const {return ((unsigned short) cap) << 4;}
+    void setCapacity(unsigned short c);
+
+    static const char *classname() {return "Str::Item";}
     
     char *buf;
-    unsigned short cap;
-    unsigned short len;
-    unsigned short refs;
   };
-  
+
   Str(Item *);
 
   Item *item;
-  bool deleted;
+  bool deleted:1;
 
   static void expand(int required, unsigned short *cap, char **buf);
 
@@ -61,25 +69,7 @@ class Str {
 };
 
 
-inline Str::Str() : item(sEmpty.item), deleted(false) {item->refs++;}
-inline Str::Str(const Str &str) : item(str.item), deleted(false) {item->refs++;}
-inline const char *Str::c_str() const {return item->buf;}
-inline int Str::capacity() const {return item->cap;}
-inline Str::~Str() {
-  if (--item->refs == 0) {
-    delete item;
-    sBytesConsumed -= sizeof(Item);
-  }
-  item = 0;
-  deleted = true;
-}
-inline bool Str::equals(const Str &other) const
-{
-    if (this->item == other.item)
-        return true;
-
-    return this->item->equals(*other.item);
-}
+inline Str::Str() : deleted(false) {item = sEmpty.item; item->inc();}
 
 
 inline

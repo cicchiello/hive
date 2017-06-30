@@ -7,7 +7,7 @@
 class Str;
 class Mutex;
 class HiveConfig;
-class HttpCouchConsumer;
+class HttpJSONConsumer;
 
 
 class SensorBase : public Sensor {
@@ -38,7 +38,7 @@ class SensorBase : public Sensor {
     
     bool postImplementation(unsigned long now, Mutex *wifi, bool *success);
     
-    virtual bool processResult(const HttpCouchConsumer &consumer, unsigned long *callMeBackIn_ms,
+    virtual bool processResult(const HttpJSONConsumer &consumer, unsigned long *callMeBackIn_ms,
 			       bool *keepMutex, bool *success);
     
  private:
@@ -46,7 +46,7 @@ class SensorBase : public Sensor {
 
     Str *mValueStr, *mPrevValueStr;
     const HiveConfig &mConfig;
-    class HttpCouchPost *mPoster;
+    class HttpJSONPost *mPoster;
     Mutex *mWifiMutex;
     bool mDidFirstPost, mValueCacheEnabled;
 };
