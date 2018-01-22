@@ -7,7 +7,6 @@ bin/
 
 # built application files
 *.ap_
-*.jar
 !gradle/wrapper/gradle-wrapper.jar
 
 # lint folder
