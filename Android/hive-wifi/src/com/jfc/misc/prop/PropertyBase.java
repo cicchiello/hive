@@ -1,10 +1,11 @@
 package com.jfc.misc.prop;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.acra.ACRA;
 
 import android.app.Activity;
 import android.util.Log;
-import android.widget.ImageButton;
 import android.widget.TextView;
 
 import com.jfc.srvc.cloud.CouchCmdPush;
@@ -18,6 +19,8 @@ public class PropertyBase {
 	protected TextView mValueTV;
 	protected String mHiveId;
 	
+	private static AtomicBoolean postInFlight = new AtomicBoolean(false);
+		
 	protected PropertyBase(Activity _activity, String _hiveId, TextView _valueTV, TextView _timestampTV) {
 		this.mActivity = _activity;
 		this.mValueTV = _valueTV;
@@ -27,19 +30,33 @@ public class PropertyBase {
 
 	
 	protected void postToDb(final String sensor, final String instruction) {
+		
+		while (postInFlight.get()) {
+			try {
+				Thread.sleep(50);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
 		CouchCmdPush.OnCompletion onCompletion = new CouchCmdPush.OnCompletion() {
 	    	public void success() {
 	    		Log.i(TAG, "Channel Doc PUT success");
+	    		postInFlight.set(false);
 	    	}
 	    	public void error(String query, String msg) {
 	    		Log.e(TAG, "Channel Doc PUT failed: "+msg);
 				ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
+	    		postInFlight.set(false);
 	    	}
 			public void serviceUnavailable(String msg) {
 				// TODO Auto-generated method stub
+	    		postInFlight.set(false);
 			}
 		};
 		
+		postInFlight.set(true);
 		new CouchCmdPush(mActivity, sensor, instruction, onCompletion).execute();
 	}
 
