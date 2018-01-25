@@ -299,6 +299,13 @@ public class MotorProperty extends PropertyBase {
 
 		String action = getMotorAction(mActivity, mHiveId, mMotorIndex);
 		boolean isStopped = action.equals(MOTOR_ACTION_STOPPED);
+		
+		// in case the db has an unexpected value -- consider the motor stopped in that case
+		if (!isStopped && !action.startsWith(MOTOR_ACTION_MOVING) && !action.equals(MOTOR_ACTION_PENDING_MOVE)) {
+			action = MOTOR_ACTION_STOPPED;
+			isStopped = true;
+		}
+		
 		if (!isStopped) {
 			long shouldHaveTaken_s = 10; // pending case shouldn't stay pending for more than a few seconds
 			if (action.startsWith(MOTOR_ACTION_MOVING)) {

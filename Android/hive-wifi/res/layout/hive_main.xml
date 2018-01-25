@@ -488,9 +488,10 @@
 	        android:orientation="vertical" >
 	        
 	   		<TextView
+	   		    android:id="@+id/motor1Label"
 	   		    android:layout_width="wrap_content"
 	   		    android:layout_height="wrap_content"
-	   		    android:text="@string/motor1Label"
+	   		    android:text="@string/motor1UnlimitedLabel"
 	   		    android:textAppearance="?android:attr/textAppearanceMedium"
 	   		    android:textStyle="bold" />
 	
@@ -582,9 +583,10 @@
 	        android:orientation="vertical" >
 	        
 	   		<TextView
+	   		    android:id="@+id/motor2Label"
 	   		    android:layout_width="wrap_content"
 	   		    android:layout_height="wrap_content"
-	   		    android:text="@string/motor2Label"
+	   		    android:text="@string/motor2UnlimitedLabel"
 	   		    android:textAppearance="?android:attr/textAppearanceMedium"
 	   		    android:textStyle="bold" />
 	

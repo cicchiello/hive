@@ -3,6 +3,9 @@ package com.jfc.apps.hive;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import com.jfc.misc.prop.ActiveHiveProperty;
 import com.jfc.misc.prop.AudioSampler;
 import com.jfc.misc.prop.DbCredentialsProperty;
@@ -33,6 +36,8 @@ public class MainActivity extends Activity {
     
     private static final boolean DEBUG = HiveEnv.DEBUG && !HiveEnv.RELEASE_TEST;
 
+    private static final String HDWR_VERSION_PROPERTY = "hdwr-version";
+    
     // db polling -- necessary until/unless we have an active notification upon db change
     // the following vars are managed by the startPolling() and cancelPolling() functions
 	private AtomicBoolean mStopPoller = new AtomicBoolean(false);
@@ -118,16 +123,40 @@ public class MainActivity extends Activity {
 									  (ImageButton) findViewById(R.id.selectMotor0Button),
 									  (TextView) findViewById(R.id.motor0TimestampText));
 		
-		m1 = new MotorProperty(this, HiveId, 1, 
-							   (TextView) findViewById(R.id.motor1Text), 
-							   (ImageButton) findViewById(R.id.selectMotor1Button),
-							   (TextView) findViewById(R.id.motor1TimestampText));
+		JSONObject config = UptimeProperty.getEmbeddedConfig(this, HiveId);
+		boolean isVersion_2_2 = true;
+		if (config.has(HDWR_VERSION_PROPERTY)) {
+			try {
+				isVersion_2_2 = config.getString(HDWR_VERSION_PROPERTY).equals("2.2");
+			} catch (JSONException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 
-		m2 = new MotorProperty(this, HiveId, 2, 
-							   (TextView) findViewById(R.id.motor2Text), 
-							   (ImageButton) findViewById(R.id.selectMotor2Button),
-							   (TextView) findViewById(R.id.motor2TimestampText));
-
+		if (isVersion_2_2) {
+			m1 = new MotorProperty(this, HiveId, 1, 
+								   (TextView) findViewById(R.id.motor1Text), 
+								   (ImageButton) findViewById(R.id.selectMotor1Button),
+								   (TextView) findViewById(R.id.motor1TimestampText));
+			m2 = new MotorProperty(this, HiveId, 2, 
+								   (TextView) findViewById(R.id.motor2Text), 
+								   (ImageButton) findViewById(R.id.selectMotor2Button),
+								   (TextView) findViewById(R.id.motor2TimestampText));
+		} else {
+			m1 = new LimitedMotorProperty(this, HiveId, 1, 
+					   (TextView) findViewById(R.id.motor1Text), 
+					   (ImageButton) findViewById(R.id.selectMotor1Button),
+					   (TextView) findViewById(R.id.motor1TimestampText));
+			TextView tv1 = (TextView) findViewById(R.id.motor1Label);
+			tv1.setText(getString(R.string.motor1LimitedLabel));
+			m2 = new LimitedMotorProperty(this, HiveId, 2, 
+					   (TextView) findViewById(R.id.motor2Text), 
+					   (ImageButton) findViewById(R.id.selectMotor2Button),
+					   (TextView) findViewById(R.id.motor2TimestampText));
+			TextView tv2 = (TextView) findViewById(R.id.motor2Label);
+			tv2.setText(getString(R.string.motor2LimitedLabel));
+		}
 		
 		uptime = new UptimeProperty(this, HiveId, 
 									(TextView) findViewById(R.id.hiveUptimeText), 
