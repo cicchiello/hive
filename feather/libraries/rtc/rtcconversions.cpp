@@ -30,9 +30,11 @@ Timestamp_t Time_Convert_TO2TS(Time * time) {
     int mth[12] = {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334};
     int mthb[12] = {0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335};
     bool isLeapYear = (((!(time->year % 4)) && (time->year % 100) ) || (!(time->year % 400)));
+    int centuryCrossingsSince1970 = (time->year / 1000) - (1970 / 1000);
+    int numLeapYearsSince1970 = ((time->year - 1970) / 4) - centuryCrossingsSince1970;
     unsigned long days = isLeapYear ?
-      ((((unsigned long int)( time->year - 1970) / 4)) + (time->year - 1970) * 365 + mthb[time->month-1] + (time->day)) :
-      ((((unsigned long int)( time->year - 1970) / 4)) + (time->year - 1970) * 365 + mth [time->month-1] + (time->day));
+      (numLeapYearsSince1970 + (time->year - 1970) * 365 + mthb[time->month-1] + (time->day)) :
+      (numLeapYearsSince1970 + (time->year - 1970) * 365 + mth [time->month-1] + (time->day));
 
     Timestamp_t timestamp = days * 86400 + time->hour * 3600 + time -> minute * 60 + time -> second;
     

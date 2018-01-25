@@ -9,7 +9,7 @@
 #include <str.h>
 
 
-#define CONNECTED_LED           10
+#define CONNECTED_LED           13
 
 
 void setup(void)

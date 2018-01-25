@@ -2,7 +2,8 @@ ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 APP=hive
 
-TESTS=feather blink beecnt latch audio couchutils.t Provision.t 
+#TESTS=feather blink beecnt latch audio couchutils.t Provision.t 
+TESTS=feather blink 
 
 DFAMILY=samd21
 
