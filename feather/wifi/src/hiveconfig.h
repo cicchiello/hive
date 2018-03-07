@@ -8,7 +8,21 @@ class HiveConfig {
     // constucts a default config
     HiveConfig(const char *resetCause, const char *versionId);
     ~HiveConfig();
+
     
+    // Hardware versioning: 
+    //   versions correspond to Fritzing version numbers
+    //    i.e.  *_2_4 corresponds to hive_v2.4.fzz
+    static const char *HDWR_VERSION_2_2;
+    static const char *HDWR_VERSION_2_4;
+    
+    // must be called before GPIO lines are being used for anything else
+    static void determineHdwrVersion();
+    
+    // can be called anytime after determineHdwrVersion has been called
+    static const Str &getHdwrVersion();
+    
+
     void setDefault();
 
     // returns true if the resulting config is valid; otherwise it leaves this config unchanged
@@ -22,6 +36,7 @@ class HiveConfig {
 
     static const Str HiveIdProperty;
     static const Str HiveFirmwareProperty;
+    static const Str HiveHdwrVerProperty;
     static const Str TimestampProperty;
     static const Str SsidProperty;
     static const Str SsidPswdProperty;
@@ -33,7 +48,7 @@ class HiveConfig {
  
     const Str &getHiveId() const;
     unsigned long getConfigTimestamp() const;
-    
+
     const Str &getSSID() const;
     const Str &getPSWD() const;
     const Str &getDbHost() const;

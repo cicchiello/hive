@@ -20,6 +20,8 @@ HiveConfig::UpdateFunctor *HiveConfig::mUpdateFunctor = NULL;
 
 static Str sEmpty;
 
+#define VERSION_2_4_INDICATOR_PIN 13  // there's a 6.8kOhm resistor tied to ground for hdwr v2.4
+
 HiveConfig::HiveConfig(const char *resetCause, const char *versionId)
   : mDoc(), mRCause(resetCause), mVersionId(versionId)
 {
@@ -31,6 +33,33 @@ HiveConfig::HiveConfig(const char *resetCause, const char *versionId)
 HiveConfig::~HiveConfig()
 {
     delete mUpdateFunctor;
+}
+
+
+const char *HiveConfig::HDWR_VERSION_2_2 = "2.2";
+const char *HiveConfig::HDWR_VERSION_2_4 = "2.4";
+
+static const char *hdwrVersion = HiveConfig::HDWR_VERSION_2_2; // default is v2.2
+
+void HiveConfig::determineHdwrVersion()
+{
+    pinMode(VERSION_2_4_INDICATOR_PIN, INPUT_PULLUP);
+    delay(1);
+    int versionTest = digitalRead(VERSION_2_4_INDICATOR_PIN);
+    if (versionTest == HIGH) {
+      PL("Hive hdwr version 2.2 detected");
+      // it's the default
+      hdwrVersion = HDWR_VERSION_2_2;
+    } else {
+      PL("Hive hdwr version >= 2.4 detected");
+      hdwrVersion = HDWR_VERSION_2_4;
+    }
+}
+
+const Str &HiveConfig::getHdwrVersion()
+{
+  static Str hdwrVer(hdwrVersion);
+  return hdwrVer;
 }
 
 
@@ -48,6 +77,8 @@ bool HiveConfig::setDoc(const CouchUtils::Doc &doc)
 		    cleanedDoc.addNameValue(new CouchUtils::NameValuePair(HiveFirmwareProperty, mVersionId));
 		} else if (mDoc[j].getName().equals(HiveIdProperty)) {
 		    cleanedDoc.addNameValue(new CouchUtils::NameValuePair(HiveIdProperty, getHiveId()));
+		} else if (mDoc[j].getName().equals(HiveHdwrVerProperty)) {
+		  cleanedDoc.addNameValue(new CouchUtils::NameValuePair(HiveHdwrVerProperty,getHdwrVersion()));
 		} else {
 		    if (mDoc[j].getValue().isStr() && doc[i].getValue().isStr() &&
 			mDoc[j].getValue().getStr().equals(doc[i].getValue().getStr())) {
@@ -62,6 +93,9 @@ bool HiveConfig::setDoc(const CouchUtils::Doc &doc)
 	    cleanedDoc.addNameValue(new CouchUtils::NameValuePair(doc[i].getName(), doc[i].getValue()));
 	}
     }
+
+    if (cleanedDoc.lookup(HiveHdwrVerProperty) < 0) 
+        cleanedDoc.addNameValue(new CouchUtils::NameValuePair(HiveHdwrVerProperty,getHdwrVersion()));
     
     mDoc = cleanedDoc;
     
@@ -80,6 +114,7 @@ bool HiveConfig::setDoc(const CouchUtils::Doc &doc)
 
 const Str HiveConfig::HiveIdProperty("hive-id");
 const Str HiveConfig::HiveFirmwareProperty("hive-version");
+const Str HiveConfig::HiveHdwrVerProperty("hdwr-version");
 const Str HiveConfig::TimestampProperty("timestamp");
 const Str HiveConfig::SsidProperty("ssid");
 const Str HiveConfig::SsidPswdProperty("pswd");
@@ -97,6 +132,7 @@ void HiveConfig::setDefault()
     mDoc.clear();
     mDoc.addNameValue(new CouchUtils::NameValuePair(HiveIdProperty, CouchUtils::Item(getHiveId())));
     mDoc.addNameValue(new CouchUtils::NameValuePair(HiveFirmwareProperty, CouchUtils::Item(mVersionId)));
+    mDoc.addNameValue(new CouchUtils::NameValuePair(HiveHdwrVerProperty, CouchUtils::Item(getHdwrVersion())));
     mDoc.addNameValue(new CouchUtils::NameValuePair(TimestampProperty, CouchUtils::Item("1400000000")));
     mDoc.addNameValue(new CouchUtils::NameValuePair(SsidProperty, CouchUtils::Item("<MyWifi>")));
     mDoc.addNameValue(new CouchUtils::NameValuePair(SsidPswdProperty, CouchUtils::Item("<MyPasscode>")));

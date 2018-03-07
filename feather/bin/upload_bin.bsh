@@ -16,7 +16,8 @@ else
     exit
 fi
 
-ROOT=/home/pi/hive/feather/bin
+HERE=`realpath $0`
+ROOT=`dirname ${HERE}`
 ARDUINO_PACKAGES=/home/pi/.arduino15/packages
 ARDUINO_TOOLS=${ARDUINO_PACKAGES}/arduino/tools
 #UPLD=${ARDUINO_TOOLS}/bossac/1.6.1-arduino/bossac

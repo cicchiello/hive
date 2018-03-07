@@ -52,8 +52,16 @@
 
 #define LATCH_SERVO_PIN         12
 
-#define POSLIMITSWITCH_PIN       5
-#define NEGLIMITSWITCH_PIN       6
+#define VER_2_2_POSLIMITSWITCH_PIN       5
+#define VER_2_2_NEGLIMITSWITCH_PIN       6
+
+#define VER_2_4_MOTOR0_POSLIMITSWITCH_PIN       16
+#define VER_2_4_MOTOR0_NEGLIMITSWITCH_PIN       19
+#define VER_2_4_MOTOR1_POSLIMITSWITCH_PIN       1
+#define VER_2_4_MOTOR1_NEGLIMITSWITCH_PIN       0
+#define VER_2_4_MOTOR2_POSLIMITSWITCH_PIN       5
+#define VER_2_4_MOTOR2_NEGLIMITSWITCH_PIN       6
+
 
 static const char *ResetCause = "unknown";
 static int s_mainState = INIT_SENSORS;
@@ -141,7 +149,7 @@ void setup(void)
     
     // capture the reason for previous reset so I can inform the app
     ResetCause = HivePlatform::singleton()->getResetCause(); 
-    
+
     delay(500);
 
 #ifndef HEADLESS
@@ -150,6 +158,8 @@ void setup(void)
     Serial.begin(115200);
 #endif
 
+    HiveConfig::determineHdwrVersion();
+    
     PH2("ResetCause: ", ResetCause);
 
     //pinMode(5, OUTPUT);         // for debugging: used to indicate ISR invocations for motor drivers
@@ -183,7 +193,7 @@ void setup(void)
 */
 /**************************************************************************/
 
-#define ADCPIN A2
+#define ADCPIN A1
 #define BIASPIN A0
 
 static void rxLoop(unsigned long now);
@@ -238,23 +248,40 @@ void loop(void)
 
 	MotorSpeedActuator *motorSpeed = new MotorSpeedActuator(&CNF, "steps-per-second", now);
 	s_actuators[actuatorIndex++] = motorSpeed;
-	
+
+	bool isVer_2_2 = HiveConfig::getHdwrVersion().equals(HiveConfig::HDWR_VERSION_2_2);
+	int posLimit_pin = isVer_2_2 ? VER_2_2_POSLIMITSWITCH_PIN : VER_2_4_MOTOR0_POSLIMITSWITCH_PIN;
+	int negLimit_pin = isVer_2_2 ? VER_2_2_NEGLIMITSWITCH_PIN : VER_2_4_MOTOR0_NEGLIMITSWITCH_PIN;
 	LimitStepperActuator *motor0 = new LimitStepperActuator(CNF, *rate, *motorSpeed, "motor0-target", now,
-							        POSLIMITSWITCH_PIN, NEGLIMITSWITCH_PIN,
+								posLimit_pin, negLimit_pin, 
 								0x60, 1);
 	s_sensors[sFirstMotorIndex = sensorIndex++] = new LimitStepperMonitor(CNF, "motor0", *rate, now, motor0,
-							   &sWifiMutex);
+									      &sWifiMutex);
 	s_actuators[actuatorIndex++] = motor0;
 	
-	StepperActuator *motor1 = new StepperActuator(CNF, *rate, *motorSpeed, "motor1-target", now, 0x60, 2);
-	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor1", *rate, now, motor1,
-						      &sWifiMutex);
-	s_actuators[actuatorIndex++] = motor1;
-	
-	StepperActuator *motor2 = new StepperActuator(CNF, *rate, *motorSpeed, "motor2-target", now, 0x61, 2);
-	s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor2", *rate, now, motor2,
-						      &sWifiMutex);
-	s_actuators[actuatorIndex++] = motor2;
+	if (isVer_2_2) {
+	    StepperActuator *motor1 = new StepperActuator(CNF, *rate, *motorSpeed, "motor1-target", now, 0x60, 2);
+	    s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor1", *rate, now, motor1, &sWifiMutex);
+	    s_actuators[actuatorIndex++] = motor1;
+	    
+	    StepperActuator *motor2 = new StepperActuator(CNF, *rate, *motorSpeed, "motor2-target", now, 0x61, 2);
+	    s_sensors[sensorIndex++] = new StepperMonitor(CNF, "motor2", *rate, now, motor2, &sWifiMutex);
+	    s_actuators[actuatorIndex++] = motor2;
+	} else {
+	    LimitStepperActuator *motor1 = new LimitStepperActuator(CNF, *rate, *motorSpeed, "motor1-target", now,
+								    VER_2_4_MOTOR1_POSLIMITSWITCH_PIN,
+								    VER_2_4_MOTOR1_NEGLIMITSWITCH_PIN,
+								    0x60, 2, true);
+	    s_sensors[sensorIndex++] = new LimitStepperMonitor(CNF, "motor1", *rate, now, motor1, &sWifiMutex);
+	    s_actuators[actuatorIndex++] = motor1;
+	    
+	    LimitStepperActuator *motor2 = new LimitStepperActuator(CNF, *rate, *motorSpeed, "motor2-target", now,
+								    VER_2_4_MOTOR2_POSLIMITSWITCH_PIN,
+								    VER_2_4_MOTOR2_NEGLIMITSWITCH_PIN,
+								    0x61, 2, true);
+	    s_sensors[sensorIndex++] = new LimitStepperMonitor(CNF, "motor2", *rate, now, motor2, &sWifiMutex);
+	    s_actuators[actuatorIndex++] = motor2;
+	}
 	
 	BeeCounter *beecnt = s_beecnt = new BeeCounter(CNF, "beecnt", *rate, now, 
 					      BEECNT_PLOAD_PIN, BEECNT_CLOCK_PIN, BEECNT_DATA_PIN,
