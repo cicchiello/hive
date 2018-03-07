@@ -107,64 +107,82 @@ public class PollSensorBackground extends AsyncTask<Void,Void,Boolean> {
     private static void couchGet(String dbUrl, String query, ProcessResult proc) {
     	String urlStub = dbUrl+"/"+query;
 
-		HttpURLConnection conn = null;
-		BufferedReader rd = null;
-		InputStreamReader isr = null;
-		InputStream is = null;
-		try {
-            URL url = new URL(urlStub);
-			conn = (HttpURLConnection) url.openConnection();
-			conn.setRequestMethod("GET");
-			
-			rd = new BufferedReader(isr = new InputStreamReader(is = conn.getInputStream()));
-            StringBuilder builder = new StringBuilder();
-            for (String line = null; (line = rd.readLine()) != null;)
-                builder.append(line).append("\n");
+    	int retries = 0;
+    	boolean retry = true;
+    	Exception latestException = null;
+    	while (retry && retries < 8) {
+    		retry = false;
+    		
+			HttpURLConnection conn = null;
+			BufferedReader rd = null;
+			InputStreamReader isr = null;
+			InputStream is = null;
+			try {
+	            URL url = new URL(urlStub);
+				conn = (HttpURLConnection) url.openConnection();
+				conn.setRequestMethod("GET");
+				
+				rd = new BufferedReader(isr = new InputStreamReader(is = conn.getInputStream()));
+	            StringBuilder builder = new StringBuilder();
+	            for (String line = null; (line = rd.readLine()) != null;)
+	                builder.append(line).append("\n");
+	
+	            //System.err.println("Response: "+builder);
+	
+	            JSONObject r = new JSONObject(new JSONTokener(builder.toString()));
+	            proc.onSuccess(r);
+	        } catch (ConnectException ce) {
+	        	proc.onError(ce.getLocalizedMessage());
+	        } catch (ClientProtocolException e) {
+	            proc.onError("error: "+"ClientProtocolException: "+e);
+	            System.err.println("ClientProtocolException: "+e);
+				ACRA.getErrorReporter().handleException(e);
+	        } catch (UnknownHostException e) {
+	        	proc.couchInaccessibleError("error: "+"UnknownHostException: "+e);
+	            System.err.println("UnknownHostException: "+e);
+	        } catch (FileNotFoundException e) {
+	        	//proc.couchInaccessibleError("error: "+"FileNotFoundException: "+e);
+	            System.err.println("FileNotFoundException: "+e);
+	            latestException = e;
+	            try {
+	            	Thread.sleep(500);
+	            	retry = true;
+	            	retries++;
+	            } catch (Exception ex) {}
+	        } catch (IOException e) {
+	        	proc.onError("error: "+"IOException: "+e);
+	            System.err.println("IOException: "+e);
+				ACRA.getErrorReporter().handleException(e);
+	        } catch (JSONException e) {
+	        	proc.onError("error: "+"JSONException: "+e);
+	            System.err.println("JSONException: " + e);
+				ACRA.getErrorReporter().handleException(e);
+	        } catch (Exception e) {
+	        	proc.onError("error: "+"Exception: "+e);
+	            System.err.println("Exception: " + e);
+				ACRA.getErrorReporter().handleException(e);
+	        } finally {
+	            try {
+	                if (conn != null) {
+	                	conn.disconnect();
+	                }
+	                if (rd != null) rd.close();
+	                if (is != null) is.close();
+	                if (isr != null) isr.close();
+	            } catch (IOException ioe) {
+	                // ignore
+	            }
+	            rd = null;
+	            isr = null;
+	            is = null;
+	            conn = null;
+	        }
+    	}
+    	if (retries >= 8) {
+            System.err.println("num retries exceeded: "+latestException);
+			ACRA.getErrorReporter().handleException(latestException);
 
-            //System.err.println("Response: "+builder);
-
-            JSONObject r = new JSONObject(new JSONTokener(builder.toString()));
-            proc.onSuccess(r);
-        } catch (ConnectException ce) {
-        	proc.onError(ce.getLocalizedMessage());
-        } catch (ClientProtocolException e) {
-            proc.onError("error: "+"ClientProtocolException: "+e);
-            System.err.println("ClientProtocolException: "+e);
-			ACRA.getErrorReporter().handleException(e);
-        } catch (UnknownHostException e) {
-        	proc.couchInaccessibleError("error: "+"UnknownHostException: "+e);
-            System.err.println("UnknownHostException: "+e);
-        } catch (FileNotFoundException e) {
-        	proc.couchInaccessibleError("error: "+"FileNotFoundException: "+e);
-            System.err.println("UnknownHostException: "+e);
-        } catch (IOException e) {
-        	proc.onError("error: "+"IOException: "+e);
-            System.err.println("IOException: "+e);
-			ACRA.getErrorReporter().handleException(e);
-        } catch (JSONException e) {
-        	proc.onError("error: "+"JSONException: "+e);
-            System.err.println("JSONException: " + e);
-			ACRA.getErrorReporter().handleException(e);
-        } catch (Exception e) {
-        	proc.onError("error: "+"Exception: "+e);
-            System.err.println("Exception: " + e);
-			ACRA.getErrorReporter().handleException(e);
-        } finally {
-            try {
-                if (conn != null) {
-                	conn.disconnect();
-                }
-                if (rd != null) rd.close();
-                if (is != null) is.close();
-                if (isr != null) isr.close();
-            } catch (IOException ioe) {
-                // ignore
-            }
-            rd = null;
-            isr = null;
-            is = null;
-            conn = null;
-        }
+    	}
     }
     
     @Override

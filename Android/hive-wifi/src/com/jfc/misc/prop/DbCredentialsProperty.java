@@ -6,6 +6,7 @@ import org.acra.ACRA;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
@@ -68,11 +69,13 @@ public class DbCredentialsProperty implements IPropertyMgr {
 	private static final String DEFAULT_LOG_DB_NAME = "hive-sensor-log";
 	private static final String DEFAULT_CONFIG_DB_NAME = "hive-config";
 	private static final String DEFAULT_CHANNEL_DB_NAME = "hive-channel";
-	private static final String DEFAULT_DB_HOST0 = "jfcenterprises.cloudant.com";
+	private static final String DEFAULT_DB_HOST0_LEGACY = "jfcenterprises.cloudant.com";
+	private static final String DEFAULT_DB_HOST0 = "05002446-d325-4075-a688-a1d7a75e2bb8-bluemix.cloudant.com";
 	private static final String DEFAULT_DB_KEY0 = "afteptsecumbehisomorther";
 	private static final String DEFAULT_DB_PSWD0 = "e4f286be1eef534f1cddd6240ed0133b968b1c9a";
 	private static final boolean DEFAULT_USES_SSL0 = true;
-	private static final String DEFAULT_DB_HOST1 = "hivewiz.cloudant.com";
+	private static final String DEFAULT_DB_HOST1_LEGACY = "hivewiz.cloudant.com";
+	private static final String DEFAULT_DB_HOST1 = "f15e7420-c293-43f6-bd2f-a38b0f34b840-bluemix.cloudant.com";
 	private static final String DEFAULT_DB_KEY1 = "gromespecorgingeoughtnev";
 	private static final String DEFAULT_DB_PSWD1 = "075b14312a355c8563a77bd05c91fe519873fdf4";
 	private static final boolean DEFAULT_USES_SSL1 = true;
@@ -91,9 +94,36 @@ public class DbCredentialsProperty implements IPropertyMgr {
 	// transient variables -- no need to save on pause
 	private AlertDialog mAlert;
 
+	// transitional code
+	static boolean migrationDone = false;
+	
+	private static void migrateLegacyDbHost(Context ctxt) {
+		if (!migrationDone) {
+			SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt);
+			boolean dbHostIsDefault0Legacy = 
+					SP.getString(DB_HOST_PROPERTY, DEFAULT_DB_HOST0_LEGACY).equals(DEFAULT_DB_HOST0_LEGACY);
+			boolean dbHostIsDefault1Legacy = 
+					SP.getString(DB_HOST_PROPERTY, DEFAULT_DB_HOST0_LEGACY).equals(DEFAULT_DB_HOST1_LEGACY);
+			
+			if (dbHostIsDefault0Legacy || dbHostIsDefault1Legacy) {
+				String migrationDbHost = dbHostIsDefault0Legacy ? DEFAULT_DB_HOST0 : DEFAULT_DB_HOST1;
+				boolean migrationUsesSsl = SP.getString(DB_HOST_USES_SSL_PROPERTY, DEFAULT_USES_SSL0?"true":"false").equals(DEFAULT_USES_SSL0?"true":"false");
+				String migrationConfigDbName = DEFAULT_CONFIG_DB_NAME;
+				String migrationLogDbName = DEFAULT_LOG_DB_NAME;
+				String migrationChanDbName = DEFAULT_CHANNEL_DB_NAME;
+				String migrationDbKey = SP.getString(DB_KEY_PROPERTY, DEFAULT_DB_KEY0);
+				String migrationDbPswd = SP.getString(DB_PSWD_PROPERTY, DEFAULT_DB_PSWD0);
+				migrationDone = true; // prevent re-entry
+				setAndPushDbCredentials(ctxt, 
+						migrationDbHost, migrationUsesSsl, migrationConfigDbName, migrationLogDbName, migrationChanDbName, migrationDbKey, migrationDbPswd, null);
+			}
+		}
+	}
 	
 	public static boolean isDbDefined(Context ctxt) {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt);
+		boolean dbHostIsDefaultLegacy = 
+				SP.getString(DB_HOST_PROPERTY, DEFAULT_DB_HOST0_LEGACY).equals(DEFAULT_DB_HOST0_LEGACY);
 		boolean dbHostIsDefault =
 				SP.getString(DB_HOST_PROPERTY, DEFAULT_DB_HOST0).equals(DEFAULT_DB_HOST0);
 		boolean dbHostUsesSSLIsDefault =
@@ -109,14 +139,29 @@ public class DbCredentialsProperty implements IPropertyMgr {
 		boolean channelDbNameIsDefault = 
 				SP.getString(CHANNEL_DB_NAME_PROPERTY, DEFAULT_CHANNEL_DB_NAME).equals(DEFAULT_CHANNEL_DB_NAME);
 		
-		boolean allDefaults = dbHostIsDefault && dbHostUsesSSLIsDefault && dbKeyIsDefault && dbPswdIsDefault && 
+		boolean allDefaults = (dbHostIsDefaultLegacy || dbHostIsDefault) && 
+				dbHostUsesSSLIsDefault && dbKeyIsDefault && dbPswdIsDefault && 
 				logDbNameIsDefault && configDbNameIsDefault && channelDbNameIsDefault;
+		
+		
+		if (dbHostIsDefaultLegacy || SP.getString(DB_HOST_PROPERTY, DEFAULT_DB_HOST1_LEGACY).equals(DEFAULT_DB_HOST1_LEGACY))
+			migrateLegacyDbHost(ctxt);
+		
 		return !allDefaults;
 	}
 
 	public static String getDbHost(Context ctxt) {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt);
-		return SP.getString(DB_HOST_PROPERTY, DEFAULT_DB_HOST0);
+		String provisionalDb = SP.getString(DB_HOST_PROPERTY, DEFAULT_DB_HOST0);
+		if (provisionalDb.equals(DEFAULT_DB_HOST0_LEGACY)) {
+			provisionalDb = DEFAULT_DB_HOST0;
+			migrateLegacyDbHost(ctxt);
+		}
+		if (provisionalDb.equals(DEFAULT_DB_HOST1_LEGACY)) {
+			provisionalDb = DEFAULT_DB_HOST1;
+			migrateLegacyDbHost(ctxt);
+		}
+		return provisionalDb;
 	}
 	
 	public static boolean getDbHostUsesSSL(Context ctxt) {
@@ -164,8 +209,8 @@ public class DbCredentialsProperty implements IPropertyMgr {
 		
 		if (isDbDefined(mCtxt)) {
 			displayDbCredentials(getDbHost(mCtxt), getDbHostUsesSSL(mCtxt), 
-								 getConfigDbName(mCtxt), getLogDbName(mCtxt), getChannelDbName(mCtxt),
-								 getDbKey(mCtxt), getDbPswd(mCtxt));
+								 	getConfigDbName(mCtxt), getLogDbName(mCtxt), getChannelDbName(mCtxt),
+								 	getDbKey(mCtxt), getDbPswd(mCtxt));
 		} else {
 			resetDb();
     	}
@@ -180,18 +225,21 @@ public class DbCredentialsProperty implements IPropertyMgr {
 				builder.setView(R.layout.db_credentials_dialog);
 				builder.setTitle(R.string.db_credentials_title);
 				builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-		        	@Override
+		        	@SuppressLint("DefaultLocale")
+					@Override
 		        	public void onClick(DialogInterface dialog, int which) {
 		        		String nDbHost = ((EditText)mAlert.findViewById(R.id.db_host_text)).getText().toString();
 
 		        		String nkey=null, npswd=null;
 		        		boolean usesSSL = false;
-		        		if (nDbHost.toLowerCase().equals(DEFAULT_DB_HOST0)) {
+		        		if (nDbHost.toLowerCase().equals(DEFAULT_DB_HOST0_LEGACY) ||
+		        			nDbHost.toLowerCase().equals(DEFAULT_DB_HOST0)) {
 		        			nDbHost = DEFAULT_DB_HOST0;
 		        			nkey = DEFAULT_DB_KEY0;
 		        			npswd = DEFAULT_DB_PSWD0;
 		        			usesSSL = DEFAULT_USES_SSL0;
-		        		} else if (nDbHost.toLowerCase().equals(DEFAULT_DB_HOST1)) {
+		        		} else if (nDbHost.toLowerCase().equals(DEFAULT_DB_HOST1_LEGACY) ||
+		        				   nDbHost.toLowerCase().equals(DEFAULT_DB_HOST1)) {
 		        			nDbHost = DEFAULT_DB_HOST1;
 		        			nkey = DEFAULT_DB_KEY1;
 		        			npswd = DEFAULT_DB_PSWD1;
@@ -203,7 +251,7 @@ public class DbCredentialsProperty implements IPropertyMgr {
 		        			usesSSL = DEFAULT_USES_SSL2;
 		        		}
 		        		
-		        		setDbCredentials(nDbHost, usesSSL, DEFAULT_CONFIG_DB_NAME, DEFAULT_LOG_DB_NAME, DEFAULT_CHANNEL_DB_NAME, nkey, npswd);
+		        		setAndPushDbCredentials(mCtxt, nDbHost, usesSSL, DEFAULT_CONFIG_DB_NAME, DEFAULT_LOG_DB_NAME, DEFAULT_CHANNEL_DB_NAME, nkey, npswd, null);
 
 		        		SplashyText.highlightModifiedField(mActivity, mdbHostTv);
 						mAlert.dismiss(); 
@@ -220,6 +268,8 @@ public class DbCredentialsProperty implements IPropertyMgr {
 		        dbHostTv.setText(getDbHost(mCtxt));
 			}
 		});
+    	
+		migrateLegacyDbHost(activity);
 	}
 
 	public AlertDialog getAlertDialog() {return mAlert;}
@@ -239,11 +289,11 @@ public class DbCredentialsProperty implements IPropertyMgr {
 		mdbHostTv.setText(dbHost);
 	}
 	
-	private void setDbCredentials(final String dbHost, final boolean usesSSL, 
-								  final String configDbName, final String logDbName, final String channelDbName,
-								  final String key, final String pswd) {
-		setDbCredentials(mCtxt, dbHost, usesSSL, configDbName, logDbName, channelDbName, key, pswd);
-		final String hiveId = PairedHiveProperty.getPairedHiveId(mActivity, ActiveHiveProperty.getActiveHiveIndex(mActivity));
+	private static void setAndPushDbCredentials(final Context ctxt, final String dbHost, final boolean usesSSL, 
+										  final String configDbName, final String logDbName, final String channelDbName,
+										  final String key, final String pswd, final Runnable onSuccess) {
+		
+		final String hiveId = PairedHiveProperty.getPairedHiveId(ctxt, ActiveHiveProperty.getActiveHiveIndex(ctxt));
 		
 		CouchGetBackground.OnCompletion onCompletion =new CouchGetBackground.OnCompletion() {
 			@Override
@@ -253,12 +303,16 @@ public class DbCredentialsProperty implements IPropertyMgr {
 			
 			@Override
 			public void failed(final String query, final String msg) {
-				mActivity.runOnUiThread(new Runnable() {
-					public void run() {
-						Toast.makeText(mActivity, msg+"; sending a report to my developer", Toast.LENGTH_LONG).show();
-						ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
-					}
-				});
+				if (ctxt instanceof Activity) {
+					final Activity a = (Activity) ctxt;
+					a.runOnUiThread(new Runnable() {
+						public void run() {
+							Toast.makeText(a, msg+"; sending a report to my developer", Toast.LENGTH_LONG).show();
+							ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
+						}
+					});
+				}
+				ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
 			}
 
 			@Override
@@ -287,21 +341,36 @@ public class DbCredentialsProperty implements IPropertyMgr {
 					e.printStackTrace();
 				}
         		
-        		String dbUrl = DbCredentialsProperty.getCouchConfigDbUrl(mActivity)+"/"+hiveId;
-    			String authToken = DbCredentialsProperty.getAuthToken(mCtxt);
+        		String dbUrl = DbCredentialsProperty.getCouchConfigDbUrl(ctxt)+"/"+hiveId;
+    			String authToken = DbCredentialsProperty.getAuthToken(ctxt);
         		
         		CouchPutBackground.OnCompletion onCompletion = new CouchPutBackground.OnCompletion() {
 					@Override
 					public void complete(JSONObject results) {
-						mActivity.runOnUiThread(new Runnable() {public void run() {
-							Toast.makeText(mActivity, "Save Successful", Toast.LENGTH_LONG).show();
-						}});
+						if (ctxt instanceof Activity) {
+							final Activity a = (Activity) ctxt;
+							setDbCredentials(ctxt, dbHost, usesSSL, configDbName, logDbName, channelDbName, key, pswd);
+							a.runOnUiThread(new Runnable() {public void run() {
+								if (onSuccess != null)
+									onSuccess.run();
+								Toast.makeText(a, "Save Successful", Toast.LENGTH_LONG).show();
+							}});
+						} else {
+							@SuppressWarnings("unused")
+							String msg = "Save successful";
+						}
 					}
 					@Override
 					public void failed(String query, String msg) {
-						mActivity.runOnUiThread(new Runnable() {public void run() {
-							Toast.makeText(mActivity, "Save Failed", Toast.LENGTH_LONG).show();
-						}});
+						if (ctxt instanceof Activity) {
+							final Activity a = (Activity) ctxt;
+							a.runOnUiThread(new Runnable() {public void run() {
+								Toast.makeText(a, "Save Failed", Toast.LENGTH_LONG).show();
+							}});
+						} else {
+							@SuppressWarnings("unused")
+							String msg2 = "Save failed: "+msg;
+						}
 						ACRA.getErrorReporter().handleException(new Exception(query+" failed with msg: "+msg));
 					}};
         		CouchPutBackground putter = new CouchPutBackground(dbUrl, authToken, newDoc.toString(), onCompletion);
@@ -309,9 +378,7 @@ public class DbCredentialsProperty implements IPropertyMgr {
 			}
 		};
 		
-		HiveEnv.couchGetConfig(mActivity, hiveId, onCompletion);
-		
-		displayDbCredentials(dbHost, usesSSL, configDbName, logDbName, channelDbName, key, pswd);
+		HiveEnv.couchGetConfig(ctxt, hiveId, onCompletion);
 	}
 	
 	public static void setDbCredentials(Context ctxt, String dbHost, boolean usesSSL, 
@@ -319,11 +386,11 @@ public class DbCredentialsProperty implements IPropertyMgr {
 										String key, String pswd) {
 		SharedPreferences SP = PreferenceManager.getDefaultSharedPreferences(ctxt.getApplicationContext());
 		boolean somethingChanged = 
-				!SP.getString(DB_HOST_PROPERTY, DEFAULT_DB_HOST0).equals(key) ||
-				!SP.getString(DB_HOST_USES_SSL_PROPERTY, DEFAULT_USES_SSL0?"true":"false").equals(key) ||
+				!SP.getString(DB_HOST_PROPERTY, DEFAULT_DB_HOST0).equals(dbHost) ||
+				!SP.getString(DB_HOST_USES_SSL_PROPERTY, DEFAULT_USES_SSL0?"true":"false").equals(usesSSL) ||
 				!SP.getString(DB_KEY_PROPERTY, DEFAULT_DB_KEY0).equals(key) ||
 				!SP.getString(DB_PSWD_PROPERTY, DEFAULT_DB_PSWD0).equals(pswd) ||
-				!SP.getString(CONFIG_DB_NAME_PROPERTY, DEFAULT_CONFIG_DB_NAME).equals(logDbName) ||
+				!SP.getString(CONFIG_DB_NAME_PROPERTY, DEFAULT_CONFIG_DB_NAME).equals(configDbName) ||
 				!SP.getString(LOG_DB_NAME_PROPERTY, DEFAULT_LOG_DB_NAME).equals(logDbName) ||
 				!SP.getString(CHANNEL_DB_NAME_PROPERTY, DEFAULT_CHANNEL_DB_NAME).equals(channelDbName);
 		if (somethingChanged) {

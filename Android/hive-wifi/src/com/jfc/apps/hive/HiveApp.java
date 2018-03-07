@@ -7,7 +7,8 @@ import org.acra.annotation.*;
 
 
 @ReportsCrashes(
-	    formUri = "https://jfcenterprises.cloudant.com/acra-hive/_design/acra-storage/_update/report",
+	    //formUri = "https://jfcenterprises.cloudant.com/acra-hive/_design/acra-storage/_update/report",
+	    formUri = "https://f15e7420-c293-43f6-bd2f-a38b0f34b840-bluemix.cloudant.com/acra-hive/_design/acra-storage/_update/report",
 	    reportType = org.acra.sender.HttpSender.Type.JSON,
 	    httpMethod = org.acra.sender.HttpSender.Method.PUT,
 	    formUriBasicAuthLogin = "pludischerearionlyagodle",
